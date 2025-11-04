@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(npm install)",
+      "Bash(npx tsx:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 10)",
+      "Bash(curl:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run db:push:*)",
+      "Bash(del /f srcmodels*.ts)",
+      "Bash(del /f srclibmongodb.ts)",
+      "Bash(npm run build:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

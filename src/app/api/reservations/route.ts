@@ -1,0 +1,211 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { db } from '@/lib/db';
+import { reservations, rooms, users, associations } from '@/lib/db/schema';
+import { eq, and, gte, lt, inArray } from 'drizzle-orm';
+import { authOptions } from '@/lib/auth';
+import { sendEmail, emailTemplates } from '@/lib/email';
+import { formatDate, formatTimeSlot } from '@/lib/utils';
+
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions) as any;
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const searchParams = req.nextUrl.searchParams;
+    const userIdParam = searchParams.get('userId');
+    const roomIdParam = searchParams.get('roomId');
+    const statusParam = searchParams.get('status');
+    const dateParam = searchParams.get('date');
+
+    const conditions = [];
+
+    // Non-admin users can only see their own reservations
+    if (session.user?.role !== 'admin') {
+      conditions.push(eq(reservations.userId, session.user.id));
+    } else if (userIdParam) {
+      conditions.push(eq(reservations.userId, userIdParam));
+    }
+
+    if (roomIdParam) {
+      conditions.push(eq(reservations.roomId, roomIdParam));
+    }
+
+    if (statusParam) {
+      conditions.push(eq(reservations.status, statusParam as any));
+    }
+
+    if (dateParam) {
+      const startDate = new Date(dateParam);
+      const endDate = new Date(dateParam);
+      endDate.setDate(endDate.getDate() + 1);
+      conditions.push(gte(reservations.date, startDate));
+      conditions.push(lt(reservations.date, endDate));
+    }
+
+    const results = await db
+      .select({
+        id: reservations.id,
+        userId: reservations.userId,
+        roomId: reservations.roomId,
+        associationId: reservations.associationId,
+        date: reservations.date,
+        timeSlots: reservations.timeSlots,
+        reason: reservations.reason,
+        estimatedParticipants: reservations.estimatedParticipants,
+        requiredEquipment: reservations.requiredEquipment,
+        status: reservations.status,
+        adminComment: reservations.adminComment,
+        reviewedBy: reservations.reviewedBy,
+        reviewedAt: reservations.reviewedAt,
+        cancelledAt: reservations.cancelledAt,
+        cancelReason: reservations.cancelReason,
+        createdAt: reservations.createdAt,
+        updatedAt: reservations.updatedAt,
+        user: {
+          name: users.name,
+          email: users.email,
+        },
+        room: {
+          name: rooms.name,
+        },
+        association: {
+          name: associations.name,
+        },
+      })
+      .from(reservations)
+      .leftJoin(users, eq(reservations.userId, users.id))
+      .leftJoin(rooms, eq(reservations.roomId, rooms.id))
+      .leftJoin(associations, eq(reservations.associationId, associations.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(reservations.date, reservations.createdAt);
+
+    return NextResponse.json({ reservations: results }, { status: 200 });
+  } catch (error: any) {
+    console.error('Get reservations error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions) as any;
+
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const data = await req.json();
+
+    if (!data.roomId || !data.date || !data.timeSlots || !data.reason || !data.estimatedParticipants) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Get user and room info
+    const [user] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
+    const [room] = await db.select().from(rooms).where(eq(rooms.id, data.roomId)).limit(1);
+
+    if (!user || !room) {
+      return NextResponse.json(
+        { error: 'User or room not found' },
+        { status: 404 }
+      );
+    }
+
+    if (!user.associationId) {
+      return NextResponse.json(
+        { error: 'User must be associated with an association' },
+        { status: 400 }
+      );
+    }
+
+    // Check for conflicts
+    const reservationDate = new Date(data.date);
+    const startOfDay = new Date(reservationDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(reservationDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const conflicts = await db
+      .select()
+      .from(reservations)
+      .where(
+        and(
+          eq(reservations.roomId, data.roomId),
+          gte(reservations.date, startOfDay),
+          lt(reservations.date, endOfDay),
+          inArray(reservations.status, ['pending', 'approved'])
+        )
+      );
+
+    // Check if any time slots overlap
+    for (const conflict of conflicts) {
+      for (const existingSlot of conflict.timeSlots as any) {
+        for (const newSlot of data.timeSlots) {
+          const existingStart = parseInt(existingSlot.start.split(':')[0]);
+          const existingEnd = parseInt(existingSlot.end.split(':')[0]);
+          const newStart = parseInt(newSlot.start.split(':')[0]);
+          const newEnd = parseInt(newSlot.end.split(':')[0]);
+
+          if (
+            (newStart >= existingStart && newStart < existingEnd) ||
+            (newEnd > existingStart && newEnd <= existingEnd) ||
+            (newStart <= existingStart && newEnd >= existingEnd)
+          ) {
+            return NextResponse.json(
+              { error: 'Time slot conflict with existing reservation' },
+              { status: 409 }
+            );
+          }
+        }
+      }
+    }
+
+    // Create reservation
+    const [reservation] = await db
+      .insert(reservations)
+      .values({
+        userId: session.user.id,
+        roomId: data.roomId,
+        associationId: user.associationId,
+        date: new Date(data.date),
+        timeSlots: data.timeSlots,
+        reason: data.reason,
+        estimatedParticipants: data.estimatedParticipants,
+        requiredEquipment: data.requiredEquipment || [],
+        status: 'pending',
+      })
+      .returning();
+
+    // Send confirmation email
+    const timeSlotStr = data.timeSlots.map((slot: any) => formatTimeSlot(slot.start, slot.end)).join(', ');
+    await sendEmail({
+      to: user.email,
+      subject: 'Demande de réservation reçue',
+      html: emailTemplates.reservationSubmitted(user.name, room.name, formatDate(data.date)),
+    });
+
+    return NextResponse.json(
+      {
+        message: 'Reservation created successfully',
+        reservation,
+      },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error('Create reservation error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
