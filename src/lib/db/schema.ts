@@ -28,10 +28,23 @@ export const associations = sqliteTable('associations', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
+// Buildings table
+export const buildings = sqliteTable('buildings', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name').notNull().unique(),
+  description: text('description'),
+  address: text('address'),
+  image: text('image'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
 // Rooms table
 export const rooms = sqliteTable('rooms', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
-  name: text('name').notNull().unique(),
+  buildingId: text('building_id').notNull().references(() => buildings.id),
+  name: text('name').notNull(),
   description: text('description'),
   capacity: integer('capacity').notNull(),
   surface: real('surface'),
@@ -72,6 +85,9 @@ export type NewUser = typeof users.$inferInsert;
 
 export type Association = typeof associations.$inferSelect;
 export type NewAssociation = typeof associations.$inferInsert;
+
+export type Building = typeof buildings.$inferSelect;
+export type NewBuilding = typeof buildings.$inferInsert;
 
 export type Room = typeof rooms.$inferSelect;
 export type NewRoom = typeof rooms.$inferInsert;
