@@ -9,12 +9,14 @@ import { notFound } from 'next/navigation';
 export default async function BuildingRoomsPage({
   params,
 }: {
-  params: { buildingId: string };
+  params: Promise<{ buildingId: string }>;
 }) {
+  const { buildingId } = await params;
+
   const [building] = await db
     .select()
     .from(buildings)
-    .where(eq(buildings.id, params.buildingId));
+    .where(eq(buildings.id, buildingId));
 
   if (!building) {
     notFound();
@@ -23,7 +25,7 @@ export default async function BuildingRoomsPage({
   const buildingRooms = await db
     .select()
     .from(rooms)
-    .where(eq(rooms.buildingId, params.buildingId));
+    .where(eq(rooms.buildingId, buildingId));
 
   // Icônes pour les différents types de salles
   const roomIcons: Record<string, any> = {

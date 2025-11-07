@@ -9,12 +9,14 @@ import RoomCalendar from '@/components/RoomCalendar';
 export default async function RoomCalendarPage({
   params,
 }: {
-  params: { buildingId: string; roomId: string };
+  params: Promise<{ buildingId: string; roomId: string }>;
 }) {
+  const { buildingId, roomId } = await params;
+
   const [building] = await db
     .select()
     .from(buildings)
-    .where(eq(buildings.id, params.buildingId));
+    .where(eq(buildings.id, buildingId));
 
   if (!building) {
     notFound();
@@ -23,16 +25,16 @@ export default async function RoomCalendarPage({
   const [room] = await db
     .select()
     .from(rooms)
-    .where(eq(rooms.id, params.roomId));
+    .where(eq(rooms.id, roomId));
 
-  if (!room || room.buildingId !== params.buildingId) {
+  if (!room || room.buildingId !== buildingId) {
     notFound();
   }
 
   const roomReservations = await db
     .select()
     .from(reservations)
-    .where(eq(reservations.roomId, params.roomId));
+    .where(eq(reservations.roomId, roomId));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-slate-900">
