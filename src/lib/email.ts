@@ -19,7 +19,7 @@ interface EmailOptions {
 export async function sendEmail({ to, subject, html }: EmailOptions) {
   try {
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'noreply@reservation-chartrette.fr',
+      from: process.env.EMAIL_FROM || 'noreply@reservation-chartrettes.fr',
       to,
       subject,
       html,
@@ -45,7 +45,7 @@ export const emailTemplates = {
         <li><strong>Date :</strong> ${date}</li>
       </ul>
       <p>Votre demande est en cours d'examen. Vous recevrez une notification dès qu'un administrateur aura traité votre demande.</p>
-      <p>Cordialement,<br/>L'équipe de Réservation Chartrette</p>
+      <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
   `,
 
@@ -61,7 +61,7 @@ export const emailTemplates = {
       </ul>
       ${adminComment ? `<p><strong>Message de l'administrateur :</strong><br/>${adminComment}</p>` : ''}
       <p>N'oubliez pas de respecter le règlement de la salle et de laisser les lieux propres après utilisation.</p>
-      <p>Cordialement,<br/>L'équipe de Réservation Chartrette</p>
+      <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
   `,
 
@@ -76,7 +76,7 @@ export const emailTemplates = {
       </ul>
       <p><strong>Motif du refus :</strong><br/>${adminComment}</p>
       <p>Vous pouvez soumettre une nouvelle demande en tenant compte de ces informations.</p>
-      <p>Cordialement,<br/>L'équipe de Réservation Chartrette</p>
+      <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
   `,
 
@@ -91,7 +91,7 @@ export const emailTemplates = {
         <li><strong>Créneaux :</strong> ${timeSlots}</li>
       </ul>
       <p>Nous vous attendons ! N'oubliez pas de respecter le règlement de la salle.</p>
-      <p>Cordialement,<br/>L'équipe de Réservation Chartrette</p>
+      <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
   `,
 
@@ -101,7 +101,7 @@ export const emailTemplates = {
       <p>Bonjour ${userName},</p>
       <p>Nous avons bien reçu votre demande d'ajout de l'association "${associationName}".</p>
       <p>Un administrateur va examiner votre demande. Vous recevrez une notification dès que votre association sera validée.</p>
-      <p>Cordialement,<br/>L'équipe de Réservation Chartrette</p>
+      <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
   `,
 
@@ -111,7 +111,7 @@ export const emailTemplates = {
       <p>Bonjour ${userName},</p>
       <p>Bonne nouvelle ! L'association "${associationName}" a été approuvée.</p>
       <p>Vous pouvez maintenant effectuer des réservations de salles.</p>
-      <p>Cordialement,<br/>L'équipe de Réservation Chartrette</p>
+      <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
   `,
 
@@ -122,7 +122,7 @@ export const emailTemplates = {
       <p>Nous sommes désolés de vous informer que la demande d'ajout de l'association "${associationName}" a été refusée.</p>
       <p><strong>Motif :</strong><br/>${reason}</p>
       <p>Vous pouvez nous contacter pour plus d'informations.</p>
-      <p>Cordialement,<br/>L'équipe de Réservation Chartrette</p>
+      <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
   `,
 };

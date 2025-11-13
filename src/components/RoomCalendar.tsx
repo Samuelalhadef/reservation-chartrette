@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isToday, isSameDay, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import ReservationModal from './ReservationModal';
@@ -21,6 +21,9 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const [selectedSlots, setSelectedSlots] = useState<{ date: Date; startHour: number; endHour: number } | null>(null);
   const [selectionStart, setSelectionStart] = useState<{ date: Date; hour: number } | null>(null);
   const [reservations, setReservations] = useState<any[]>(initialReservations);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<any>(null);
+  const [isCanceling, setIsCanceling] = useState(false);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -47,6 +50,10 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   // Vérifier si un créneau est réservé
   const getSlotReservation = (day: Date, hour: number) => {
     for (const reservation of reservations) {
+      // Ignorer les réservations annulées pour tout le monde
+      if (reservation.status === 'cancelled') {
+        continue;
+      }
       const resDate = new Date(reservation.date);
       if (isSameDay(resDate, day)) {
         const timeSlots = reservation.timeSlots || [];
@@ -67,7 +74,9 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     // Vérifier si le créneau est déjà réservé
     const reservation = getSlotReservation(day, hour);
     if (reservation) {
-      return; // Ne rien faire si déjà réservé
+      // Si c'est une réservation de l'utilisateur, ouvrir la modale d'annulation
+      handleReservationClick(reservation);
+      return;
     }
     if (!selectionStart) {
       // Premier clic : définir le début de la sélection
@@ -116,6 +125,64 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     setIsModalOpen(false);
     setSelectedSlots(null);
     setSelectionStart(null);
+  };
+
+  // Vérifier si la réservation appartient à l'utilisateur actuel
+  const canCancelReservation = (reservation: any) => {
+    if (!session?.user) return false;
+    return reservation.userId === session.user.id || session.user.role === 'admin';
+  };
+
+  // Ouvrir la modale d'annulation
+  const handleReservationClick = (reservation: any) => {
+    if (canCancelReservation(reservation) && reservation.status !== 'cancelled' && reservation.status !== 'rejected') {
+      setReservationToCancel(reservation);
+      setCancelModalOpen(true);
+    }
+  };
+
+  // Annuler une réservation
+  const handleCancelReservation = async () => {
+    if (!reservationToCancel) return;
+
+    setIsCanceling(true);
+    try {
+      console.log('Annulation de la réservation:', reservationToCancel.id);
+
+      const response = await fetch(`/api/reservations/${reservationToCancel.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Réponse du serveur:', response.status);
+
+      if (!response.ok) {
+        let errorMessage = 'Erreur lors de l\'annulation';
+        try {
+          const data = await response.json();
+          errorMessage = data.error || errorMessage;
+          console.error('Erreur serveur:', data);
+        } catch (e) {
+          console.error('Impossible de parser la réponse d\'erreur');
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Rafraîchir les réservations
+      await refreshReservations();
+      setCancelModalOpen(false);
+      setReservationToCancel(null);
+
+      // Message de succès
+      alert('Réservation annulée avec succès!');
+    } catch (error: any) {
+      console.error('Erreur d\'annulation complète:', error);
+      alert(error.message || 'Erreur lors de l\'annulation de la réservation. Veuillez réessayer.');
+    } finally {
+      setIsCanceling(false);
+    }
   };
 
   return (
@@ -200,16 +267,28 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                   const selectionStartSlot = isSlotSelectionStart(day, hour);
                   const reservation = getSlotReservation(day, hour);
                   const isReserved = reservation !== null;
+                  const isOwnReservation = isReserved && canCancelReservation(reservation);
+                  const isApprovedReservation = isReserved && reservation.status === 'approved';
+                  const isRejectedReservation = isReserved && reservation.status === 'rejected' && isOwnReservation;
+                  const isPendingReservation = isReserved && reservation.status === 'pending';
 
                   return (
                     <button
                       key={`${day.toISOString()}-${hour}`}
                       onClick={() => handleSlotClick(day, hour)}
-                      disabled={isReserved}
+                      disabled={(isReserved && !isOwnReservation) || isRejectedReservation}
                       className={`
                         min-h-[70px] p-3 rounded-xl border-2 transition-all duration-200 relative group
-                        ${isReserved
-                          ? 'border-gray-400 dark:border-gray-600 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 cursor-not-allowed opacity-75'
+                        ${isRejectedReservation
+                          ? 'border-red-700 dark:border-red-600 bg-gradient-to-br from-red-200 to-rose-200 dark:from-red-900 dark:to-rose-900 cursor-not-allowed'
+                          : isReserved && isApprovedReservation && isOwnReservation
+                          ? 'border-green-700 dark:border-green-600 bg-gradient-to-br from-green-200 to-emerald-200 dark:from-green-800 dark:to-emerald-800 cursor-pointer hover:from-green-300 hover:to-emerald-300 dark:hover:from-green-700 dark:hover:to-emerald-700 hover:shadow-lg hover:scale-105'
+                          : isReserved && isApprovedReservation && !isOwnReservation
+                          ? 'border-green-700 dark:border-green-600 bg-gradient-to-br from-green-200 to-emerald-200 dark:from-green-800 dark:to-emerald-800 cursor-not-allowed'
+                          : isPendingReservation && isOwnReservation
+                          ? 'border-gray-500 dark:border-gray-600 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 cursor-pointer hover:from-gray-400 hover:to-gray-500 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:shadow-lg hover:scale-105'
+                          : isPendingReservation && !isOwnReservation
+                          ? 'border-gray-500 dark:border-gray-600 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 cursor-not-allowed'
                           : selected
                           ? 'border-green-500 dark:border-green-600 bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900 dark:to-emerald-900 shadow-lg scale-105'
                           : selectionStartSlot
@@ -220,11 +299,15 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                         }
                         ${!selected && !isReserved && 'hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg hover:scale-105'}
                       `}
-                      title={`${isReserved ? `Réservé par ${reservation.userId}` : selected ? 'Sélectionné' : selectionStartSlot ? 'Début de sélection' : 'Réserver'} le ${format(day, 'dd/MM/yyyy')} à ${hour}:00`}
+                      title={`${isReserved ? (isRejectedReservation ? 'Réservation refusée' : isApprovedReservation ? 'Réservation validée' : 'En attente') + ` par ${reservation.association?.name || reservation.user?.name || 'Association'}` : selected ? 'Sélectionné' : selectionStartSlot ? 'Début de sélection' : 'Réserver'} le ${format(day, 'dd/MM/yyyy')} à ${hour}:00`}
                     >
                       <div className={`text-xs font-medium transition-colors ${
-                        isReserved
-                          ? 'text-gray-700 dark:text-gray-300 font-semibold'
+                        isRejectedReservation
+                          ? 'text-red-900 dark:text-red-200 font-semibold'
+                          : isReserved && isApprovedReservation
+                          ? 'text-green-900 dark:text-green-200 font-semibold'
+                          : isPendingReservation
+                          ? 'text-gray-900 dark:text-gray-200 font-semibold'
                           : selected
                           ? 'text-green-700 dark:text-green-300 font-bold'
                           : selectionStartSlot
@@ -233,9 +316,38 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                       }`}>
                         {isReserved ? (
                           <div className="flex flex-col items-center justify-center">
-                            <span className="text-[10px] text-gray-600 dark:text-gray-400">En cours de</span>
-                            <span className="text-[10px] text-gray-600 dark:text-gray-400">réservation par</span>
-                            <span className="font-bold mt-1">{reservation.userId}</span>
+                            {isRejectedReservation ? (
+                              <>
+                                <XCircle className="w-5 h-5 mb-1 text-red-900 dark:text-red-200" />
+                                <span className="text-[10px] leading-tight text-center text-red-900 dark:text-red-200 font-semibold">Votre réservation</span>
+                                <span className="text-[10px] leading-tight text-center text-red-900 dark:text-red-200 font-semibold">est refusée</span>
+                                <span className="text-[10px] font-bold mt-1 text-center leading-tight text-red-950 dark:text-red-100">({reservation.association?.name || reservation.user?.name || 'Association'})</span>
+                              </>
+                            ) : isApprovedReservation ? (
+                              <>
+                                <CheckCircle className="w-5 h-5 mb-1 text-green-900 dark:text-green-100" />
+                                <span className="text-[10px] leading-tight text-center text-green-900 dark:text-green-100 font-semibold">Réservation validée</span>
+                                <span className="text-[10px] font-bold mt-1 text-center leading-tight text-green-950 dark:text-green-50">({reservation.association?.name || reservation.user?.name || 'Association'})</span>
+                                {isOwnReservation && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <X className="w-3 h-3 text-green-900 dark:text-green-100" />
+                                    <span className="text-[9px] text-green-900 dark:text-green-100">Cliquez pour annuler</span>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-[10px] text-gray-900 dark:text-gray-200">En cours de</span>
+                                <span className="text-[10px] text-gray-900 dark:text-gray-200">réservation par</span>
+                                <span className="font-bold mt-1 text-center leading-tight text-gray-950 dark:text-gray-100">{reservation.association?.name || reservation.user?.name || 'Association'}</span>
+                                {isOwnReservation && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <X className="w-3 h-3 text-gray-900 dark:text-gray-200" />
+                                    <span className="text-[9px] text-gray-900 dark:text-gray-200">Cliquez pour annuler</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         ) : selected ? '✓ Sélectionné' : selectionStartSlot ? '⏱ Début' : '✓ Disponible'}
                       </div>
@@ -290,22 +402,22 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
               💡 Cliquez sur l'heure de début puis sur l'heure de fin pour sélectionner plusieurs créneaux
             </p>
-            <div className="flex gap-4 text-xs">
+            <div className="flex gap-4 text-xs flex-wrap">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gradient-to-br from-green-100 to-green-200 border border-green-300"></div>
+                <div className="w-4 h-4 rounded bg-white border border-gray-200"></div>
                 <span className="text-gray-600 dark:text-gray-400">Disponible</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gradient-to-br from-gray-200 to-gray-300 border border-gray-400"></div>
-                <span className="text-gray-600 dark:text-gray-400">Réservé</span>
+                <div className="w-4 h-4 rounded bg-gradient-to-br from-green-200 to-emerald-200 border border-green-700"></div>
+                <span className="text-gray-600 dark:text-gray-400">Réservation validée</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gradient-to-br from-orange-100 to-yellow-100 border border-orange-500"></div>
-                <span className="text-gray-600 dark:text-gray-400">Début sélection</span>
+                <div className="w-4 h-4 rounded bg-gradient-to-br from-gray-300 to-gray-400 border border-gray-500"></div>
+                <span className="text-gray-600 dark:text-gray-400">En attente</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gradient-to-br from-green-500 to-emerald-600"></div>
-                <span className="text-gray-600 dark:text-gray-400">Sélectionné</span>
+                <div className="w-4 h-4 rounded bg-gradient-to-br from-red-200 to-rose-200 border border-red-700"></div>
+                <span className="text-gray-600 dark:text-gray-400">Réservation refusée</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-500 to-indigo-600"></div>
@@ -330,6 +442,94 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
           userName={session?.user?.name || ''}
           onSuccess={refreshReservations}
         />
+      )}
+
+      {/* Modale de confirmation d'annulation */}
+      {cancelModalOpen && reservationToCancel && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setCancelModalOpen(false);
+              setReservationToCancel(null);
+            }
+          }}
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full">
+            {/* En-tête */}
+            <div className="bg-gradient-to-r from-red-600 to-rose-600 p-6 relative">
+              <button
+                onClick={() => {
+                  setCancelModalOpen(false);
+                  setReservationToCancel(null);
+                }}
+                className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                Annuler la réservation
+              </h2>
+              <p className="text-red-100">
+                Êtes-vous sûr ?
+              </p>
+            </div>
+
+            {/* Contenu */}
+            <div className="p-6">
+              <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 rounded-xl">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                  Vous êtes sur le point d'annuler la réservation suivante :
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Date :</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {format(new Date(reservationToCancel.date), 'EEEE d MMMM yyyy', { locale: fr })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Créneaux :</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {reservationToCancel.timeSlots?.map((slot: any) => `${slot.start}-${slot.end}`).join(', ')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Raison :</span>
+                    <span className="font-semibold text-gray-900 dark:text-white text-right">
+                      {reservationToCancel.reason}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Cette action ne peut pas être annulée.
+              </p>
+
+              {/* Boutons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setCancelModalOpen(false);
+                    setReservationToCancel(null);
+                  }}
+                  disabled={isCanceling}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Non, garder
+                </button>
+                <button
+                  onClick={handleCancelReservation}
+                  disabled={isCanceling}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-xl hover:from-red-700 hover:to-rose-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCanceling ? 'Annulation...' : 'Oui, annuler'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

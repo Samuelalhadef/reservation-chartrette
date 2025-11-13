@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import Navbar from '@/components/Navbar';
 import SessionProvider from '@/components/SessionProvider';
+import AdminMenu from '@/components/AdminMenu';
 
 export default async function AdminLayout({
   children,
@@ -23,6 +24,7 @@ export default async function AdminLayout({
     <SessionProvider>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navbar />
+        <AdminMenu />
         <main className="py-6">{children}</main>
       </div>
     </SessionProvider>

@@ -8,7 +8,7 @@
 
 ```env
 # MongoDB Local (plus simple pour tester)
-MONGODB_URI=mongodb://localhost:27017/reservation-chartrette
+MONGODB_URI=mongodb://localhost:27017/reservation-chartrettes
 
 # NextAuth - Générez un secret rapidement
 NEXTAUTH_URL=http://localhost:3000
@@ -66,7 +66,7 @@ Téléchargez : https://www.mongodb.com/try/download/compass
 #### c) Créez la base de données
 
 1. Cliquez sur "Create Database"
-2. Nom : `reservation-chartrette`
+2. Nom : `reservation-chartrettes`
 3. Collection : `associations`
 
 #### d) Ajoutez une association (Copier-Coller dans MongoDB Shell)
@@ -74,7 +74,7 @@ Téléchargez : https://www.mongodb.com/try/download/compass
 Dans MongoDB Compass, ouvrez le Shell (en bas de l'écran) et collez :
 
 ```javascript
-use reservation-chartrette
+use reservation-chartrettes
 
 db.associations.insertOne({
   name: "Association Test",
@@ -193,7 +193,7 @@ Déconnectez-vous et reconnectez-vous pour que le rôle admin soit actif.
 ### Réinitialiser la base de données
 
 ```javascript
-use reservation-chartrette
+use reservation-chartrettes
 db.reservations.deleteMany({})
 db.users.deleteMany({})
 // Les associations et salles resteront

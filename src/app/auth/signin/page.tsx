@@ -57,7 +57,7 @@ function SignInForm() {
             Connexion
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Accédez à votre compte Réservation Chartrette
+            Accédez à votre compte Réservation Chartrettes
           </p>
         </div>
 

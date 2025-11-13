@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Users as UsersIcon, FileText, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import ConventionModal from './ConventionModal';
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -34,12 +35,84 @@ export default function ReservationModal({
   const [reason, setReason] = useState('');
   const [responsibleName, setResponsibleName] = useState(userName);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConvention, setShowConvention] = useState(false);
+  const [isCheckingConvention, setIsCheckingConvention] = useState(false);
+  const [associationData, setAssociationData] = useState<any>(null);
 
   useEffect(() => {
     setResponsibleName(userName);
   }, [userName]);
 
+  useEffect(() => {
+    if (isOpen) {
+      checkConventionStatus();
+    }
+  }, [isOpen]);
+
+  const checkConventionStatus = async () => {
+    setIsCheckingConvention(true);
+    try {
+      const response = await fetch('/api/associations/check-convention');
+      if (response.ok) {
+        const data = await response.json();
+        setAssociationData(data.association);
+
+        // Si la convention n'a pas été signée, afficher le modal de convention
+        if (!data.hasSigned) {
+          setShowConvention(true);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification de la convention:', error);
+    } finally {
+      setIsCheckingConvention(false);
+    }
+  };
+
+  const handleConventionSigned = () => {
+    setShowConvention(false);
+    // Rafraîchir le statut après signature
+    checkConventionStatus();
+  };
+
+  const handleConventionClose = () => {
+    setShowConvention(false);
+    onClose(); // Fermer aussi le modal de réservation
+  };
+
   if (!isOpen) return null;
+
+  // Afficher le modal de convention si nécessaire
+  if (showConvention && associationData) {
+    return (
+      <ConventionModal
+        isOpen={showConvention}
+        onClose={handleConventionClose}
+        onSigned={handleConventionSigned}
+        associationData={{
+          name: associationData.name,
+          contactName: associationData.contactName || '',
+          contactEmail: associationData.contactEmail || '',
+          contactPhone: associationData.contactPhone || '',
+          address: associationData.description || '',
+        }}
+      />
+    );
+  }
+
+  // Afficher un loader pendant la vérification
+  if (isCheckingConvention) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="text-gray-700 dark:text-gray-300">Vérification en cours...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

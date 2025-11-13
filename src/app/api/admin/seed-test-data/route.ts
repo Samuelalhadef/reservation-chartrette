@@ -68,23 +68,23 @@ export async function POST(req: NextRequest) {
     let adminUser = await db
       .select()
       .from(users)
-      .where(eq(users.email, 'admin@test.fr'))
+      .where(eq(users.email, 'admin@123'))
       .limit(1);
 
     if (!adminUser.length) {
-      const hashedPassword = await bcrypt.hash('admin123', 12);
+      const hashedPassword = await bcrypt.hash('admin', 12);
       const [newAdmin] = await db
         .insert(users)
         .values({
-          name: 'Admin Test',
-          email: 'admin@test.fr',
+          name: 'Administrateur',
+          email: 'admin@123',
           password: hashedPassword,
           role: 'admin',
           emailVerified: new Date(),
         })
         .returning();
       adminUser = [newAdmin];
-      console.log('✓ Admin test créé');
+      console.log('✓ Admin créé (admin@123 / admin)');
     }
 
     return NextResponse.json(
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
             },
             {
               email: adminUser[0].email,
-              password: 'admin123',
+              password: 'admin',
               role: adminUser[0].role,
             }
           ]

@@ -2,7 +2,7 @@
 
 ## Résumé du Projet
 
-Application complète de gestion et réservation de salles pour les associations de Chartrette, développée avec Next.js 15, TypeScript, Tailwind CSS et MongoDB.
+Application complète de gestion et réservation de salles pour les associations de Chartrettes, développée avec Next.js 15, TypeScript, Tailwind CSS et MongoDB.
 
 ## ✅ Fonctionnalités Complétées
 

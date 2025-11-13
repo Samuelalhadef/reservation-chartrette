@@ -32,9 +32,17 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`/api/admin/stats?period=${period}`);
       const data = await res.json();
-      setStats(data);
+
+      // Check if the response has an error
+      if (data.error) {
+        console.error('API Error:', data.error);
+        setStats(null);
+      } else {
+        setStats(data);
+      }
     } catch (error) {
       console.error('Error fetching stats:', error);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -62,7 +70,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Pending Alerts */}
-      {(stats.summary.pendingReservations > 0 || stats.summary.pendingAssociations > 0) && (
+      {(stats.summary?.pendingReservations > 0 || stats.summary?.pendingAssociations > 0) && (
         <div className="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
           <div className="flex items-start">
             <Clock className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3" />
@@ -71,18 +79,18 @@ export default function AdminDashboard() {
                 Actions en attente
               </h3>
               <div className="mt-2 space-y-1 text-sm text-yellow-700 dark:text-yellow-400">
-                {stats.summary.pendingReservations > 0 && (
+                {(stats.summary?.pendingReservations || 0) > 0 && (
                   <p>
                     <Link href="/admin/reservations" className="font-semibold hover:underline">
-                      {stats.summary.pendingReservations} demande(s) de réservation
+                      {stats.summary?.pendingReservations} demande(s) de réservation
                     </Link>{' '}
                     en attente de validation
                   </p>
                 )}
-                {stats.summary.pendingAssociations > 0 && (
+                {(stats.summary?.pendingAssociations || 0) > 0 && (
                   <p>
                     <Link href="/admin/associations" className="font-semibold hover:underline">
-                      {stats.summary.pendingAssociations} demande(s) d'association
+                      {stats.summary?.pendingAssociations} demande(s) d'association
                     </Link>{' '}
                     en attente de validation
                   </p>
@@ -101,7 +109,7 @@ export default function AdminDashboard() {
             <Calendar className="h-8 w-8 text-blue-600 dark:text-blue-400 opacity-50" />
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {stats.summary.totalReservations}
+            {stats.summary?.totalReservations || 0}
           </p>
           <Link
             href="/admin/reservations"
@@ -117,7 +125,7 @@ export default function AdminDashboard() {
             <Building2 className="h-8 w-8 text-green-600 dark:text-green-400 opacity-50" />
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {stats.summary.totalRooms}
+            {stats.summary?.totalRooms || 0}
           </p>
           <Link
             href="/admin/rooms"
@@ -133,7 +141,7 @@ export default function AdminDashboard() {
             <Users className="h-8 w-8 text-purple-600 dark:text-purple-400 opacity-50" />
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {stats.summary.totalAssociations}
+            {stats.summary?.totalAssociations || 0}
           </p>
           <Link
             href="/admin/associations"
@@ -149,7 +157,7 @@ export default function AdminDashboard() {
             <CheckCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-400 opacity-50" />
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {stats.summary.acceptanceRate}%
+            {stats.summary?.acceptanceRate || 0}%
           </p>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
             Demandes approuvées

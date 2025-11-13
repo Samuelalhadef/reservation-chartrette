@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { db } from '@/lib/db';
-import { buildings, rooms } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
-import { Users, BookOpen, DoorClosed } from 'lucide-react';
+import { buildings, rooms, reservations } from '@/lib/db/schema';
+import { eq, and, gte } from 'drizzle-orm';
+import { Users, BookOpen, DoorClosed, CheckCircle } from 'lucide-react';
 import { notFound } from 'next/navigation';
 
 export default async function BuildingRoomsPage({
@@ -26,6 +26,25 @@ export default async function BuildingRoomsPage({
     .select()
     .from(rooms)
     .where(eq(rooms.buildingId, buildingId));
+
+  // Récupérer les réservations approuvées pour aujourd'hui ou dans le futur
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const approvedReservations = await db
+    .select()
+    .from(reservations)
+    .where(
+      and(
+        eq(reservations.status, 'approved'),
+        gte(reservations.date, today)
+      )
+    );
+
+  // Créer un Set des IDs de salles avec réservations validées
+  const roomsWithApprovedReservations = new Set(
+    approvedReservations.map(r => r.roomId)
+  );
 
   // Icônes pour les différents types de salles
   const roomIcons: Record<string, any> = {
@@ -74,15 +93,35 @@ export default async function BuildingRoomsPage({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {buildingRooms.map((room) => {
             const Icon = getRoomIcon(room.name);
+            const hasApprovedReservation = roomsWithApprovedReservations.has(room.id);
+
             return (
               <Link
                 key={room.id}
                 href={`/buildings/${building.id}/rooms/${room.id}/calendar`}
                 className="group"
               >
-                <div className="bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 p-8 text-center h-full flex flex-col items-center justify-center min-h-[200px]">
-                  <div className="mb-4 p-4 bg-gray-100 rounded-full group-hover:bg-blue-50 transition-colors">
-                    <Icon className="w-12 h-12 text-gray-600 group-hover:text-blue-600 transition-colors" />
+                <div className={`bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 p-8 text-center h-full flex flex-col items-center justify-center min-h-[200px] relative overflow-hidden ${
+                  hasApprovedReservation ? 'border-2 border-green-400' : ''
+                }`}>
+                  {/* Badge "Réservation validée" */}
+                  {hasApprovedReservation && (
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-2 px-4 flex items-center justify-center gap-2 shadow-lg">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Réservation validée</span>
+                    </div>
+                  )}
+
+                  <div className={`mb-4 p-4 rounded-full transition-colors ${
+                    hasApprovedReservation
+                      ? 'bg-green-100 group-hover:bg-green-200'
+                      : 'bg-gray-100 group-hover:bg-blue-50'
+                  }`}>
+                    <Icon className={`w-12 h-12 transition-colors ${
+                      hasApprovedReservation
+                        ? 'text-green-600 group-hover:text-green-700'
+                        : 'text-gray-600 group-hover:text-blue-600'
+                    }`} />
                   </div>
                   <h3 className="text-xl font-bold text-gray-800 uppercase tracking-wide">
                     {room.name}

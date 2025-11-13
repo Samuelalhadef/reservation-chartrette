@@ -132,7 +132,7 @@ export default function SignUpPage() {
             Inscription
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Créez votre compte Réservation Chartrette
+            Créez votre compte Réservation Chartrettes
           </p>
         </div>
 

@@ -23,7 +23,7 @@ export default function Navbar() {
             <Link href="/dashboard" className="flex items-center">
               <Calendar className="h-8 w-8 text-blue-600 dark:text-blue-400" />
               <span className="ml-2 text-xl font-bold text-gray-900 dark:text-white">
-                Réservation Chartrette
+                Réservation Chartrettes
               </span>
             </Link>
 
@@ -71,12 +71,17 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <User className="h-5 w-5 text-gray-600 dark:text-gray-400 mr-2" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {session.user.name}
-              </span>
-            </div>
+            <Link
+              href="/profile"
+              className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                isActive('/profile')
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+              }`}
+            >
+              <User className="h-4 w-4 mr-2" />
+              {session.user.name}
+            </Link>
 
             <button
               onClick={() => signOut({ callbackUrl: '/' })}

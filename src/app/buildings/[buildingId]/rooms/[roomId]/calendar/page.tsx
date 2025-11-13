@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { db } from '@/lib/db';
-import { buildings, rooms, reservations } from '@/lib/db/schema';
+import { buildings, rooms, reservations, users, associations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { ArrowLeft, DoorOpen, Users, Ruler } from 'lucide-react';
 import { notFound } from 'next/navigation';
@@ -32,8 +32,35 @@ export default async function RoomCalendarPage({
   }
 
   const roomReservations = await db
-    .select()
+    .select({
+      id: reservations.id,
+      userId: reservations.userId,
+      roomId: reservations.roomId,
+      associationId: reservations.associationId,
+      date: reservations.date,
+      timeSlots: reservations.timeSlots,
+      reason: reservations.reason,
+      estimatedParticipants: reservations.estimatedParticipants,
+      requiredEquipment: reservations.requiredEquipment,
+      status: reservations.status,
+      adminComment: reservations.adminComment,
+      reviewedBy: reservations.reviewedBy,
+      reviewedAt: reservations.reviewedAt,
+      cancelledAt: reservations.cancelledAt,
+      cancelReason: reservations.cancelReason,
+      createdAt: reservations.createdAt,
+      updatedAt: reservations.updatedAt,
+      user: {
+        name: users.name,
+        email: users.email,
+      },
+      association: {
+        name: associations.name,
+      },
+    })
     .from(reservations)
+    .leftJoin(users, eq(reservations.userId, users.id))
+    .leftJoin(associations, eq(reservations.associationId, associations.id))
     .where(eq(reservations.roomId, roomId));
 
   return (

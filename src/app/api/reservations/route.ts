@@ -36,6 +36,9 @@ export async function GET(req: NextRequest) {
 
     if (statusParam) {
       conditions.push(eq(reservations.status, statusParam as any));
+    } else {
+      // Par défaut, exclure les réservations annulées
+      conditions.push(inArray(reservations.status, ['pending', 'approved', 'rejected']));
     }
 
     if (dateParam) {
@@ -65,16 +68,10 @@ export async function GET(req: NextRequest) {
         cancelReason: reservations.cancelReason,
         createdAt: reservations.createdAt,
         updatedAt: reservations.updatedAt,
-        user: {
-          name: users.name,
-          email: users.email,
-        },
-        room: {
-          name: rooms.name,
-        },
-        association: {
-          name: associations.name,
-        },
+        userName: users.name,
+        userEmail: users.email,
+        roomName: rooms.name,
+        associationName: associations.name,
       })
       .from(reservations)
       .leftJoin(users, eq(reservations.userId, users.id))
@@ -83,7 +80,38 @@ export async function GET(req: NextRequest) {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(reservations.date, reservations.createdAt);
 
-    return NextResponse.json({ reservations: results }, { status: 200 });
+    // Transform the results to match frontend expectations
+    const transformedResults = results.map(result => ({
+      id: result.id,
+      userId: {
+        id: result.userId,
+        name: result.userName || '',
+        email: result.userEmail || '',
+      },
+      roomId: {
+        id: result.roomId,
+        name: result.roomName || '',
+      },
+      associationId: {
+        id: result.associationId,
+        name: result.associationName || '',
+      },
+      date: result.date,
+      timeSlots: result.timeSlots,
+      reason: result.reason,
+      estimatedParticipants: result.estimatedParticipants,
+      requiredEquipment: result.requiredEquipment,
+      status: result.status,
+      adminComment: result.adminComment,
+      reviewedBy: result.reviewedBy,
+      reviewedAt: result.reviewedAt,
+      cancelledAt: result.cancelledAt,
+      cancelReason: result.cancelReason,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    }));
+
+    return NextResponse.json({ reservations: transformedResults }, { status: 200 });
   } catch (error: any) {
     console.error('Get reservations error:', error);
     return NextResponse.json(

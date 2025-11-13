@@ -13,7 +13,7 @@ const buildingsData = [
   {
     name: 'ESPACE CULTUREL RENÉE WANNER',
     description: 'Espace dédié aux activités culturelles et artistiques',
-    address: 'Chartrette',
+    address: 'Chartrettes',
   },
   {
     name: 'MAIRIE',

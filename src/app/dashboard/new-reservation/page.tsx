@@ -8,7 +8,7 @@ import { Calendar, Clock, Users, FileText } from 'lucide-react';
 import { generateTimeSlots } from '@/lib/utils';
 
 interface Room {
-  _id: string;
+  id: string;
   name: string;
   description: string;
   capacity: number;
@@ -74,7 +74,7 @@ export default function NewReservationPage() {
     }
   };
 
-  const selectedRoom = rooms.find((r) => r._id === formData.roomId);
+  const selectedRoom = rooms.find((r) => r.id === formData.roomId);
   const availableTimeSlots = generateTimeSlots('08:00', '22:00');
 
   const isSlotReserved = (slot: string): boolean => {
@@ -210,7 +210,7 @@ export default function NewReservationPage() {
           >
             <option value="">-- Choisir une salle --</option>
             {rooms.map((room) => (
-              <option key={room._id} value={room._id}>
+              <option key={room.id} value={room.id}>
                 {room.name} (Capacité: {room.capacity} personnes)
               </option>
             ))}

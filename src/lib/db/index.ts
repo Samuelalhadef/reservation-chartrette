@@ -12,18 +12,10 @@ if (typeof window === 'undefined' && !process.env.TURSO_DATABASE_URL) {
   }
 }
 
-function getEnvVar(key: string): string {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(`${key} environment variable is not set. Please check your .env file.`);
-  }
-  return value;
-}
-
-// Create the libSQL client - env vars will be checked at runtime
+// Create the libSQL client with fallback to local SQLite
 export const client: Client = createClient({
-  url: getEnvVar('TURSO_DATABASE_URL'),
-  authToken: getEnvVar('TURSO_AUTH_TOKEN'),
+  url: process.env.TURSO_DATABASE_URL || 'file:local.db',
+  authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
 // Create the Drizzle instance

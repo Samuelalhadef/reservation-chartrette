@@ -1,4 +1,4 @@
-# Guide de Démarrage - Réservation Chartrette
+# Guide de Démarrage - Réservation Chartrettes
 
 ## Ce qui a été créé
 
@@ -47,12 +47,12 @@ Vous avez deux options :
 5. Network Access : Ajoutez `0.0.0.0/0` (pour autoriser toutes les IP en développement)
 6. Récupérez votre connection string :
    ```
-   mongodb+srv://reservation_admin:<password>@cluster0.xxxxx.mongodb.net/reservation-chartrette?retryWrites=true&w=majority
+   mongodb+srv://reservation_admin:<password>@cluster0.xxxxx.mongodb.net/reservation-chartrettes?retryWrites=true&w=majority
    ```
 
 7. Mettez à jour `.env.local` :
    ```env
-   MONGODB_URI=mongodb+srv://reservation_admin:VOTRE_MOT_DE_PASSE@cluster0.xxxxx.mongodb.net/reservation-chartrette?retryWrites=true&w=majority
+   MONGODB_URI=mongodb+srv://reservation_admin:VOTRE_MOT_DE_PASSE@cluster0.xxxxx.mongodb.net/reservation-chartrettes?retryWrites=true&w=majority
    ```
 
 #### Option B : MongoDB Local
@@ -61,7 +61,7 @@ Vous avez deux options :
 2. Installez et démarrez MongoDB
 3. Dans `.env.local`, utilisez :
    ```env
-   MONGODB_URI=mongodb://localhost:27017/reservation-chartrette
+   MONGODB_URI=mongodb://localhost:27017/reservation-chartrettes
    ```
 
 ### 2. Configuration NextAuth
@@ -93,7 +93,7 @@ NEXTAUTH_URL=http://localhost:3000
 2. **Créez un mot de passe d'application** :
    - Allez sur https://myaccount.google.com/apppasswords
    - Sélectionnez "Autre (nom personnalisé)"
-   - Entrez "Reservation Chartrette"
+   - Entrez "Reservation Chartrettes"
    - Copiez le mot de passe de 16 caractères généré
 
 3. **Mettez à jour `.env.local`** :
@@ -102,13 +102,13 @@ EMAIL_SERVER_HOST=smtp.gmail.com
 EMAIL_SERVER_PORT=587
 EMAIL_SERVER_USER=votre-email@gmail.com
 EMAIL_SERVER_PASSWORD=le-mot-de-passe-d-application-16-caracteres
-EMAIL_FROM=noreply@reservation-chartrette.fr
+EMAIL_FROM=noreply@reservation-chartrettes.fr
 ```
 
 ### 4. Configuration Google OAuth (Optionnel)
 
 1. Allez sur https://console.cloud.google.com/
-2. Créez un nouveau projet "Reservation Chartrette"
+2. Créez un nouveau projet "Reservation Chartrettes"
 3. Activez l'API "Google+ API"
 4. Créez des identifiants OAuth 2.0 :
    - Type : Application Web
@@ -135,7 +135,7 @@ Assurez-vous que toutes les variables sont remplies :
 
 ```env
 # MongoDB
-MONGODB_URI=mongodb+srv://... ou mongodb://localhost:27017/reservation-chartrette
+MONGODB_URI=mongodb+srv://... ou mongodb://localhost:27017/reservation-chartrettes
 
 # NextAuth
 NEXTAUTH_URL=http://localhost:3000
@@ -150,7 +150,7 @@ EMAIL_SERVER_HOST=smtp.gmail.com
 EMAIL_SERVER_PORT=587
 EMAIL_SERVER_USER=votre-email@gmail.com
 EMAIL_SERVER_PASSWORD=votre-mot-de-passe-application
-EMAIL_FROM=noreply@reservation-chartrette.fr
+EMAIL_FROM=noreply@reservation-chartrettes.fr
 ```
 
 ### 3. Lancez le serveur de développement
@@ -174,7 +174,7 @@ Pour créer le premier compte administrateur, vous devez :
 // et exécutez :
 
 db.associations.insertOne({
-  name: "Administration Chartrette",
+  name: "Administration Chartrettes",
   description: "Association administrative",
   status: "active",
   createdAt: new Date(),
@@ -183,7 +183,7 @@ db.associations.insertOne({
 ```
 
 2. Inscrivez-vous normalement via l'interface : http://localhost:3000/auth/signup
-3. Sélectionnez l'association "Administration Chartrette"
+3. Sélectionnez l'association "Administration Chartrettes"
 4. Une fois inscrit, changez manuellement le rôle dans MongoDB :
 
 ```javascript

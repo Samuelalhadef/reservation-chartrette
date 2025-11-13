@@ -24,6 +24,8 @@ export const associations = sqliteTable('associations', {
   contactName: text('contact_name'),
   contactEmail: text('contact_email'),
   contactPhone: text('contact_phone'),
+  conventionSignedAt: integer('convention_signed_at', { mode: 'timestamp' }),
+  conventionSignature: text('convention_signature'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });

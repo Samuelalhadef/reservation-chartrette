@@ -1,6 +1,6 @@
-# Réservation Chartrette
+# Réservation Chartrettes
 
-Application de gestion et réservation de salles pour les associations de Chartrette.
+Application de gestion et réservation de salles pour les associations de Chartrettes.
 
 ## Fonctionnalités
 
@@ -40,7 +40,7 @@ Application de gestion et réservation de salles pour les associations de Chartr
 1. Clonez le repository
 ```bash
 git clone <repo-url>
-cd reservation-chartrette
+cd reservation-chartrettes
 ```
 
 2. Installez les dépendances
@@ -54,9 +54,9 @@ Créez un fichier `.env.local` à la racine du projet :
 
 ```env
 # MongoDB
-MONGODB_URI=mongodb://localhost:27017/reservation-chartrette
+MONGODB_URI=mongodb://localhost:27017/reservation-chartrettes
 # ou MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/reservation-chartrette
+# MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/reservation-chartrettes
 
 # NextAuth
 NEXTAUTH_URL=http://localhost:3000
@@ -71,7 +71,7 @@ EMAIL_SERVER_HOST=smtp.gmail.com
 EMAIL_SERVER_PORT=587
 EMAIL_SERVER_USER=votre-email@gmail.com
 EMAIL_SERVER_PASSWORD=votre-app-password
-EMAIL_FROM=noreply@reservation-chartrette.fr
+EMAIL_FROM=noreply@reservation-chartrettes.fr
 ```
 
 ### Configuration de MongoDB
@@ -118,7 +118,7 @@ Ouvrez [http://localhost:3000](http://localhost:3000) dans votre navigateur.
 ## Structure du Projet
 
 ```
-reservation-chartrette/
+reservation-chartrettes/
 ├── src/
 │   ├── app/                      # Pages Next.js App Router
 │   │   ├── api/                  # API Routes
