@@ -141,6 +141,25 @@ export default function NewReservationPage() {
       return;
     }
 
+    // Valider la date de réservation
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const reservationDate = new Date(formData.date);
+    reservationDate.setHours(0, 0, 0, 0);
+
+    const minDate = new Date(today);
+    minDate.setDate(minDate.getDate() + 7);
+
+    if (reservationDate < today) {
+      setError('Vous ne pouvez pas réserver une salle pour une date passée');
+      return;
+    }
+
+    if (reservationDate < minDate) {
+      setError('Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -171,7 +190,10 @@ export default function NewReservationPage() {
     }
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  const minDate = new Date(today);
+  minDate.setDate(minDate.getDate() + 7);
+  const minDateStr = minDate.toISOString().split('T')[0];
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -242,13 +264,16 @@ export default function NewReservationPage() {
             label="Date de réservation"
             type="date"
             required
-            min={today}
+            min={minDateStr}
             value={formData.date}
             onChange={(e) => {
               setFormData({ ...formData, date: e.target.value });
               setSelectedTimeSlots([]);
             }}
           />
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Vous devez réserver au minimum 7 jours à l'avance pour permettre la validation par les administrateurs
+          </p>
         </div>
 
         {/* Time Slots Selection */}

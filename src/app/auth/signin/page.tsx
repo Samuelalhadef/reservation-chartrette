@@ -80,17 +80,27 @@ function SignInForm() {
             disabled={isLoading}
           />
 
-          <Input
-            label="Mot de passe"
-            type="password"
-            required
-            value={formData.password}
-            onChange={(e) =>
-              setFormData({ ...formData, password: e.target.value })
-            }
-            placeholder="••••••••"
-            disabled={isLoading}
-          />
+          <div>
+            <Input
+              label="Mot de passe"
+              type="password"
+              required
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+              placeholder="••••••••"
+              disabled={isLoading}
+            />
+            <div className="text-right mt-2">
+              <Link
+                href="/auth/forgot-password"
+                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
+          </div>
 
           <Button
             type="submit"

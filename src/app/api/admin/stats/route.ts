@@ -14,20 +14,26 @@ export async function GET(req: NextRequest) {
     }
 
     const searchParams = req.nextUrl.searchParams;
-    const period = searchParams.get('period') || 'month'; // week, month, year
+    const period = searchParams.get('period') || 'all'; // week, month, year, all
 
     const now = new Date();
-    let startDate = new Date();
+    let startDate = new Date(0); // Default to beginning of time for 'all'
 
     switch (period) {
       case 'week':
+        startDate = new Date();
         startDate.setDate(now.getDate() - 7);
         break;
       case 'month':
+        startDate = new Date();
         startDate.setMonth(now.getMonth() - 1);
         break;
       case 'year':
+        startDate = new Date();
         startDate.setFullYear(now.getFullYear() - 1);
+        break;
+      case 'all':
+        startDate = new Date(0); // All time
         break;
     }
 
@@ -63,7 +69,7 @@ export async function GET(req: NextRequest) {
       SELECT r.name as roomName, COUNT(res.id) as count
       FROM reservations res
       LEFT JOIN rooms r ON res.room_id = r.id
-      WHERE res.created_at >= ${startDate.getTime()}
+      WHERE res.date >= ${startDate.getTime()} AND res.status IN ('approved', 'pending')
       GROUP BY res.room_id, r.name
       ORDER BY count DESC
       LIMIT 10
@@ -74,7 +80,7 @@ export async function GET(req: NextRequest) {
       SELECT a.name as associationName, COUNT(res.id) as count
       FROM reservations res
       LEFT JOIN associations a ON res.association_id = a.id
-      WHERE res.status = 'approved' AND res.created_at >= ${startDate.getTime()}
+      WHERE res.date >= ${startDate.getTime()} AND res.status IN ('approved', 'pending')
       GROUP BY res.association_id, a.name
       ORDER BY count DESC
       LIMIT 10
@@ -83,10 +89,10 @@ export async function GET(req: NextRequest) {
     // Reservations over time
     const dateFormat = period === 'year' ? '%Y-%m' : '%Y-%m-%d';
     const reservationsOverTime = await client.execute(`
-      SELECT strftime('${dateFormat}', datetime(created_at / 1000, 'unixepoch')) as _id, COUNT(*) as count
+      SELECT strftime('${dateFormat}', datetime(date / 1000, 'unixepoch')) as _id, COUNT(*) as count
       FROM reservations
-      WHERE created_at >= ${startDate.getTime()}
-      GROUP BY strftime('${dateFormat}', datetime(created_at / 1000, 'unixepoch'))
+      WHERE date >= ${startDate.getTime()}
+      GROUP BY strftime('${dateFormat}', datetime(date / 1000, 'unixepoch'))
       ORDER BY _id ASC
     `);
 

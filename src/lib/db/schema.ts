@@ -11,6 +11,8 @@ export const users = sqliteTable('users', {
   role: text('role', { enum: ['user', 'admin'] }).notNull().default('user'),
   associationId: text('association_id').references(() => associations.id),
   emailVerified: integer('email_verified', { mode: 'timestamp' }),
+  resetToken: text('reset_token'),
+  resetTokenExpiry: integer('reset_token_expiry', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });

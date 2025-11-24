@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import HelpChat from "@/components/HelpChat";
+import SessionProvider from "@/components/SessionProvider";
 
 export const metadata: Metadata = {
   title: "Réservation Chartrettes - Système de réservation de salles",
@@ -14,7 +16,10 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className="antialiased">
-        {children}
+        <SessionProvider>
+          {children}
+          <HelpChat />
+        </SessionProvider>
       </body>
     </html>
   );

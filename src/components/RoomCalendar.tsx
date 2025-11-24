@@ -47,6 +47,20 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     }
   };
 
+  // Vérifier si une date est dans la plage valide (minimum 7 jours à l'avance)
+  const isDateInValidRange = (day: Date): boolean => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(day);
+    checkDate.setHours(0, 0, 0, 0);
+
+    const minDate = new Date(today);
+    minDate.setDate(minDate.getDate() + 7);
+
+    // La date doit être au minimum 7 jours dans le futur
+    return checkDate >= minDate;
+  };
+
   // Vérifier si un créneau est réservé
   const getSlotReservation = (day: Date, hour: number) => {
     for (const reservation of reservations) {
@@ -71,6 +85,12 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
 
   // Gestion de la sélection de créneaux
   const handleSlotClick = (day: Date, hour: number) => {
+    // Vérifier si la date est dans la plage valide
+    if (!isDateInValidRange(day)) {
+      alert('Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs');
+      return;
+    }
+
     // Vérifier si le créneau est déjà réservé
     const reservation = getSlotReservation(day, hour);
     if (reservation) {
@@ -271,15 +291,19 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                   const isApprovedReservation = isReserved && reservation.status === 'approved';
                   const isRejectedReservation = isReserved && reservation.status === 'rejected' && isOwnReservation;
                   const isPendingReservation = isReserved && reservation.status === 'pending';
+                  // Un créneau est hors de portée seulement s'il n'est PAS réservé et qu'il est avant J+7
+                  const isOutOfRange = !isReserved && !isDateInValidRange(day);
 
                   return (
                     <button
                       key={`${day.toISOString()}-${hour}`}
                       onClick={() => handleSlotClick(day, hour)}
-                      disabled={(isReserved && !isOwnReservation) || isRejectedReservation}
+                      disabled={(isReserved && !isOwnReservation) || isRejectedReservation || isOutOfRange}
                       className={`
                         min-h-[70px] p-3 rounded-xl border-2 transition-all duration-200 relative group
-                        ${isRejectedReservation
+                        ${isOutOfRange
+                          ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 cursor-not-allowed opacity-50'
+                          : isRejectedReservation
                           ? 'border-red-700 dark:border-red-600 bg-gradient-to-br from-red-200 to-rose-200 dark:from-red-900 dark:to-rose-900 cursor-not-allowed'
                           : isReserved && isApprovedReservation && isOwnReservation
                           ? 'border-green-700 dark:border-green-600 bg-gradient-to-br from-green-200 to-emerald-200 dark:from-green-800 dark:to-emerald-800 cursor-pointer hover:from-green-300 hover:to-emerald-300 dark:hover:from-green-700 dark:hover:to-emerald-700 hover:shadow-lg hover:scale-105'
@@ -297,12 +321,24 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                           ? 'border-blue-300 dark:border-blue-700 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900 dark:hover:to-indigo-900'
                           : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gradient-to-br hover:from-blue-50 hover:to-white dark:hover:from-gray-700 dark:hover:to-gray-800'
                         }
-                        ${!selected && !isReserved && 'hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg hover:scale-105'}
+                        ${!selected && !isReserved && !isOutOfRange && 'hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg hover:scale-105'}
                       `}
-                      title={`${isReserved ? (isRejectedReservation ? 'Réservation refusée' : isApprovedReservation ? 'Réservation validée' : 'En attente') + ` par ${reservation.association?.name || reservation.user?.name || 'Association'}` : selected ? 'Sélectionné' : selectionStartSlot ? 'Début de sélection' : 'Réserver'} le ${format(day, 'dd/MM/yyyy')} à ${hour}:00`}
+                      title={`${
+                        isReserved
+                          ? (isRejectedReservation ? 'Réservation refusée' : isApprovedReservation ? 'Réservation validée' : 'En attente') + ` par ${reservation.association?.name || reservation.user?.name || 'Association'}`
+                          : isOutOfRange
+                          ? 'Non disponible à la réservation (délai minimum de 7 jours requis)'
+                          : selected
+                          ? 'Sélectionné'
+                          : selectionStartSlot
+                          ? 'Début de sélection'
+                          : 'Réserver'
+                      } le ${format(day, 'dd/MM/yyyy')} à ${hour}:00`}
                     >
                       <div className={`text-xs font-medium transition-colors ${
-                        isRejectedReservation
+                        isOutOfRange
+                          ? 'text-gray-500 dark:text-gray-400'
+                          : isRejectedReservation
                           ? 'text-red-900 dark:text-red-200 font-semibold'
                           : isReserved && isApprovedReservation
                           ? 'text-green-900 dark:text-green-200 font-semibold'
@@ -314,7 +350,9 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                           ? 'text-orange-700 dark:text-orange-300 font-bold'
                           : 'text-green-600 dark:text-green-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
                       }`}>
-                        {isReserved ? (
+                        {isOutOfRange ? (
+                          <span className="text-[10px]">Non disponible</span>
+                        ) : isReserved ? (
                           <div className="flex flex-col items-center justify-center">
                             {isRejectedReservation ? (
                               <>

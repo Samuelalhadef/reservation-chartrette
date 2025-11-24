@@ -3,6 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Calendar, Users, Building2, Clock, CheckCircle, TrendingUp, BarChart3 } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Pie } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface Stats {
   summary: {
@@ -22,7 +31,7 @@ interface Stats {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState('month');
+  const [period, setPeriod] = useState('all');
 
   useEffect(() => {
     fetchStats();
@@ -58,15 +67,102 @@ export default function AdminDashboard() {
     );
   }
 
+  // Préparer les données pour le graphique camembert des salles
+  const generateColors = (count: number) => {
+    const colors = [
+      'rgba(59, 130, 246, 0.8)',
+      'rgba(16, 185, 129, 0.8)',
+      'rgba(245, 158, 11, 0.8)',
+      'rgba(239, 68, 68, 0.8)',
+      'rgba(139, 92, 246, 0.8)',
+      'rgba(236, 72, 153, 0.8)',
+      'rgba(14, 165, 233, 0.8)',
+      'rgba(34, 197, 94, 0.8)',
+      'rgba(251, 146, 60, 0.8)',
+      'rgba(168, 85, 247, 0.8)',
+    ];
+    return Array.from({ length: count }, (_, i) => colors[i % colors.length]);
+  };
+
+  const roomsChartData = {
+    labels: stats.reservationsByRoom.map(r => r.roomName),
+    datasets: [
+      {
+        label: 'Réservations',
+        data: stats.reservationsByRoom.map(r => r.count),
+        backgroundColor: generateColors(stats.reservationsByRoom.length),
+        borderColor: 'rgba(255, 255, 255, 1)',
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const associationsChartData = {
+    labels: stats.topAssociations.map(a => a.associationName),
+    datasets: [
+      {
+        label: 'Réservations',
+        data: stats.topAssociations.map(a => a.count),
+        backgroundColor: generateColors(stats.topAssociations.length),
+        borderColor: 'rgba(255, 255, 255, 1)',
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right' as const,
+        labels: {
+          boxWidth: 15,
+          padding: 10,
+          font: {
+            size: 11,
+          },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const label = context.label || '';
+            const value = context.parsed || 0;
+            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const percentage = ((value / total) * 100).toFixed(1);
+            return `${label}: ${value} (${percentage}%)`;
+          },
+        },
+      },
+    },
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Dashboard Administrateur
-        </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Vue d'ensemble et statistiques du système
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Dashboard Administrateur
+            </h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              Vue d'ensemble et statistiques du système
+            </p>
+          </div>
+          <div>
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            >
+              <option value="all">Toutes les périodes</option>
+              <option value="week">Cette semaine</option>
+              <option value="month">Ce mois</option>
+              <option value="year">Cette année</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Pending Alerts */}
@@ -170,34 +266,24 @@ export default function AdminDashboard() {
         {/* Top Rooms */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
-              <BarChart3 className="h-5 w-5 mr-2" />
-              Salles les plus réservées
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                <BarChart3 className="h-5 w-5 mr-2" />
+                Salles les plus réservées
+              </h2>
+              <Link
+                href="/admin/room-stats"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Voir statistiques détaillées
+              </Link>
+            </div>
           </div>
           <div className="p-6">
             {stats.reservationsByRoom.length > 0 ? (
-              <div className="space-y-4">
-                {stats.reservationsByRoom.map((room, index) => (
-                  <div key={index}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {room.roomName}
-                      </span>
-                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                        {room.count}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{
-                          width: `${(room.count / stats.reservationsByRoom[0].count) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+              <div className="h-80">
+                <Pie data={roomsChartData} options={chartOptions} />
               </div>
             ) : (
               <p className="text-gray-600 dark:text-gray-400 text-center py-4">
@@ -217,27 +303,8 @@ export default function AdminDashboard() {
           </div>
           <div className="p-6">
             {stats.topAssociations.length > 0 ? (
-              <div className="space-y-4">
-                {stats.topAssociations.map((assoc, index) => (
-                  <div key={index}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {assoc.associationName}
-                      </span>
-                      <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                        {assoc.count}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full"
-                        style={{
-                          width: `${(assoc.count / stats.topAssociations[0].count) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
+              <div className="h-80">
+                <Pie data={associationsChartData} options={chartOptions} />
               </div>
             ) : (
               <p className="text-gray-600 dark:text-gray-400 text-center py-4">

@@ -1,34 +1,55 @@
 import nodemailer from 'nodemailer';
 
+// Configuration avec port 465 et SSL pour éviter les problèmes de timeout
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_SERVER_HOST,
-  port: parseInt(process.env.EMAIL_SERVER_PORT || '587'),
-  secure: false,
+  host: process.env.EMAIL_SERVER_HOST || 'smtp.gmail.com',
+  port: 465, // Port SSL au lieu de 587 (STARTTLS)
+  secure: true, // SSL activé
   auth: {
     user: process.env.EMAIL_SERVER_USER,
     pass: process.env.EMAIL_SERVER_PASSWORD,
   },
+  connectionTimeout: 10000, // 10 secondes
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
 });
 
 interface EmailOptions {
   to: string;
   subject: string;
   html: string;
+  text?: string;
 }
 
-export async function sendEmail({ to, subject, html }: EmailOptions) {
+export async function sendEmail({ to, subject, html, text }: EmailOptions) {
+  // En développement local, si l'email échoue, on log simplement
+  const isDev = process.env.NODE_ENV === 'development';
+
   try {
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM || 'noreply@reservation-chartrettes.fr',
       to,
       subject,
       html,
+      text,
     });
 
-    console.log('Email sent:', info.messageId);
+    console.log('✅ Email envoyé avec succès:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('❌ Erreur lors de l\'envoi de l\'email:', error);
+
+    // En développement, on simule le succès et on log l'email
+    if (isDev) {
+      console.log('\n📧 [MODE DEV] Email qui aurait été envoyé:');
+      console.log('To:', to);
+      console.log('Subject:', subject);
+      console.log('HTML:', html.substring(0, 200) + '...');
+      console.log('\n');
+
+      return { success: true, messageId: 'dev-mode-' + Date.now() };
+    }
+
     return { success: false, error };
   }
 }

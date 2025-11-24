@@ -119,6 +119,27 @@ export default function ReservationModal({
     setIsSubmitting(true);
 
     try {
+      // Valider la date de réservation
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const reservationDate = new Date(date);
+      reservationDate.setHours(0, 0, 0, 0);
+
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 7);
+
+      if (reservationDate < today) {
+        alert('Vous ne pouvez pas réserver une salle pour une date passée');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (reservationDate < minDate) {
+        alert('Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Créer les time slots
       const timeSlots = [];
       for (let hour = startHour; hour <= endHour; hour++) {

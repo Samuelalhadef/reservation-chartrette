@@ -7,7 +7,7 @@ import Button from '@/components/Button';
 import Input from '@/components/Input';
 
 interface Association {
-  _id: string;
+  id: string;
   name: string;
   description: string;
 }
@@ -214,7 +214,7 @@ export default function SignUpPage() {
                   >
                     <option value="">-- Choisir une association --</option>
                     {associations.map((assoc) => (
-                      <option key={assoc._id} value={assoc._id}>
+                      <option key={assoc.id} value={assoc.id}>
                         {assoc.name}
                       </option>
                     ))}

@@ -138,6 +138,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate reservation date
+    const reservationDate = new Date(data.date);
+    reservationDate.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const minDate = new Date(today);
+    minDate.setDate(minDate.getDate() + 7);
+
+    // Check if date is in the past or today
+    if (reservationDate < today) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas réserver une salle pour une date passée' },
+        { status: 400 }
+      );
+    }
+
+    // Check if date is less than 7 days in the future
+    if (reservationDate < minDate) {
+      return NextResponse.json(
+        { error: 'Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs' },
+        { status: 400 }
+      );
+    }
+
     // Get user and room info
     const [user] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
     const [room] = await db.select().from(rooms).where(eq(rooms.id, data.roomId)).limit(1);
@@ -157,7 +183,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for conflicts
-    const reservationDate = new Date(data.date);
     const startOfDay = new Date(reservationDate);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(reservationDate);
