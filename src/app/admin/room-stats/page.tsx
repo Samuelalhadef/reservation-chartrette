@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Download, ChevronRight, Clock, Building2, Users, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Download, ChevronRight, Clock, Building2, Users, BarChart3, FileSpreadsheet } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -92,6 +92,36 @@ export default function RoomStatsPage() {
       console.error('Error fetching room detail:', error);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const exportToExcel = async () => {
+    try {
+      const res = await fetch('/api/admin/room-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year }),
+      });
+
+      if (!res.ok) {
+        console.error('Error exporting to Excel');
+        return;
+      }
+
+      // Récupérer le blob
+      const blob = await res.blob();
+
+      // Créer un lien de téléchargement
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `statistiques_salles_${year}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
     }
   };
 
@@ -282,14 +312,24 @@ export default function RoomStatsPage() {
                 return <option key={y} value={y}>{y}</option>;
               })}
             </select>
-            {/* Bouton Export */}
-            <button
-              onClick={exportToCSV}
-              className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Exporter CSV
-            </button>
+            {/* Boutons Export */}
+            {selectedRoom ? (
+              <button
+                onClick={exportToCSV}
+                className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exporter CSV
+              </button>
+            ) : (
+              <button
+                onClick={exportToExcel}
+                className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Exporter Excel
+              </button>
+            )}
           </div>
         </div>
       </div>

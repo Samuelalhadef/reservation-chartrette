@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { users, associations } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { sendEmail, emailTemplates } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
@@ -102,7 +103,11 @@ export async function POST(req: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Create user (email not verified yet)
     const [user] = await db
       .insert(users)
       .values({
@@ -111,12 +116,33 @@ export async function POST(req: NextRequest) {
         password: hashedPassword,
         associationId: finalAssociationId,
         role: 'user',
+        verificationCode,
+        verificationCodeExpiry,
+        emailVerified: null, // Not verified yet
       })
       .returning();
 
+    // Send verification email
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'Vérifiez votre adresse email - Réservation Chartrettes',
+        html: emailTemplates.verificationCode(name, verificationCode),
+      });
+    } catch (emailError) {
+      console.error('Error sending verification email:', emailError);
+      // Continue even if email fails in dev
+      if (process.env.NODE_ENV !== 'development') {
+        // In production, delete the user if email fails
+        await db.delete(users).where(eq(users.id, user.id));
+        throw new Error('Failed to send verification email. Please try again.');
+      }
+    }
+
     return NextResponse.json(
       {
-        message: 'User created successfully',
+        message: 'User created successfully. Please check your email for the verification code.',
+        requiresVerification: true,
         user: {
           id: user.id,
           name: user.name,

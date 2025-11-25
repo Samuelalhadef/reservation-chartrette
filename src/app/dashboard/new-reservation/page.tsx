@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
 import { Calendar, Clock, Users, FileText } from 'lucide-react';
@@ -22,11 +23,14 @@ interface TimeSlot {
 
 export default function NewReservationPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [reservedSlots, setReservedSlots] = useState<TimeSlot[]>([]);
+
+  const isAdmin = (session?.user as any)?.role === 'admin';
 
   const [formData, setFormData] = useState({
     roomId: '',
@@ -141,23 +145,26 @@ export default function NewReservationPage() {
       return;
     }
 
-    // Valider la date de réservation
+    // Valider la date de réservation (skip 7-day rule for admins)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const reservationDate = new Date(formData.date);
     reservationDate.setHours(0, 0, 0, 0);
-
-    const minDate = new Date(today);
-    minDate.setDate(minDate.getDate() + 7);
 
     if (reservationDate < today) {
       setError('Vous ne pouvez pas réserver une salle pour une date passée');
       return;
     }
 
-    if (reservationDate < minDate) {
-      setError('Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs');
-      return;
+    // Only apply 7-day rule for non-admin users
+    if (!isAdmin) {
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 7);
+
+      if (reservationDate < minDate) {
+        setError('Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs');
+        return;
+      }
     }
 
     setLoading(true);
@@ -192,7 +199,12 @@ export default function NewReservationPage() {
 
   const today = new Date();
   const minDate = new Date(today);
-  minDate.setDate(minDate.getDate() + 7);
+
+  // Admin users can book from today, regular users need 7 days advance
+  if (!isAdmin) {
+    minDate.setDate(minDate.getDate() + 7);
+  }
+
   const minDateStr = minDate.toISOString().split('T')[0];
 
   return (
@@ -271,9 +283,16 @@ export default function NewReservationPage() {
               setSelectedTimeSlots([]);
             }}
           />
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Vous devez réserver au minimum 7 jours à l'avance pour permettre la validation par les administrateurs
-          </p>
+          {!isAdmin && (
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Vous devez réserver au minimum 7 jours à l'avance pour permettre la validation par les administrateurs
+            </p>
+          )}
+          {isAdmin && (
+            <p className="mt-2 text-sm text-blue-600 dark:text-blue-400 font-medium">
+              En tant qu'administrateur, vous pouvez réserver à partir d'aujourd'hui. Votre réservation sera automatiquement approuvée et affichée comme "Réservé par la Mairie de Chartrettes".
+            </p>
+          )}
         </div>
 
         {/* Time Slots Selection */}

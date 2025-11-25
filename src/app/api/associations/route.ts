@@ -65,6 +65,9 @@ export async function POST(req: NextRequest) {
       .values({
         name: data.name,
         description: data.description,
+        address: data.address,
+        socialPurpose: data.socialPurpose,
+        presidentAddress: data.presidentAddress,
         contactName: data.contactName,
         contactEmail: data.contactEmail,
         contactPhone: data.contactPhone,

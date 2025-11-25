@@ -19,6 +19,9 @@ export default function SignUpPage() {
   const [showNewAssociationForm, setShowNewAssociationForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [userId, setUserId] = useState('');
+  const [userEmail, setUserEmail] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -29,6 +32,9 @@ export default function SignUpPage() {
     newAssociation: {
       name: '',
       description: '',
+      address: '',
+      socialPurpose: '',
+      presidentAddress: '',
       contactName: '',
       contactEmail: '',
       contactPhone: '',
@@ -115,8 +121,52 @@ export default function SignUpPage() {
         return;
       }
 
+      // If verification is required, go to step 3
+      if (data.requiresVerification) {
+        setUserId(data.user.id);
+        setUserEmail(formData.email);
+        setStep(3);
+      } else {
+        // Redirect to signin with success message
+        router.push('/auth/signin?message=inscription-reussie');
+      }
+    } catch (error) {
+      setError('Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!verificationCode || verificationCode.length !== 6) {
+      setError('Veuillez entrer le code de vérification à 6 chiffres');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          code: verificationCode,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Code de vérification invalide');
+        return;
+      }
+
       // Redirect to signin with success message
-      router.push('/auth/signin?message=inscription-reussie');
+      router.push('/auth/signin?message=email-verifie');
     } catch (error) {
       setError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
@@ -146,6 +196,10 @@ export default function SignUpPage() {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
               2
             </div>
+            <div className={`w-16 h-1 ${step >= 3 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+              3
+            </div>
           </div>
         </div>
 
@@ -156,6 +210,7 @@ export default function SignUpPage() {
         )}
 
         {step === 1 ? (
+          /* Step 1: Account info */
           <form onSubmit={handleStep1Submit} className="space-y-4">
             <Input
               label="Nom complet"
@@ -197,7 +252,8 @@ export default function SignUpPage() {
               Continuer
             </Button>
           </form>
-        ) : (
+        ) : step === 2 ? (
+          /* Step 2: Association */
           <form onSubmit={handleFinalSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -275,7 +331,38 @@ export default function SignUpPage() {
                   </div>
 
                   <Input
-                    label="Nom du contact (optionnel)"
+                    label="Siège social"
+                    type="text"
+                    value={formData.newAssociation.address}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        newAssociation: { ...formData.newAssociation, address: e.target.value },
+                      })
+                    }
+                    placeholder="Adresse complète du siège social"
+                  />
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Objet social
+                    </label>
+                    <textarea
+                      value={formData.newAssociation.socialPurpose}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          newAssociation: { ...formData.newAssociation, socialPurpose: e.target.value },
+                        })
+                      }
+                      rows={2}
+                      placeholder="L'objet principal de l'association"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+
+                  <Input
+                    label="Nom du Président"
                     type="text"
                     value={formData.newAssociation.contactName}
                     onChange={(e) =>
@@ -287,7 +374,20 @@ export default function SignUpPage() {
                   />
 
                   <Input
-                    label="Email de contact (optionnel)"
+                    label="Adresse personnelle du Président"
+                    type="text"
+                    value={formData.newAssociation.presidentAddress}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        newAssociation: { ...formData.newAssociation, presidentAddress: e.target.value },
+                      })
+                    }
+                    placeholder="Adresse de résidence du président"
+                  />
+
+                  <Input
+                    label="Email de contact"
                     type="email"
                     value={formData.newAssociation.contactEmail}
                     onChange={(e) =>
@@ -337,17 +437,92 @@ export default function SignUpPage() {
               </Button>
             </div>
           </form>
+        ) : (
+          /* Step 3: Email verification */
+          <form onSubmit={handleVerifyCode} className="space-y-6">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                Vérifiez votre email
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Un code de vérification a été envoyé à<br />
+                <span className="font-semibold text-gray-900 dark:text-white">{userEmail}</span>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 text-center">
+                Code de vérification
+              </label>
+              <input
+                type="text"
+                maxLength={6}
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
+                className="w-full px-4 py-3 text-center text-2xl font-bold tracking-widest border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                required
+                autoFocus
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+                Entrez le code à 6 chiffres reçu par email
+              </p>
+            </div>
+
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">
+                    Le code expire dans 15 minutes
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+                    Vérifiez vos spams si vous ne recevez pas l'email
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              isLoading={isLoading}
+              disabled={isLoading || verificationCode.length !== 6}
+              className="w-full"
+            >
+              Vérifier et finaliser l'inscription
+            </Button>
+
+            <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+              Vous n'avez pas reçu le code ?{' '}
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              >
+                Retour
+              </button>
+            </p>
+          </form>
         )}
 
-        <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-          Vous avez déjà un compte ?{' '}
-          <Link
-            href="/auth/signin"
-            className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
-          >
-            Se connecter
-          </Link>
-        </p>
+        {step !== 3 && (
+          <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+            Vous avez déjà un compte ?{' '}
+            <Link
+              href="/auth/signin"
+              className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            >
+              Se connecter
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

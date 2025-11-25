@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
 import { reservations, rooms, users, associations } from '@/lib/db/schema';
-import { eq, and, gte, lt, inArray } from 'drizzle-orm';
+import { eq, and, gte, lt, inArray, sql } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { sendEmail, emailTemplates } from '@/lib/email';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
@@ -138,30 +138,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate reservation date
+    // Validate reservation date (skip for admin users)
     const reservationDate = new Date(data.date);
     reservationDate.setHours(0, 0, 0, 0);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const minDate = new Date(today);
-    minDate.setDate(minDate.getDate() + 7);
+    // Only apply date restrictions for non-admin users
+    if (session.user?.role !== 'admin') {
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 7);
 
-    // Check if date is in the past or today
-    if (reservationDate < today) {
-      return NextResponse.json(
-        { error: 'Vous ne pouvez pas réserver une salle pour une date passée' },
-        { status: 400 }
-      );
-    }
+      // Check if date is in the past or today
+      if (reservationDate < today) {
+        return NextResponse.json(
+          { error: 'Vous ne pouvez pas réserver une salle pour une date passée' },
+          { status: 400 }
+        );
+      }
 
-    // Check if date is less than 7 days in the future
-    if (reservationDate < minDate) {
-      return NextResponse.json(
-        { error: 'Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs' },
-        { status: 400 }
-      );
+      // Check if date is less than 7 days in the future
+      if (reservationDate < minDate) {
+        return NextResponse.json(
+          { error: 'Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // For admin users, only prevent past dates (excluding today)
+      if (reservationDate < today) {
+        return NextResponse.json(
+          { error: 'Vous ne pouvez pas réserver une salle pour une date passée' },
+          { status: 400 }
+        );
+      }
     }
 
     // Get user and room info
@@ -175,7 +186,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!user.associationId) {
+    // For admin users, use the "Mairie de Chartrettes" association
+    let associationId = user.associationId;
+
+    if (session.user?.role === 'admin') {
+      // Find or create the "Mairie de Chartrettes" association
+      const [mairieAssoc] = await db
+        .select()
+        .from(associations)
+        .where(sql`lower(${associations.name}) = lower('Mairie de Chartrettes')`)
+        .limit(1);
+
+      if (!mairieAssoc) {
+        return NextResponse.json(
+          { error: 'L\'association "Mairie de Chartrettes" n\'existe pas. Veuillez contacter l\'administrateur système.' },
+          { status: 400 }
+        );
+      }
+
+      associationId = mairieAssoc.id;
+    } else if (!user.associationId) {
       return NextResponse.json(
         { error: 'User must be associated with an association' },
         { status: 400 }
@@ -223,19 +253,35 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Ensure associationId is defined
+    if (!associationId) {
+      return NextResponse.json(
+        { error: 'Association ID is required' },
+        { status: 400 }
+      );
+    }
+
     // Create reservation
+    // Admin reservations are automatically approved
+    const reservationStatus = session.user?.role === 'admin' ? 'approved' : 'pending';
+
     const [reservation] = await db
       .insert(reservations)
       .values({
         userId: session.user.id,
         roomId: data.roomId,
-        associationId: user.associationId,
+        associationId: associationId,
         date: new Date(data.date),
         timeSlots: data.timeSlots,
         reason: data.reason,
         estimatedParticipants: data.estimatedParticipants,
         requiredEquipment: data.requiredEquipment || [],
-        status: 'pending',
+        status: reservationStatus,
+        // For admin, set review info immediately
+        ...(session.user?.role === 'admin' && {
+          reviewedBy: session.user.id,
+          reviewedAt: new Date(),
+        }),
       })
       .returning();
 

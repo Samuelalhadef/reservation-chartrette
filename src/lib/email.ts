@@ -146,4 +146,48 @@ export const emailTemplates = {
       <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
   `,
+
+  verificationCode: (userName: string, code: string) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+      <div style="background-color: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <h1 style="color: #2563eb; margin: 0; font-size: 28px;">Bienvenue !</h1>
+        </div>
+
+        <p style="color: #374151; font-size: 16px; line-height: 1.6;">Bonjour ${userName},</p>
+
+        <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+          Merci de vous être inscrit sur la plateforme de réservation de salles de Chartrettes.
+        </p>
+
+        <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+          Pour finaliser votre inscription et vérifier votre adresse email, veuillez utiliser le code de vérification suivant :
+        </p>
+
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0;">
+          <p style="color: white; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 2px;">Code de vérification</p>
+          <p style="color: white; font-size: 36px; font-weight: bold; margin: 0; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+            ${code}
+          </p>
+        </div>
+
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 24px 0;">
+          <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">
+            <strong>⚠️ Important :</strong> Ce code expirera dans <strong>15 minutes</strong>. Si vous n'avez pas demandé cette inscription, ignorez cet email.
+          </p>
+        </div>
+
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin-top: 32px;">
+          Cordialement,<br/>
+          <strong style="color: #374151;">L'équipe de Réservation Chartrettes</strong>
+        </p>
+
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
+
+        <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+          Cet email a été envoyé automatiquement, merci de ne pas y répondre.
+        </p>
+      </div>
+    </div>
+  `,
 };

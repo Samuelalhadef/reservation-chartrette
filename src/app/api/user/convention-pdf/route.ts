@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
-import { associations, users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { associations, users, reservations, rooms } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
@@ -41,6 +41,24 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Get approved reservations for this association
+    const approvedReservations = await db
+      .select({
+        id: reservations.id,
+        date: reservations.date,
+        timeSlots: reservations.timeSlots,
+        reason: reservations.reason,
+        roomName: rooms.name,
+      })
+      .from(reservations)
+      .leftJoin(rooms, eq(reservations.roomId, rooms.id))
+      .where(
+        and(
+          eq(reservations.associationId, user.associationId),
+          eq(reservations.status, 'approved')
+        )
+      );
+
     // Return data for PDF generation on client side
     return NextResponse.json(
       {
@@ -51,9 +69,13 @@ export async function GET(req: NextRequest) {
           contactEmail: association.contactEmail,
           contactPhone: association.contactPhone,
           description: association.description,
+          address: association.address,
+          socialPurpose: association.socialPurpose,
+          presidentAddress: association.presidentAddress,
           conventionSignedAt: association.conventionSignedAt,
           conventionSignature: association.conventionSignature,
         },
+        reservations: approvedReservations,
       },
       { status: 200 }
     );

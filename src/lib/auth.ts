@@ -33,6 +33,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid email or password');
         }
 
+        // Check if email is verified
+        if (!user.emailVerified) {
+          throw new Error('Veuillez vérifier votre email avant de vous connecter. Vérifiez votre boîte mail pour le code de vérification.');
+        }
+
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
         if (!isPasswordValid) {

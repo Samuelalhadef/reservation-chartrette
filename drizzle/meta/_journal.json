@@ -15,6 +15,27 @@
       "when": 1763115634939,
       "tag": "0001_mysterious_lightspeed",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1763977803479,
+      "tag": "0002_sweet_tana_nile",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1764059753215,
+      "tag": "0003_aromatic_grim_reaper",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1764062146761,
+      "tag": "0004_messy_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

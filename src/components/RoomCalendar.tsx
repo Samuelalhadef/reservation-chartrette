@@ -1,22 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Calendar } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isToday, isSameDay, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import ReservationModal from './ReservationModal';
+import YearlyReservationModal from './YearlyReservationModal';
 
 interface RoomCalendarProps {
   roomId: string;
   roomName: string;
   roomCapacity: number;
   reservations?: any[];
+  buildingId?: string;
 }
 
-export default function RoomCalendar({ roomId, roomName, roomCapacity, reservations: initialReservations = [] }: RoomCalendarProps) {
+export default function RoomCalendar({ roomId, roomName, roomCapacity, reservations: initialReservations = [], buildingId }: RoomCalendarProps) {
   const { data: session } = useSession();
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  // Initialiser le calendrier sur la semaine suivante
+  const [currentWeek, setCurrentWeek] = useState(() => {
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    return nextWeek;
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSlots, setSelectedSlots] = useState<{ date: Date; startHour: number; endHour: number } | null>(null);
   const [selectionStart, setSelectionStart] = useState<{ date: Date; hour: number } | null>(null);
@@ -24,6 +31,8 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<any>(null);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [selectedMobileDay, setSelectedMobileDay] = useState<Date>(new Date());
+  const [isYearlyModalOpen, setIsYearlyModalOpen] = useState(false);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -87,7 +96,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const handleSlotClick = (day: Date, hour: number) => {
     // Vérifier si la date est dans la plage valide
     if (!isDateInValidRange(day)) {
-      alert('Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs');
+      alert('Réservation 7 jours à l\'avance minimum');
       return;
     }
 
@@ -128,7 +137,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     return isSameDay(selectionStart.date, day) && selectionStart.hour === hour;
   };
 
-  // Valider la sélection et ouvrir la modale
+  // Valider la sélection et ouvrir la modale de réservation
   const handleValidateSelection = () => {
     if (selectedSlots) {
       setIsModalOpen(true);
@@ -218,35 +227,46 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
               Semaine du {format(weekStart, 'd', { locale: fr })} au {format(weekEnd, 'd MMMM yyyy', { locale: fr })}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
-              onClick={goToPreviousWeek}
-              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm"
-              title="Semaine précédente"
+              onClick={() => setIsYearlyModalOpen(true)}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-semibold shadow-lg hover:shadow-xl flex items-center gap-2 justify-center"
             >
-              <ChevronLeft className="w-6 h-6 text-white" />
+              <Calendar className="w-5 h-5" />
+              <span className="hidden sm:inline">Réservation à l'année</span>
+              <span className="sm:hidden">Annuelle</span>
             </button>
-            <button
-              onClick={goToToday}
-              className="px-4 py-2 bg-white hover:bg-gray-100 rounded-lg transition-colors font-semibold text-blue-600"
-            >
-              Aujourd'hui
-            </button>
-            <button
-              onClick={goToNextWeek}
-              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm"
-              title="Semaine suivante"
-            >
-              <ChevronRight className="w-6 h-6 text-white" />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={goToPreviousWeek}
+                className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm"
+                title="Semaine précédente"
+              >
+                <ChevronLeft className="w-6 h-6 text-white" />
+              </button>
+              <button
+                onClick={goToToday}
+                className="px-4 py-2 bg-white hover:bg-gray-100 rounded-lg transition-colors font-semibold text-blue-600"
+              >
+                Aujourd'hui
+              </button>
+              <button
+                onClick={goToNextWeek}
+                className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm"
+                title="Semaine suivante"
+              >
+                <ChevronRight className="w-6 h-6 text-white" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="overflow-x-auto p-6">
-        <div className="min-w-[900px]">
+      {/* Vue Desktop (grille) */}
+      <div className="hidden md:block overflow-x-auto p-4 sm:p-6">
+        <div className="min-w-full" style={{ width: 'max-content' }}>
           {/* En-tête des jours */}
-          <div className="grid grid-cols-8 gap-2 mb-4">
+          <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: '80px repeat(7, 140px)' }}>
             <div className="h-20"></div>
             {weekDays.map((day) => {
               const today = isToday(day);
@@ -273,11 +293,11 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
           </div>
 
           {/* Grille horaire */}
-          <div className="grid grid-cols-8 gap-2">
+          <div className="grid gap-2" style={{ gridTemplateColumns: '80px repeat(7, 140px)' }}>
             {hours.map((hour) => (
               <React.Fragment key={`hour-row-${hour}`}>
                 <div
-                  className="text-right pr-3 py-4 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gradient-to-r from-gray-100 to-transparent dark:from-gray-700 dark:to-transparent rounded-l-lg flex items-center justify-end"
+                  className="text-center py-4 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg flex items-center justify-center"
                 >
                   {hour}:00
                 </div>
@@ -327,7 +347,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                         isReserved
                           ? (isRejectedReservation ? 'Réservation refusée' : isApprovedReservation ? 'Réservation validée' : 'En attente') + ` par ${reservation.association?.name || reservation.user?.name || 'Association'}`
                           : isOutOfRange
-                          ? 'Non disponible à la réservation (délai minimum de 7 jours requis)'
+                          ? 'Réservation 7 jours à l\'avance minimum'
                           : selected
                           ? 'Sélectionné'
                           : selectionStartSlot
@@ -351,7 +371,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                           : 'text-green-600 dark:text-green-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
                       }`}>
                         {isOutOfRange ? (
-                          <span className="text-[10px]">Non disponible</span>
+                          <span className="text-[10px]">Réservation 7j min</span>
                         ) : isReserved ? (
                           <div className="flex flex-col items-center justify-center">
                             {isRejectedReservation ? (
@@ -399,72 +419,233 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
         </div>
       </div>
 
-      {/* Boutons de validation / Légende */}
-      <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border-t border-gray-200 dark:border-gray-700">
-        {selectedSlots ? (
-          // Afficher les boutons de validation quand une sélection est faite
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4 p-4 bg-green-100 dark:bg-green-900/30 rounded-xl border-2 border-green-500 dark:border-green-600">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
-                  <span className="text-white text-xl">✓</span>
+      {/* Vue Mobile (liste par jour) */}
+      <div className="md:hidden p-4">
+        {/* Carrousel de jours */}
+        <div className="flex gap-2 overflow-x-auto mb-4 pb-2 scrollbar-hide">
+          {weekDays.map((day) => {
+            const today = isToday(day);
+            const isSelected = isSameDay(day, selectedMobileDay);
+            return (
+              <button
+                key={day.toISOString()}
+                onClick={() => setSelectedMobileDay(day)}
+                className={`flex-shrink-0 text-center p-3 rounded-xl shadow-sm min-w-[80px] transition-all ${
+                  isSelected
+                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white scale-105'
+                    : today
+                    ? 'bg-gradient-to-br from-blue-400 to-indigo-500 text-white opacity-70'
+                    : 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800'
+                }`}
+              >
+                <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${
+                  isSelected || today ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'
+                }`}>
+                  {format(day, 'EEE.', { locale: fr })}
                 </div>
-                <div>
-                  <p className="font-bold text-green-900 dark:text-green-100">
-                    {selectedSlots.endHour - selectedSlots.startHour + 1} créneau(x) sélectionné(s)
-                  </p>
-                  <p className="text-sm text-green-700 dark:text-green-300">
-                    De {selectedSlots.startHour}:00 à {selectedSlots.endHour + 1}:00 le {format(selectedSlots.date, 'dd/MM/yyyy')}
-                  </p>
+                <div className={`text-2xl font-bold ${isSelected || today ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                  {format(day, 'd')}
                 </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCancelSelection}
-                  className="px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors font-semibold border-2 border-gray-300 dark:border-gray-600"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleValidateSelection}
-                  className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all font-semibold shadow-lg hover:shadow-xl"
-                >
-                  Valider la sélection
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          // Afficher la légende normale
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              💡 Cliquez sur l'heure de début puis sur l'heure de fin pour sélectionner plusieurs créneaux
-            </p>
-            <div className="flex gap-4 text-xs flex-wrap">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-white border border-gray-200"></div>
-                <span className="text-gray-600 dark:text-gray-400">Disponible</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gradient-to-br from-green-200 to-emerald-200 border border-green-700"></div>
-                <span className="text-gray-600 dark:text-gray-400">Réservation validée</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gradient-to-br from-gray-300 to-gray-400 border border-gray-500"></div>
-                <span className="text-gray-600 dark:text-gray-400">En attente</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gradient-to-br from-red-200 to-rose-200 border border-red-700"></div>
-                <span className="text-gray-600 dark:text-gray-400">Réservation refusée</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-500 to-indigo-600"></div>
-                <span className="text-gray-600 dark:text-gray-400">Aujourd'hui</span>
-              </div>
-            </div>
-          </div>
-        )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Liste des créneaux pour le jour sélectionné */}
+        <div className="space-y-2">
+          {hours.map((hour) => {
+            const reservation = getSlotReservation(selectedMobileDay, hour);
+            const isReserved = reservation !== null;
+            const isOutOfRange = !isReserved && !isDateInValidRange(selectedMobileDay);
+            const selected = isSlotSelected(selectedMobileDay, hour);
+            const selectionStartSlot = isSlotSelectionStart(selectedMobileDay, hour);
+            const isOwnReservation = isReserved && canCancelReservation(reservation);
+            const isApprovedReservation = isReserved && reservation.status === 'approved';
+            const isPendingReservation = isReserved && reservation.status === 'pending';
+            const isRejectedReservation = isReserved && reservation.status === 'rejected' && isOwnReservation;
+
+            return (
+              <button
+                key={`mobile-${hour}`}
+                onClick={() => handleSlotClick(selectedMobileDay, hour)}
+                disabled={(isReserved && !isOwnReservation) || isRejectedReservation || isOutOfRange}
+                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                  isOutOfRange
+                    ? 'border-gray-300 bg-gray-100 dark:bg-gray-900 dark:border-gray-600 cursor-not-allowed opacity-50'
+                    : isRejectedReservation
+                    ? 'border-red-500 bg-gradient-to-r from-red-100 to-rose-100 dark:from-red-900 dark:to-rose-900 cursor-not-allowed'
+                    : isReserved && isApprovedReservation && isOwnReservation
+                    ? 'border-green-500 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-800 dark:to-emerald-800 cursor-pointer hover:from-green-200 hover:to-emerald-200'
+                    : isReserved && isApprovedReservation && !isOwnReservation
+                    ? 'border-green-500 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-800 dark:to-emerald-800 cursor-not-allowed'
+                    : isPendingReservation && isOwnReservation
+                    ? 'border-gray-500 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 cursor-pointer hover:from-gray-300 hover:to-gray-400'
+                    : isPendingReservation && !isOwnReservation
+                    ? 'border-gray-500 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 cursor-not-allowed'
+                    : selected
+                    ? 'border-green-500 bg-gradient-to-r from-green-200 to-emerald-200 dark:from-green-900 dark:to-emerald-900 shadow-lg scale-105'
+                    : selectionStartSlot
+                    ? 'border-orange-500 bg-gradient-to-r from-orange-100 to-yellow-100 dark:from-orange-900 dark:to-yellow-900 shadow-md'
+                    : 'border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                }`}
+              >
+                <div className={`flex-shrink-0 w-16 text-center rounded-lg p-2 transition-colors ${
+                  selected
+                    ? 'bg-green-600 dark:bg-green-700'
+                    : selectionStartSlot
+                    ? 'bg-orange-600 dark:bg-orange-700'
+                    : isReserved && isApprovedReservation
+                    ? 'bg-green-500 dark:bg-green-600'
+                    : isPendingReservation
+                    ? 'bg-gray-500 dark:bg-gray-600'
+                    : isRejectedReservation
+                    ? 'bg-red-500 dark:bg-red-600'
+                    : 'bg-gray-100 dark:bg-gray-700'
+                }`}>
+                  <div className={`text-base font-bold ${
+                    selected || selectionStartSlot || isReserved
+                      ? 'text-white'
+                      : 'text-gray-900 dark:text-white'
+                  }`}>
+                    {hour}:00
+                  </div>
+                </div>
+                <div className="flex-1 text-left">
+                  {isRejectedReservation ? (
+                    <div>
+                      <div className="text-sm font-bold text-red-700 dark:text-red-300 flex items-center gap-1">
+                        <XCircle className="w-4 h-4" />
+                        Réservation refusée
+                      </div>
+                      <div className="text-xs text-red-600 dark:text-red-400 mt-0.5">
+                        {reservation.association?.name || reservation.user?.name || 'Association'}
+                      </div>
+                    </div>
+                  ) : isReserved && isApprovedReservation ? (
+                    <div>
+                      <div className="text-sm font-bold text-green-700 dark:text-green-300 flex items-center gap-1">
+                        <CheckCircle className="w-4 h-4" />
+                        Réservation validée
+                      </div>
+                      <div className="text-xs text-green-600 dark:text-green-400 mt-0.5">
+                        {reservation.association?.name || reservation.user?.name || 'Association'}
+                      </div>
+                      {isOwnReservation && (
+                        <div className="text-xs text-green-700 dark:text-green-300 mt-1 flex items-center gap-1">
+                          <X className="w-3 h-3" />
+                          Cliquez pour annuler
+                        </div>
+                      )}
+                    </div>
+                  ) : isPendingReservation ? (
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        En attente de validation
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                        {reservation.association?.name || reservation.user?.name || 'Association'}
+                      </div>
+                      {isOwnReservation && (
+                        <div className="text-xs text-gray-700 dark:text-gray-300 mt-1 flex items-center gap-1">
+                          <X className="w-3 h-3" />
+                          Cliquez pour annuler
+                        </div>
+                      )}
+                    </div>
+                  ) : isOutOfRange ? (
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Réservation 7j min
+                    </div>
+                  ) : selected ? (
+                    <div className="text-sm text-green-700 dark:text-green-300 font-bold flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" />
+                      Créneau de fin sélectionné
+                    </div>
+                  ) : selectionStartSlot ? (
+                    <div className="text-sm text-orange-700 dark:text-orange-300 font-bold">
+                      ⏱ Créneau de début
+                      <div className="text-xs font-normal mt-1">Cliquez sur l'heure de fin</div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                      <span>✓</span> Disponible
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Légende */}
+      <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            💡 Cliquez sur l'heure de début puis sur l'heure de fin pour sélectionner plusieurs créneaux
+          </p>
+          <div className="flex gap-4 text-xs flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-white border border-gray-200"></div>
+              <span className="text-gray-600 dark:text-gray-400">Disponible</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-green-200 to-emerald-200 border border-green-700"></div>
+              <span className="text-gray-600 dark:text-gray-400">Réservation validée</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-gray-300 to-gray-400 border border-gray-500"></div>
+              <span className="text-gray-600 dark:text-gray-400">En attente</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-red-200 to-rose-200 border border-red-700"></div>
+              <span className="text-gray-600 dark:text-gray-400">Réservation refusée</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-500 to-indigo-600"></div>
+              <span className="text-gray-600 dark:text-gray-400">Aujourd'hui</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Petite modale de validation rapide */}
+      {selectedSlots && !isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-4 sm:p-6 max-w-md w-full animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-xl">✓</span>
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-gray-900 dark:text-white text-base sm:text-lg">
+                  {selectedSlots.endHour - selectedSlots.startHour + 1} créneau(x) sélectionné(s)
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  De {selectedSlots.startHour}:00 à {selectedSlots.endHour + 1}:00
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {format(selectedSlots.date, 'EEEE d MMMM yyyy', { locale: fr })}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancelSelection}
+                className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleValidateSelection}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all font-semibold shadow-lg hover:shadow-xl"
+              >
+                Valider
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modale de réservation */}
       {selectedSlots && (
@@ -479,8 +660,21 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
           roomCapacity={roomCapacity}
           userName={session?.user?.name || ''}
           onSuccess={refreshReservations}
+          buildingId={buildingId}
         />
       )}
+
+      {/* Modale de réservation à l'année */}
+      <YearlyReservationModal
+        isOpen={isYearlyModalOpen}
+        onClose={() => setIsYearlyModalOpen(false)}
+        roomId={roomId}
+        roomName={roomName}
+        roomCapacity={roomCapacity}
+        userName={session?.user?.name || ''}
+        onSuccess={refreshReservations}
+        buildingId={buildingId}
+      />
 
       {/* Modale de confirmation d'annulation */}
       {cancelModalOpen && reservationToCancel && (

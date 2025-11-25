@@ -168,110 +168,109 @@ export default function AdminReservationsPage() {
             Chargement...
           </div>
         ) : filteredReservations.length > 0 ? (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
             {filteredReservations.map((reservation) => (
-              <div key={reservation.id} className={`p-6 transition-colors ${
+              <div key={reservation.id} className={`p-4 rounded-xl transition-all shadow-md hover:shadow-lg ${
                 reservation.status === 'approved'
-                  ? 'bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/40'
+                  ? 'bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/40 border-2 border-green-200 dark:border-green-800'
                   : reservation.status === 'rejected'
-                  ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-2 border-red-200 dark:border-red-800'
+                  : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 border border-gray-200 dark:border-gray-700'
               }`}>
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                        {reservation.roomId.name}
-                      </h3>
-                      <span
-                        className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                          reservation.status === 'approved'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                            : reservation.status === 'rejected'
-                            ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                        }`}
-                      >
-                        {reservation.status === 'approved'
-                          ? 'Approuvée'
-                          : reservation.status === 'rejected'
-                          ? 'Refusée'
-                          : 'En attente'}
+                <div className="flex flex-col h-full">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white flex-1">
+                      {reservation.roomId.name}
+                    </h3>
+                  </div>
+
+                  <span
+                    className={`inline-block px-2 py-1 text-xs font-semibold rounded-full mb-3 ${
+                      reservation.status === 'approved'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        : reservation.status === 'rejected'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                    }`}
+                  >
+                    {reservation.status === 'approved'
+                      ? 'Approuvée'
+                      : reservation.status === 'rejected'
+                      ? 'Refusée'
+                      : 'En attente'}
+                  </span>
+
+                  <div className="space-y-2 mb-3 text-xs">
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Users className="h-3 w-3 mr-2 flex-shrink-0" />
+                      <span className="truncate">
+                        <strong>{reservation.userId.name}</strong>
                       </span>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 text-sm">
-                      <div className="flex items-center text-gray-600 dark:text-gray-400">
-                        <Users className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span>
-                          <strong>{reservation.userId.name}</strong> ({reservation.associationId.name})
-                        </span>
-                      </div>
-                      <div className="flex items-center text-gray-600 dark:text-gray-400">
-                        <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span>{formatDate(reservation.date)}</span>
-                      </div>
-                      <div className="flex items-center text-gray-600 dark:text-gray-400">
-                        <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span>
-                          {reservation.timeSlots
-                            .map((slot) => formatTimeSlot(slot.start, slot.end))
-                            .join(', ')}
-                        </span>
-                      </div>
-                      <div className="flex items-center text-gray-600 dark:text-gray-400">
-                        <Users className="h-4 w-4 mr-2 flex-shrink-0" />
-                        <span>{reservation.estimatedParticipants} participants</span>
-                      </div>
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Calendar className="h-3 w-3 mr-2 flex-shrink-0" />
+                      <span className="truncate">{formatDate(reservation.date)}</span>
                     </div>
-
-                    <div className="mb-3">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Motif:
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {reservation.reason}
-                      </p>
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Clock className="h-3 w-3 mr-2 flex-shrink-0" />
+                      <span className="truncate">
+                        {reservation.timeSlots
+                          .map((slot) => formatTimeSlot(slot.start, slot.end))
+                          .join(', ')}
+                      </span>
                     </div>
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <Users className="h-3 w-3 mr-2 flex-shrink-0" />
+                      <span>{reservation.estimatedParticipants} pers.</span>
+                    </div>
+                  </div>
 
-                    {reservation.adminComment && (
-                      <div className="mt-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Commentaire administrateur:
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {reservation.adminComment}
-                        </p>
-                      </div>
-                    )}
-
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                      Demande créée le {new Date(reservation.createdAt).toLocaleString('fr-FR')}
+                  <div className="mb-3 flex-1">
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Motif:
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                      {reservation.reason}
                     </p>
                   </div>
 
+                  {reservation.adminComment && (
+                    <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg mb-3">
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Commentaire:
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                        {reservation.adminComment}
+                      </p>
+                    </div>
+                  )}
+
                   {reservation.status === 'pending' && (
-                    <div className="flex flex-col gap-2 min-w-[200px]">
+                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-gray-200 dark:border-gray-700">
                       <Button
                         variant="success"
                         onClick={() => openCommentModal(reservation.id, 'approved')}
                         disabled={processingId === reservation.id}
-                        className="w-full"
+                        className="w-full text-xs py-2"
                       >
-                        <CheckCircle className="h-4 w-4 mr-2" />
+                        <CheckCircle className="h-3 w-3 mr-1" />
                         Approuver
                       </Button>
                       <Button
                         variant="danger"
                         onClick={() => openCommentModal(reservation.id, 'rejected')}
                         disabled={processingId === reservation.id}
-                        className="w-full"
+                        className="w-full text-xs py-2"
                       >
-                        <XCircle className="h-4 w-4 mr-2" />
+                        <XCircle className="h-3 w-3 mr-1" />
                         Refuser
                       </Button>
                     </div>
                   )}
+
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    {new Date(reservation.createdAt).toLocaleDateString('fr-FR')}
+                  </p>
                 </div>
               </div>
             ))}

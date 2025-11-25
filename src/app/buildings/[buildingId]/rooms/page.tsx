@@ -3,7 +3,7 @@ import Image from 'next/image';
 import { db } from '@/lib/db';
 import { buildings, rooms, reservations } from '@/lib/db/schema';
 import { eq, and, gte } from 'drizzle-orm';
-import { Users, BookOpen, DoorClosed, CheckCircle } from 'lucide-react';
+import { Users, BookOpen, DoorClosed, CheckCircle, ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 
 export default async function BuildingRoomsPage({
@@ -86,6 +86,14 @@ export default async function BuildingRoomsPage({
           className="object-cover"
           priority
         />
+        {/* Bouton retour */}
+        <Link
+          href="/buildings"
+          className="absolute top-6 left-6 z-40 bg-white/90 hover:bg-white backdrop-blur-sm text-gray-800 px-4 py-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 group"
+        >
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="font-medium">Retour aux bâtiments</span>
+        </Link>
       </div>
 
       {/* Grille des salles */}

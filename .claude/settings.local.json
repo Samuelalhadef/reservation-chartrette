@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run db:push:*)",
+      "Bash(npm run db:generate:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(set PORT=3001)",
+      "Bash($env:PORT=3001)",
+      "Bash(PORT=3001 npm run dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -11,6 +11,8 @@ export const users = sqliteTable('users', {
   role: text('role', { enum: ['user', 'admin'] }).notNull().default('user'),
   associationId: text('association_id').references(() => associations.id),
   emailVerified: integer('email_verified', { mode: 'timestamp' }),
+  verificationCode: text('verification_code'),
+  verificationCodeExpiry: integer('verification_code_expiry', { mode: 'timestamp' }),
   resetToken: text('reset_token'),
   resetTokenExpiry: integer('reset_token_expiry', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
@@ -22,12 +24,17 @@ export const associations = sqliteTable('associations', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text('name').notNull().unique(),
   description: text('description').notNull(),
+  address: text('address'), // Siège social de l'association
+  socialPurpose: text('social_purpose'), // Objet social de l'association
+  presidentAddress: text('president_address'), // Adresse personnelle du président
   status: text('status', { enum: ['active', 'inactive', 'pending'] }).notNull().default('pending'),
   contactName: text('contact_name'),
   contactEmail: text('contact_email'),
   contactPhone: text('contact_phone'),
   conventionSignedAt: integer('convention_signed_at', { mode: 'timestamp' }),
   conventionSignature: text('convention_signature'),
+  yearlyConventionSignedAt: integer('yearly_convention_signed_at', { mode: 'timestamp' }),
+  yearlyConventionSignature: text('yearly_convention_signature'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
