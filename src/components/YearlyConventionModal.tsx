@@ -151,12 +151,12 @@ export default function YearlyConventionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full my-8">
+      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* En-tête */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 sm:p-6 relative">
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 sm:p-6 relative flex-shrink-0">
           <button
             onClick={onClose}
             className="absolute top-3 right-3 sm:top-4 sm:right-4 p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
@@ -176,9 +176,9 @@ export default function YearlyConventionModal({
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 flex flex-col" style={{ minHeight: 'calc(100vh - 200px)' }}>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {/* Document de convention */}
-          <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-6 flex-1 overflow-y-auto border-2 border-gray-200 dark:border-gray-700 mb-6">
+          <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-6 border-2 border-gray-200 dark:border-gray-700 mb-6">
             <div className="prose dark:prose-invert max-w-none">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
                 CONVENTION D'UTILISATION DES SALLES MUNICIPALES
@@ -402,7 +402,7 @@ export default function YearlyConventionModal({
           </div>
 
           {/* Section inférieure avec informations et signature */}
-          <div className="mt-auto space-y-4">
+          <div className="space-y-4">
             {/* Informations de l'association */}
             <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4">
               <h4 className="font-bold text-gray-900 dark:text-white mb-3">Informations de l'association</h4>

@@ -47,6 +47,18 @@ export async function GET(req: NextRequest) {
           signatureUrl: association.conventionSignature,
         });
       }
+
+      // Ajouter la convention annuelle si elle existe
+      if (association && association.yearlyConventionSignedAt) {
+        documents.push({
+          id: association.id + '-yearly',
+          type: 'yearly-convention',
+          title: 'Convention de réservation à l\'année 2025-2026',
+          signedAt: association.yearlyConventionSignedAt,
+          associationName: association.name,
+          signatureUrl: association.yearlyConventionSignature,
+        });
+      }
     }
 
     return NextResponse.json(

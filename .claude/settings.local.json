@@ -7,7 +7,10 @@
       "Bash(npm run dev:*)",
       "Bash(set PORT=3001)",
       "Bash($env:PORT=3001)",
-      "Bash(PORT=3001 npm run dev:*)"
+      "Bash(PORT=3001 npm run dev:*)",
+      "Bash(npx tsx:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

@@ -84,7 +84,9 @@ export default function YearlyReservationModal({
   };
 
   const submitYearlyReservation = async () => {
+    console.log('Début de submitYearlyReservation');
     try {
+      console.log('Envoi de la requête API...');
       const response = await fetch('/api/reservations/yearly', {
         method: 'POST',
         headers: {
@@ -102,7 +104,9 @@ export default function YearlyReservationModal({
         }),
       });
 
+      console.log('Réponse reçue, status:', response.status);
       const data = await response.json();
+      console.log('Données reçues:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Erreur lors de la réservation');
@@ -118,6 +122,7 @@ export default function YearlyReservationModal({
       console.error('Erreur de réservation:', error);
       alert(error.message || 'Erreur lors de la réservation');
     } finally {
+      console.log('Réinitialisation de isSubmitting');
       setIsSubmitting(false);
     }
   };
@@ -130,15 +135,23 @@ export default function YearlyReservationModal({
         setAssociationData(data.association);
 
         if (!data.hasSigned) {
+          // L'utilisateur doit signer la convention
+          // On garde isSubmitting à true et on affiche la modale de convention
           setShowConvention(true);
           return false;
         }
         return true;
+      } else {
+        // En cas d'erreur API, afficher l'erreur et stopper
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erreur lors de la vérification de la convention');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de la vérification de la convention:', error);
+      alert(error.message || 'Erreur lors de la vérification de la convention');
+      setIsSubmitting(false);
+      return false;
     }
-    return false;
   };
 
   const handleConventionSigned = () => {
@@ -236,6 +249,7 @@ export default function YearlyReservationModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleSubmit appelé');
 
     // Validation
     if (!startDate || !endDate) {
@@ -253,17 +267,24 @@ export default function YearlyReservationModal({
       return;
     }
 
+    console.log('Validation passée, setIsSubmitting(true)');
     setIsSubmitting(true);
 
     // Vérifier la convention
+    console.log('Vérification du statut de la convention...');
     const hasConvention = await checkConventionStatus();
+    console.log('hasConvention:', hasConvention);
 
     if (!hasConvention) {
       // La modale de convention sera affichée
+      // isSubmitting sera réinitialisé dans checkConventionStatus en cas d'erreur
+      // ou quand l'utilisateur fermera la modale de convention
+      console.log('Convention non signée, affichage de la modale');
       return;
     }
 
     // Soumettre directement si la convention est déjà signée
+    console.log('Convention signée, soumission de la réservation');
     await submitYearlyReservation();
   };
 
@@ -306,12 +327,12 @@ export default function YearlyReservationModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full my-8">
+      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* En-tête */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 sm:p-6 relative">
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 sm:p-6 relative flex-shrink-0">
           <button
             onClick={onClose}
             className="absolute top-3 right-3 sm:top-4 sm:right-4 p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
@@ -336,7 +357,8 @@ export default function YearlyReservationModal({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {/* Étape 1 : Sélection des dates */}
           {step === 1 && (
             <div className="space-y-6">
@@ -690,9 +712,10 @@ export default function YearlyReservationModal({
               </div>
             </div>
           )}
+          </div>
 
           {/* Boutons de navigation */}
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-6 mt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
             {step > 1 && (
               <button
                 type="button"

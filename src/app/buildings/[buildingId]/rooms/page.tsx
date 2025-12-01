@@ -88,7 +88,7 @@ export default async function BuildingRoomsPage({
         />
         {/* Bouton retour */}
         <Link
-          href="/buildings"
+          href="/dashboard"
           className="absolute top-6 left-6 z-40 bg-white/90 hover:bg-white backdrop-blur-sm text-gray-800 px-4 py-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />

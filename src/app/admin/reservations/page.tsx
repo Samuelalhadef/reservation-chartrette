@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, Users, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import { Calendar, Clock, Users, CheckCircle, XCircle, MessageSquare, Repeat, ChevronDown, ChevronRight } from 'lucide-react';
 import Button from '@/components/Button';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
 import ViewToggle from '@/components/ViewToggle';
@@ -40,6 +40,8 @@ export default function AdminReservationsPage() {
   } | null>(null);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [comment, setComment] = useState('');
+  const [applyToGroup, setApplyToGroup] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchReservations();
@@ -58,6 +60,82 @@ export default function AdminReservationsPage() {
     }
   };
 
+  // Détecte si une réservation fait partie d'un groupe (réservation annuelle)
+  const isPartOfYearlyReservation = (reservation: Reservation) => {
+    // Chercher d'autres réservations avec le même utilisateur, salle, raison et créneaux similaires
+    const similarReservations = reservations.filter(r =>
+      r.userId.id === reservation.userId.id &&
+      r.roomId.id === reservation.roomId.id &&
+      r.reason === reservation.reason &&
+      r.id !== reservation.id &&
+      Math.abs(new Date(r.createdAt).getTime() - new Date(reservation.createdAt).getTime()) < 60000 // Créées dans la même minute
+    );
+    return similarReservations.length > 0;
+  };
+
+  // Compte le nombre de réservations liées (réservation annuelle)
+  const countRelatedReservations = (reservation: Reservation) => {
+    if (!isPartOfYearlyReservation(reservation)) return 0;
+    return reservations.filter(r =>
+      r.userId.id === reservation.userId.id &&
+      r.roomId.id === reservation.roomId.id &&
+      r.reason === reservation.reason &&
+      Math.abs(new Date(r.createdAt).getTime() - new Date(reservation.createdAt).getTime()) < 60000
+    ).length;
+  };
+
+  // Génère une clé unique pour un groupe de réservations
+  const getGroupKey = (reservation: Reservation) => {
+    return `${reservation.userId.id}-${reservation.roomId.id}-${new Date(reservation.createdAt).getTime()}`;
+  };
+
+  // Obtient toutes les réservations d'un groupe
+  const getGroupReservations = (reservation: Reservation) => {
+    return reservations.filter(r =>
+      r.userId.id === reservation.userId.id &&
+      r.roomId.id === reservation.roomId.id &&
+      r.reason === reservation.reason &&
+      Math.abs(new Date(r.createdAt).getTime() - new Date(reservation.createdAt).getTime()) < 60000
+    ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
+
+  // Groupe les réservations (sépare les individuelles et les groupes)
+  const groupReservations = (reservations: Reservation[]) => {
+    const groups: { [key: string]: Reservation[] } = {};
+    const singles: Reservation[] = [];
+    const processed = new Set<string>();
+
+    reservations.forEach(reservation => {
+      if (processed.has(reservation.id)) return;
+
+      if (isPartOfYearlyReservation(reservation)) {
+        const groupKey = getGroupKey(reservation);
+        if (!groups[groupKey]) {
+          const groupReservations = getGroupReservations(reservation);
+          groups[groupKey] = groupReservations;
+          groupReservations.forEach(r => processed.add(r.id));
+        }
+      } else {
+        singles.push(reservation);
+        processed.add(reservation.id);
+      }
+    });
+
+    return { groups, singles };
+  };
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  };
+
   const fetchRooms = async () => {
     try {
       const res = await fetch('/api/rooms');
@@ -68,7 +146,7 @@ export default function AdminReservationsPage() {
     }
   };
 
-  const handleAction = async (reservationId: string, action: 'approved' | 'rejected') => {
+  const handleAction = async (reservationId: string, action: 'approved' | 'rejected', applyToGroup: boolean = false) => {
     if (action === 'rejected' && !comment.trim()) {
       alert('Veuillez fournir un commentaire pour le refus');
       return;
@@ -77,19 +155,53 @@ export default function AdminReservationsPage() {
     setProcessingId(reservationId);
 
     try {
-      const res = await fetch(`/api/reservations/${reservationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: action,
-          adminComment: comment.trim() || undefined,
-        }),
-      });
+      if (applyToGroup) {
+        // Trouver toutes les réservations liées
+        const reservation = reservations.find(r => r.id === reservationId);
+        if (!reservation) return;
 
-      if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || 'Une erreur est survenue');
-        return;
+        const relatedReservations = reservations.filter(r =>
+          r.userId.id === reservation.userId.id &&
+          r.roomId.id === reservation.roomId.id &&
+          r.reason === reservation.reason &&
+          Math.abs(new Date(r.createdAt).getTime() - new Date(reservation.createdAt).getTime()) < 60000
+        );
+
+        // Traiter toutes les réservations en parallèle
+        const promises = relatedReservations.map(r =>
+          fetch(`/api/reservations/${r.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: action,
+              adminComment: comment.trim() || undefined,
+            }),
+          })
+        );
+
+        const results = await Promise.all(promises);
+        const failed = results.filter(r => !r.ok);
+
+        if (failed.length > 0) {
+          alert(`${failed.length} réservation(s) n'ont pas pu être traitées`);
+        } else {
+          alert(`${relatedReservations.length} réservations ${action === 'approved' ? 'approuvées' : 'refusées'} avec succès`);
+        }
+      } else {
+        const res = await fetch(`/api/reservations/${reservationId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: action,
+            adminComment: comment.trim() || undefined,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          alert(data.error || 'Une erreur est survenue');
+          return;
+        }
       }
 
       await fetchReservations();
@@ -106,6 +218,7 @@ export default function AdminReservationsPage() {
   const openCommentModal = (reservationId: string, action: 'approved' | 'rejected') => {
     setCommentModal({ reservationId, action });
     setComment('');
+    setApplyToGroup(false);
   };
 
   const handleReservationClick = (reservation: Reservation) => {
@@ -116,6 +229,8 @@ export default function AdminReservationsPage() {
     if (filter === 'all') return true;
     return r.status === filter;
   });
+
+  const { groups: yearlyGroups, singles: singleReservations } = groupReservations(filteredReservations);
 
   const statusCounts = {
     all: reservations.length,
@@ -168,8 +283,176 @@ export default function AdminReservationsPage() {
             Chargement...
           </div>
         ) : filteredReservations.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-            {filteredReservations.map((reservation) => (
+          <div className="space-y-4 p-4">
+            {/* Groupes de réservations annuelles */}
+            {Object.entries(yearlyGroups).map(([groupKey, groupReservations]) => {
+              const firstReservation = groupReservations[0];
+              const isExpanded = expandedGroups.has(groupKey);
+              const groupStatus = firstReservation.status;
+
+              return (
+                <div key={groupKey} className={`rounded-xl border-2 transition-all shadow-md ${
+                  groupStatus === 'approved'
+                    ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20'
+                    : groupStatus === 'rejected'
+                    ? 'border-purple-300 dark:border-purple-700 bg-purple-50/50 dark:bg-purple-900/10'
+                    : 'border-purple-400 dark:border-purple-600 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30'
+                }`}>
+                  {/* En-tête du groupe */}
+                  <div
+                    onClick={() => toggleGroup(groupKey)}
+                    className="p-4 cursor-pointer hover:bg-purple-100/50 dark:hover:bg-purple-800/30 transition-colors rounded-t-xl"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="p-2 bg-purple-600 dark:bg-purple-500 rounded-lg">
+                          <Repeat className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                              Réservation à l'année
+                            </h3>
+                            <span className="px-2 py-1 bg-purple-600 dark:bg-purple-500 text-white text-xs font-bold rounded-full">
+                              {groupReservations.length} dates
+                            </span>
+                            <span
+                              className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                groupStatus === 'approved'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                  : groupStatus === 'rejected'
+                                  ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                              }`}
+                            >
+                              {groupStatus === 'approved'
+                                ? 'Approuvée'
+                                : groupStatus === 'rejected'
+                                ? 'Refusée'
+                                : 'En attente'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-purple-800 dark:text-purple-200">
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              <span className="font-semibold">{firstReservation.userId.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{firstReservation.roomId.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span>
+                                {firstReservation.timeSlots
+                                  .map((slot) => formatTimeSlot(slot.start, slot.end))
+                                  .join(', ')}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronDown className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                        ) : (
+                          <ChevronRight className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Liste des réservations du groupe */}
+                  {isExpanded && (
+                    <div className="border-t-2 border-purple-200 dark:border-purple-700">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                        {groupReservations.map((reservation) => (
+                          <div key={reservation.id} className={`p-3 rounded-lg transition-all shadow-sm hover:shadow-md ${
+                            reservation.status === 'approved'
+                              ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
+                              : reservation.status === 'rejected'
+                              ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                              : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                          }`}>
+                            <div className="flex flex-col h-full">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Calendar className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(reservation.date)}</span>
+                              </div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                                <Clock className="h-3 w-3 inline mr-1" />
+                                {reservation.timeSlots
+                                  .map((slot) => formatTimeSlot(slot.start, slot.end))
+                                  .join(', ')}
+                              </div>
+                              {reservation.status === 'pending' && (
+                                <div className="flex gap-2 mt-auto pt-2">
+                                  <Button
+                                    variant="success"
+                                    onClick={() => openCommentModal(reservation.id, 'approved')}
+                                    disabled={processingId === reservation.id}
+                                    className="flex-1 text-xs py-1"
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="danger"
+                                    onClick={() => openCommentModal(reservation.id, 'rejected')}
+                                    disabled={processingId === reservation.id}
+                                    className="flex-1 text-xs py-1"
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Actions groupées */}
+                      {firstReservation.status === 'pending' && (
+                        <div className="border-t-2 border-purple-200 dark:border-purple-700 p-4 bg-purple-100/50 dark:bg-purple-900/20">
+                          <p className="text-sm text-purple-900 dark:text-purple-100 font-semibold mb-3">
+                            Actions groupées sur toutes les réservations :
+                          </p>
+                          <div className="flex gap-3">
+                            <Button
+                              variant="success"
+                              onClick={() => {
+                                openCommentModal(firstReservation.id, 'approved');
+                                setApplyToGroup(true);
+                              }}
+                              disabled={processingId === firstReservation.id}
+                              className="flex-1"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Tout approuver ({groupReservations.length})
+                            </Button>
+                            <Button
+                              variant="danger"
+                              onClick={() => {
+                                openCommentModal(firstReservation.id, 'rejected');
+                                setApplyToGroup(true);
+                              }}
+                              disabled={processingId === firstReservation.id}
+                              className="flex-1"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Tout refuser ({groupReservations.length})
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Réservations individuelles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {singleReservations.map((reservation) => {
+              return (
               <div key={reservation.id} className={`p-4 rounded-xl transition-all shadow-md hover:shadow-lg ${
                 reservation.status === 'approved'
                   ? 'bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/40 border-2 border-green-200 dark:border-green-800'
@@ -273,7 +556,9 @@ export default function AdminReservationsPage() {
                   </p>
                 </div>
               </div>
-            ))}
+            );
+            })}
+            </div>
           </div>
         ) : (
           <div className="p-8 text-center text-gray-600 dark:text-gray-400">
@@ -416,12 +701,42 @@ export default function AdminReservationsPage() {
       )}
 
       {/* Comment Modal */}
-      {commentModal && (
+      {commentModal && (() => {
+        const reservation = reservations.find(r => r.id === commentModal.reservationId);
+        const isYearly = reservation ? isPartOfYearlyReservation(reservation) : false;
+        const relatedCount = reservation ? countRelatedReservations(reservation) : 0;
+
+        return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               {commentModal.action === 'approved' ? 'Approuver' : 'Refuser'} la réservation
             </h3>
+
+            {isYearly && (
+              <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-200 dark:border-purple-700 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Repeat className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <span className="font-semibold text-purple-900 dark:text-purple-100">
+                    Réservation annuelle détectée
+                  </span>
+                </div>
+                <p className="text-sm text-purple-800 dark:text-purple-200">
+                  Cette réservation fait partie d'un groupe de <strong>{relatedCount} réservations</strong>.
+                </p>
+                <label className="flex items-start gap-2 mt-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={applyToGroup}
+                    onChange={(e) => setApplyToGroup(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-purple-900 dark:text-purple-100">
+                    Appliquer cette action à toutes les réservations du groupe
+                  </span>
+                </label>
+              </div>
+            )}
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -447,6 +762,7 @@ export default function AdminReservationsPage() {
                 onClick={() => {
                   setCommentModal(null);
                   setComment('');
+                  setApplyToGroup(false);
                 }}
                 className="flex-1"
               >
@@ -454,7 +770,7 @@ export default function AdminReservationsPage() {
               </Button>
               <Button
                 variant={commentModal.action === 'approved' ? 'success' : 'danger'}
-                onClick={() => handleAction(commentModal.reservationId, commentModal.action)}
+                onClick={() => handleAction(commentModal.reservationId, commentModal.action, applyToGroup)}
                 isLoading={processingId === commentModal.reservationId}
                 disabled={
                   processingId === commentModal.reservationId ||
@@ -462,12 +778,13 @@ export default function AdminReservationsPage() {
                 }
                 className="flex-1"
               >
-                Confirmer
+                {applyToGroup ? `Confirmer (${relatedCount})` : 'Confirmer'}
               </Button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

@@ -138,41 +138,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate reservation date (skip for admin users)
+    // Validate reservation date (règle des 30 jours pour tous les utilisateurs)
     const reservationDate = new Date(data.date);
     reservationDate.setHours(0, 0, 0, 0);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Only apply date restrictions for non-admin users
-    if (session.user?.role !== 'admin') {
-      const minDate = new Date(today);
-      minDate.setDate(minDate.getDate() + 7);
+    // Check if date is in the past or today
+    if (reservationDate < today) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas réserver une salle pour une date passée' },
+        { status: 400 }
+      );
+    }
 
-      // Check if date is in the past or today
-      if (reservationDate < today) {
-        return NextResponse.json(
-          { error: 'Vous ne pouvez pas réserver une salle pour une date passée' },
-          { status: 400 }
-        );
-      }
+    // Apply 30-day rule for all users
+    const minDate = new Date(today);
+    minDate.setDate(minDate.getDate() + 30);
 
-      // Check if date is less than 7 days in the future
-      if (reservationDate < minDate) {
-        return NextResponse.json(
-          { error: 'Vous devez réserver au minimum 7 jours à l\'avance pour permettre la validation par les administrateurs' },
-          { status: 400 }
-        );
-      }
-    } else {
-      // For admin users, only prevent past dates (excluding today)
-      if (reservationDate < today) {
-        return NextResponse.json(
-          { error: 'Vous ne pouvez pas réserver une salle pour une date passée' },
-          { status: 400 }
-        );
-      }
+    if (reservationDate < minDate) {
+      return NextResponse.json(
+        { error: 'Vous devez réserver au minimum 30 jours à l\'avance pour permettre la validation par les administrateurs' },
+        { status: 400 }
+      );
     }
 
     // Get user and room info
@@ -187,10 +176,11 @@ export async function POST(req: NextRequest) {
     }
 
     // For admin users, use the "Mairie de Chartrettes" association
+    // For particuliers, create or use a special "Particuliers" association
     let associationId = user.associationId;
 
     if (session.user?.role === 'admin') {
-      // Find or create the "Mairie de Chartrettes" association
+      // Find the "Mairie de Chartrettes" association
       const [mairieAssoc] = await db
         .select()
         .from(associations)
@@ -205,6 +195,29 @@ export async function POST(req: NextRequest) {
       }
 
       associationId = mairieAssoc.id;
+    } else if (session.user?.role === 'particulier') {
+      // Find or create "Particuliers" association for individual users
+      let [particuliersAssoc] = await db
+        .select()
+        .from(associations)
+        .where(sql`lower(${associations.name}) = lower('Particuliers')`)
+        .limit(1);
+
+      if (!particuliersAssoc) {
+        // Create the "Particuliers" association if it doesn't exist
+        [particuliersAssoc] = await db
+          .insert(associations)
+          .values({
+            name: 'Particuliers',
+            description: 'Association virtuelle pour les réservations des particuliers',
+            status: 'active',
+            contactName: 'Mairie de Chartrettes',
+            contactEmail: 'contact@chartrettes.fr',
+          })
+          .returning();
+      }
+
+      associationId = particuliersAssoc.id;
     } else if (!user.associationId) {
       return NextResponse.json(
         { error: 'User must be associated with an association' },

@@ -8,7 +8,7 @@ export const users = sqliteTable('users', {
   email: text('email').notNull().unique(),
   password: text('password'),
   image: text('image'),
-  role: text('role', { enum: ['user', 'admin'] }).notNull().default('user'),
+  role: text('role', { enum: ['user', 'admin', 'particulier'] }).notNull().default('user'),
   associationId: text('association_id').references(() => associations.id),
   emailVerified: integer('email_verified', { mode: 'timestamp' }),
   verificationCode: text('verification_code'),

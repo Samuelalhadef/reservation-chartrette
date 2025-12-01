@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { buildings, rooms, reservations, users, associations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { ArrowLeft, DoorOpen, Users, Ruler } from 'lucide-react';
+import { ArrowLeft, DoorOpen, Users, Ruler, Package } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import RoomCalendar from '@/components/RoomCalendar';
 
@@ -96,7 +96,7 @@ export default async function RoomCalendarPage({
                 <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 <div className="text-center">
                   <p className="text-xs text-gray-500 dark:text-gray-400">Capacité</p>
-                  <p className="font-bold text-gray-900 dark:text-white">{room.capacity} pers.</p>
+                  <p className="font-bold text-gray-900 dark:text-white">{room.capacity || 'Non précisé'} {room.capacity ? 'pers.' : ''}</p>
                 </div>
               </div>
               {room.surface && (
@@ -109,6 +109,32 @@ export default async function RoomCalendarPage({
                 </div>
               )}
             </div>
+
+            {/* Section Matériel disponible */}
+            {room.equipment && Array.isArray(room.equipment) && room.equipment.length > 0 && (
+              <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-100 dark:border-purple-800">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-800/50 rounded-lg">
+                    <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      Matériel disponible dans la salle
+                    </h3>
+                    <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                      {room.equipment.map((item: { name: string; available: boolean }, index: number) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-purple-500 dark:text-purple-400 mt-1">•</span>
+                          <span className={item.name.trim() === '' ? 'h-2' : ''}>
+                            {item.name.trim() || '\u00A0'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Calendar, Repeat } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isToday, isSameDay, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import ReservationModal from './ReservationModal';
@@ -18,11 +18,11 @@ interface RoomCalendarProps {
 
 export default function RoomCalendar({ roomId, roomName, roomCapacity, reservations: initialReservations = [], buildingId }: RoomCalendarProps) {
   const { data: session } = useSession();
-  // Initialiser le calendrier sur la semaine suivante
+  // Initialiser le calendrier sur le premier jour réservable (30 jours dans le futur)
   const [currentWeek, setCurrentWeek] = useState(() => {
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    return nextWeek;
+    const firstBookableDay = new Date();
+    firstBookableDay.setDate(firstBookableDay.getDate() + 30);
+    return firstBookableDay;
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSlots, setSelectedSlots] = useState<{ date: Date; startHour: number; endHour: number } | null>(null);
@@ -31,7 +31,11 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<any>(null);
   const [isCanceling, setIsCanceling] = useState(false);
-  const [selectedMobileDay, setSelectedMobileDay] = useState<Date>(new Date());
+  const [selectedMobileDay, setSelectedMobileDay] = useState<Date>(() => {
+    const firstBookableDay = new Date();
+    firstBookableDay.setDate(firstBookableDay.getDate() + 30);
+    return firstBookableDay;
+  });
   const [isYearlyModalOpen, setIsYearlyModalOpen] = useState(false);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -56,7 +60,19 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     }
   };
 
-  // Vérifier si une date est dans la plage valide (minimum 7 jours à l'avance)
+  // Détecte si une réservation fait partie d'un groupe (réservation annuelle)
+  const isYearlyReservation = (reservation: any) => {
+    const similarReservations = reservations.filter(r =>
+      r.userId === reservation.userId &&
+      r.roomId === reservation.roomId &&
+      r.reason === reservation.reason &&
+      r.id !== reservation.id &&
+      Math.abs(new Date(r.createdAt).getTime() - new Date(reservation.createdAt).getTime()) < 60000
+    );
+    return similarReservations.length > 0;
+  };
+
+  // Vérifier si une date est dans la plage valide (minimum 30 jours à l'avance)
   const isDateInValidRange = (day: Date): boolean => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -64,9 +80,9 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     checkDate.setHours(0, 0, 0, 0);
 
     const minDate = new Date(today);
-    minDate.setDate(minDate.getDate() + 7);
+    minDate.setDate(minDate.getDate() + 30);
 
-    // La date doit être au minimum 7 jours dans le futur
+    // La date doit être au minimum 30 jours dans le futur
     return checkDate >= minDate;
   };
 
@@ -96,7 +112,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const handleSlotClick = (day: Date, hour: number) => {
     // Vérifier si la date est dans la plage valide
     if (!isDateInValidRange(day)) {
-      alert('Réservation 7 jours à l\'avance minimum');
+      alert('Réservation 30 jours à l\'avance minimum');
       return;
     }
 
@@ -309,6 +325,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                   const isReserved = reservation !== null;
                   const isOwnReservation = isReserved && canCancelReservation(reservation);
                   const isApprovedReservation = isReserved && reservation.status === 'approved';
+                  const isYearlyApprovedReservation = isApprovedReservation && isYearlyReservation(reservation);
                   const isRejectedReservation = isReserved && reservation.status === 'rejected' && isOwnReservation;
                   const isPendingReservation = isReserved && reservation.status === 'pending';
                   // Un créneau est hors de portée seulement s'il n'est PAS réservé et qu'il est avant J+7
@@ -325,6 +342,10 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                           ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 cursor-not-allowed opacity-50'
                           : isRejectedReservation
                           ? 'border-red-700 dark:border-red-600 bg-gradient-to-br from-red-200 to-rose-200 dark:from-red-900 dark:to-rose-900 cursor-not-allowed'
+                          : isYearlyApprovedReservation && isOwnReservation
+                          ? 'border-green-900 dark:border-green-800 bg-gradient-to-br from-green-700 to-emerald-700 dark:from-green-900 dark:to-emerald-900 cursor-pointer hover:from-green-800 hover:to-emerald-800 dark:hover:from-green-800 dark:hover:to-emerald-800 hover:shadow-lg hover:scale-105'
+                          : isYearlyApprovedReservation && !isOwnReservation
+                          ? 'border-green-900 dark:border-green-800 bg-gradient-to-br from-green-700 to-emerald-700 dark:from-green-900 dark:to-emerald-900 cursor-not-allowed'
                           : isReserved && isApprovedReservation && isOwnReservation
                           ? 'border-green-700 dark:border-green-600 bg-gradient-to-br from-green-200 to-emerald-200 dark:from-green-800 dark:to-emerald-800 cursor-pointer hover:from-green-300 hover:to-emerald-300 dark:hover:from-green-700 dark:hover:to-emerald-700 hover:shadow-lg hover:scale-105'
                           : isReserved && isApprovedReservation && !isOwnReservation
@@ -347,7 +368,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                         isReserved
                           ? (isRejectedReservation ? 'Réservation refusée' : isApprovedReservation ? 'Réservation validée' : 'En attente') + ` par ${reservation.association?.name || reservation.user?.name || 'Association'}`
                           : isOutOfRange
-                          ? 'Réservation 7 jours à l\'avance minimum'
+                          ? 'Réservation 30 jours à l\'avance minimum'
                           : selected
                           ? 'Sélectionné'
                           : selectionStartSlot
@@ -360,6 +381,8 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                           ? 'text-gray-500 dark:text-gray-400'
                           : isRejectedReservation
                           ? 'text-red-900 dark:text-red-200 font-semibold'
+                          : isYearlyApprovedReservation
+                          ? 'text-white dark:text-green-100 font-semibold'
                           : isReserved && isApprovedReservation
                           ? 'text-green-900 dark:text-green-200 font-semibold'
                           : isPendingReservation
@@ -371,7 +394,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                           : 'text-green-600 dark:text-green-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
                       }`}>
                         {isOutOfRange ? (
-                          <span className="text-[10px]">Réservation 7j min</span>
+                          <span className="text-[10px]">Réservation 30j min</span>
                         ) : isReserved ? (
                           <div className="flex flex-col items-center justify-center">
                             {isRejectedReservation ? (
@@ -380,6 +403,18 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                                 <span className="text-[10px] leading-tight text-center text-red-900 dark:text-red-200 font-semibold">Votre réservation</span>
                                 <span className="text-[10px] leading-tight text-center text-red-900 dark:text-red-200 font-semibold">est refusée</span>
                                 <span className="text-[10px] font-bold mt-1 text-center leading-tight text-red-950 dark:text-red-100">({reservation.association?.name || reservation.user?.name || 'Association'})</span>
+                              </>
+                            ) : isYearlyApprovedReservation ? (
+                              <>
+                                <Repeat className="w-5 h-5 mb-1 text-white dark:text-green-100" />
+                                <span className="text-[10px] leading-tight text-center text-white dark:text-green-100 font-bold">Réservation annuelle</span>
+                                <span className="text-[10px] font-bold mt-1 text-center leading-tight text-white dark:text-green-50">({reservation.association?.name || reservation.user?.name || 'Association'})</span>
+                                {isOwnReservation && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <X className="w-3 h-3 text-white dark:text-green-100" />
+                                    <span className="text-[9px] text-white dark:text-green-100">Cliquez pour annuler</span>
+                                  </div>
+                                )}
                               </>
                             ) : isApprovedReservation ? (
                               <>
@@ -554,7 +589,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                     </div>
                   ) : isOutOfRange ? (
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Réservation 7j min
+                      Réservation 30j min
                     </div>
                   ) : selected ? (
                     <div className="text-sm text-green-700 dark:text-green-300 font-bold flex items-center gap-1">
@@ -592,6 +627,10 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded bg-gradient-to-br from-green-200 to-emerald-200 border border-green-700"></div>
               <span className="text-gray-600 dark:text-gray-400">Réservation validée</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-green-700 to-emerald-700 border border-green-900"></div>
+              <span className="text-gray-600 dark:text-gray-400">Réservation annuelle</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded bg-gradient-to-br from-gray-300 to-gray-400 border border-gray-500"></div>

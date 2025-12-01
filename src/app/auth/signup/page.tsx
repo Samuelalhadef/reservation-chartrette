@@ -15,6 +15,7 @@ interface Association {
 export default function SignUpPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [userType, setUserType] = useState<'association' | 'particulier' | ''>('');
   const [associations, setAssociations] = useState<Association[]>([]);
   const [showNewAssociationForm, setShowNewAssociationForm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -87,15 +88,18 @@ export default function SignUpPage() {
     e.preventDefault();
     setError('');
 
-    if (!showNewAssociationForm && !formData.associationId) {
-      setError('Veuillez sélectionner une association');
-      return;
-    }
-
-    if (showNewAssociationForm) {
-      if (!formData.newAssociation.name || !formData.newAssociation.description) {
-        setError('Le nom et la description de l\'association sont requis');
+    // Validation pour les associations
+    if (userType === 'association') {
+      if (!showNewAssociationForm && !formData.associationId) {
+        setError('Veuillez sélectionner une association');
         return;
+      }
+
+      if (showNewAssociationForm) {
+        if (!formData.newAssociation.name || !formData.newAssociation.description) {
+          setError('Le nom et la description de l\'association sont requis');
+          return;
+        }
       }
     }
 
@@ -109,8 +113,9 @@ export default function SignUpPage() {
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          associationId: showNewAssociationForm ? null : formData.associationId,
-          newAssociation: showNewAssociationForm ? formData.newAssociation : null,
+          userType: userType,
+          associationId: userType === 'association' && !showNewAssociationForm ? formData.associationId : null,
+          newAssociation: userType === 'association' && showNewAssociationForm ? formData.newAssociation : null,
         }),
       });
 
@@ -253,14 +258,70 @@ export default function SignUpPage() {
             </Button>
           </form>
         ) : step === 2 ? (
-          /* Step 2: Association */
-          <form onSubmit={handleFinalSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Sélectionnez votre association
-              </label>
+          /* Step 2: User Type & Association */
+          <form onSubmit={handleFinalSubmit} className="space-y-6">
+            {/* User Type Selection */}
+            {!userType && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 text-center">
+                  Vous êtes :
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setUserType('association')}
+                    className="p-6 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-lg">Association</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Je représente une association</p>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUserType('particulier')}
+                    className="p-6 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white text-lg">Particulier</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Je réserve à titre personnel</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
 
-              {!showNewAssociationForm ? (
+            {/* Association Selection - Only shown if userType is 'association' */}
+            {userType === 'association' && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Sélectionnez votre association
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setUserType('')}
+                    className="text-sm text-gray-600 hover:text-gray-700 dark:text-gray-400"
+                  >
+                    Changer de type
+                  </button>
+                </div>
+
+                {!showNewAssociationForm ? (
                 <>
                   <select
                     value={formData.associationId}
@@ -415,7 +476,41 @@ export default function SignUpPage() {
                   </p>
                 </div>
               )}
-            </div>
+              </div>
+            )}
+
+            {/* Particulier Confirmation - Only shown if userType is 'particulier' */}
+            {userType === 'particulier' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Compte particulier
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setUserType('')}
+                    className="text-sm text-gray-600 hover:text-gray-700 dark:text-gray-400"
+                  >
+                    Changer de type
+                  </button>
+                </div>
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+                        Vous créez un compte en tant que particulier
+                      </p>
+                      <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+                        Vous pourrez réserver des salles pour vos événements personnels après validation de votre demande par les administrateurs.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-3">
               <Button
@@ -430,7 +525,7 @@ export default function SignUpPage() {
               <Button
                 type="submit"
                 isLoading={isLoading}
-                disabled={isLoading}
+                disabled={isLoading || !userType}
                 className="flex-1"
               >
                 S'inscrire

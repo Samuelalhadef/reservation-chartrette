@@ -233,14 +233,14 @@ export default function AdminDashboard() {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Associations</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Utilisateurs</p>
             <Users className="h-8 w-8 text-purple-600 dark:text-purple-400 opacity-50" />
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {stats.summary?.totalAssociations || 0}
+            {stats.summary?.totalUsers || 0}
           </p>
           <Link
-            href="/admin/associations"
+            href="/admin/users"
             className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 mt-2 inline-block"
           >
             Gérer →

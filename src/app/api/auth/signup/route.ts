@@ -7,7 +7,7 @@ import { sendEmail, emailTemplates } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password, associationId, newAssociation } = await req.json();
+    const { name, email, password, userType, associationId, newAssociation } = await req.json();
 
     // Validation
     if (!name || !email || !password) {
@@ -49,55 +49,66 @@ export async function POST(req: NextRequest) {
     }
 
     let finalAssociationId = associationId;
+    let userRole = 'user'; // Par défaut pour les associations
 
-    // If requesting new association
-    if (newAssociation && !associationId) {
-      if (!newAssociation.name || !newAssociation.description) {
-        return NextResponse.json(
-          { error: 'Association name and description are required' },
-          { status: 400 }
-        );
-      }
-
-      // Create new association with pending status
-      const [association] = await db
-        .insert(associations)
-        .values({
-          name: newAssociation.name,
-          description: newAssociation.description,
-          contactName: newAssociation.contactName || name,
-          contactEmail: newAssociation.contactEmail || email,
-          contactPhone: newAssociation.contactPhone,
-          status: 'pending',
-        })
-        .returning();
-
-      finalAssociationId = association.id;
-    } else if (associationId) {
-      // Verify association exists and is active
-      const [association] = await db
-        .select()
-        .from(associations)
-        .where(eq(associations.id, associationId))
-        .limit(1);
-
-      if (!association) {
-        return NextResponse.json(
-          { error: 'Association not found' },
-          { status: 404 }
-        );
-      }
-      if (association.status !== 'active') {
-        return NextResponse.json(
-          { error: 'Association is not active' },
-          { status: 400 }
-        );
-      }
+    // Handle particulier users
+    if (userType === 'particulier') {
+      userRole = 'particulier';
+      finalAssociationId = null; // Les particuliers n'ont pas d'association
     } else {
-      return NextResponse.json(
-        { error: 'Association selection is required' },
-        { status: 400 }
-      );
+      // Association users
+      // If requesting new association
+      if (newAssociation && !associationId) {
+        if (!newAssociation.name || !newAssociation.description) {
+          return NextResponse.json(
+            { error: 'Association name and description are required' },
+            { status: 400 }
+          );
+        }
+
+        // Create new association with pending status
+        const [association] = await db
+          .insert(associations)
+          .values({
+            name: newAssociation.name,
+            description: newAssociation.description,
+            address: newAssociation.address,
+            socialPurpose: newAssociation.socialPurpose,
+            presidentAddress: newAssociation.presidentAddress,
+            contactName: newAssociation.contactName || name,
+            contactEmail: newAssociation.contactEmail || email,
+            contactPhone: newAssociation.contactPhone,
+            status: 'pending',
+          })
+          .returning();
+
+        finalAssociationId = association.id;
+      } else if (associationId) {
+        // Verify association exists and is active
+        const [association] = await db
+          .select()
+          .from(associations)
+          .where(eq(associations.id, associationId))
+          .limit(1);
+
+        if (!association) {
+          return NextResponse.json(
+            { error: 'Association not found' },
+            { status: 404 }
+          );
+        }
+        if (association.status !== 'active') {
+          return NextResponse.json(
+            { error: 'Association is not active' },
+            { status: 400 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Association selection is required' },
+          { status: 400 }
+        );
+      }
     }
 
     // Hash password
@@ -115,7 +126,7 @@ export async function POST(req: NextRequest) {
         email: email.toLowerCase(),
         password: hashedPassword,
         associationId: finalAssociationId,
-        role: 'user',
+        role: userRole,
         verificationCode,
         verificationCodeExpiry,
         emailVerified: null, // Not verified yet

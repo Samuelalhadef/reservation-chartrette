@@ -148,46 +148,87 @@ export const emailTemplates = {
   `,
 
   verificationCode: (userName: string, code: string) => `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
-      <div style="background-color: white; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
-        <div style="text-align: center; margin-bottom: 32px;">
-          <h1 style="color: #2563eb; margin: 0; font-size: 28px;">Bienvenue !</h1>
-        </div>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Code de vérification</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f3f4f6;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f3f4f6; padding: 20px 0;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; max-width: 600px;">
 
-        <p style="color: #374151; font-size: 16px; line-height: 1.6;">Bonjour ${userName},</p>
+              <!-- Header -->
+              <tr>
+                <td style="background-color: #2563eb; padding: 30px 40px; text-align: center;">
+                  <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">Bienvenue !</h1>
+                </td>
+              </tr>
 
-        <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-          Merci de vous être inscrit sur la plateforme de réservation de salles de Chartrettes.
-        </p>
+              <!-- Content -->
+              <tr>
+                <td style="padding: 40px;">
+                  <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                    Bonjour <strong>${userName}</strong>,
+                  </p>
 
-        <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-          Pour finaliser votre inscription et vérifier votre adresse email, veuillez utiliser le code de vérification suivant :
-        </p>
+                  <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                    Merci de vous être inscrit sur la plateforme de réservation de salles de Chartrettes.
+                  </p>
 
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0;">
-          <p style="color: white; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 2px;">Code de vérification</p>
-          <p style="color: white; font-size: 36px; font-weight: bold; margin: 0; letter-spacing: 8px; font-family: 'Courier New', monospace;">
-            ${code}
-          </p>
-        </div>
+                  <p style="margin: 0 0 30px 0; color: #374151; font-size: 16px; line-height: 1.6;">
+                    Pour finaliser votre inscription et vérifier votre adresse email, veuillez utiliser le code de vérification suivant :
+                  </p>
 
-        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 24px 0;">
-          <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">
-            <strong>⚠️ Important :</strong> Ce code expirera dans <strong>15 minutes</strong>. Si vous n'avez pas demandé cette inscription, ignorez cet email.
-          </p>
-        </div>
+                  <!-- Code Box -->
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 30px 0;">
+                    <tr>
+                      <td style="background-color: #2563eb; padding: 30px; text-align: center;">
+                        <p style="margin: 0 0 15px 0; color: #ffffff; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;">
+                          CODE DE VÉRIFICATION
+                        </p>
+                        <p style="margin: 0; color: #ffffff; font-size: 42px; font-weight: bold; letter-spacing: 10px; font-family: 'Courier New', Courier, monospace;">
+                          ${code}
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
 
-        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin-top: 32px;">
-          Cordialement,<br/>
-          <strong style="color: #374151;">L'équipe de Réservation Chartrettes</strong>
-        </p>
+                  <!-- Warning Box -->
+                  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 30px 0;">
+                    <tr>
+                      <td style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px;">
+                        <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.6;">
+                          <strong>⚠️ Important :</strong> Ce code expirera dans <strong>15 minutes</strong>. Si vous n'avez pas demandé cette inscription, ignorez cet email.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
 
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;" />
+                  <p style="margin: 30px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
+                    Cordialement,<br/>
+                    <strong style="color: #374151;">L'équipe de Réservation Chartrettes</strong>
+                  </p>
+                </td>
+              </tr>
 
-        <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
-          Cet email a été envoyé automatiquement, merci de ne pas y répondre.
-        </p>
-      </div>
-    </div>
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #f9fafb; padding: 20px 40px; text-align: center; border-top: 1px solid #e5e7eb;">
+                  <p style="margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5;">
+                    Cet email a été envoyé automatiquement, merci de ne pas y répondre.
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
   `,
 };
