@@ -12,6 +12,8 @@ interface User {
   role: string;
   emailVerified: Date | null;
   associationId: string | null;
+  address: string | null;
+  isChartrettesResident: boolean;
   createdAt: Date;
   association: {
     id: string;
@@ -26,6 +28,7 @@ export default function AdminUsersPage() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchUsers();
@@ -107,11 +110,17 @@ export default function AdminUsersPage() {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.association?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      (user.association?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.address || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
 
-    return matchesSearch && matchesRole;
+    const matchesLocation =
+      locationFilter === 'all' ||
+      (locationFilter === 'chartrettes' && user.isChartrettesResident) ||
+      (locationFilter === 'other' && !user.isChartrettesResident);
+
+    return matchesSearch && matchesRole && matchesLocation;
   });
 
   if (loading) {
@@ -138,7 +147,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Statistiques rapides */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Total utilisateurs</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{users.length}</p>
@@ -156,6 +165,12 @@ export default function AdminUsersPage() {
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Chartrettes</p>
+          <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+            {users.filter(u => u.isChartrettesResident).length}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
           <p className="text-sm text-gray-600 dark:text-gray-400">Email vérifié</p>
           <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {users.filter(u => u.emailVerified).length}
@@ -165,7 +180,7 @@ export default function AdminUsersPage() {
 
       {/* Filtres */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Rechercher
@@ -174,7 +189,7 @@ export default function AdminUsersPage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Nom, email ou association..."
+              placeholder="Nom, email, adresse ou association..."
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
@@ -193,6 +208,20 @@ export default function AdminUsersPage() {
               <option value="particulier">Particuliers</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Filtrer par localisation
+            </label>
+            <select
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="all">Toutes les localisations</option>
+              <option value="chartrettes">Résidents de Chartrettes</option>
+              <option value="other">Autres</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -209,7 +238,10 @@ export default function AdminUsersPage() {
                   Rôle
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Association
+                  Association / Adresse
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Localisation
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Email vérifié
@@ -225,7 +257,7 @@ export default function AdminUsersPage() {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     Aucun utilisateur trouvé
                   </td>
                 </tr>
@@ -253,7 +285,7 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getRoleBadge(user.role)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       {user.association ? (
                         <div>
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -264,6 +296,23 @@ export default function AdminUsersPage() {
                              user.association.status === 'pending' ? 'En attente' : 'Inactive'}
                           </div>
                         </div>
+                      ) : user.address ? (
+                        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs">
+                          {user.address}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500 dark:text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {user.role === 'particulier' && user.isChartrettesResident ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300">
+                          Chartrettes
+                        </span>
+                      ) : user.role === 'particulier' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                          Autre
+                        </span>
                       ) : (
                         <span className="text-sm text-gray-500 dark:text-gray-400">-</span>
                       )}

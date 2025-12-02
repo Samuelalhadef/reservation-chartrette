@@ -10,6 +10,8 @@ export const users = sqliteTable('users', {
   image: text('image'),
   role: text('role', { enum: ['user', 'admin', 'particulier'] }).notNull().default('user'),
   associationId: text('association_id').references(() => associations.id),
+  address: text('address'), // Adresse complète de l'utilisateur particulier
+  isChartrettesResident: integer('is_chartrettes_resident', { mode: 'boolean' }).default(false), // Indique si l'utilisateur habite à Chartrettes
   emailVerified: integer('email_verified', { mode: 'timestamp' }),
   verificationCode: text('verification_code'),
   verificationCodeExpiry: integer('verification_code_expiry', { mode: 'timestamp' }),

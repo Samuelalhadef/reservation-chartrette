@@ -7,7 +7,7 @@ import { sendEmail, emailTemplates } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password, userType, associationId, newAssociation } = await req.json();
+    const { name, email, password, userType, associationId, newAssociation, address, isChartrettesResident } = await req.json();
 
     // Validation
     if (!name || !email || !password) {
@@ -55,6 +55,14 @@ export async function POST(req: NextRequest) {
     if (userType === 'particulier') {
       userRole = 'particulier';
       finalAssociationId = null; // Les particuliers n'ont pas d'association
+
+      // Validation de l'adresse pour les particuliers
+      if (!address || address.trim() === '') {
+        return NextResponse.json(
+          { error: 'Address is required for particulier users' },
+          { status: 400 }
+        );
+      }
     } else {
       // Association users
       // If requesting new association
@@ -127,6 +135,8 @@ export async function POST(req: NextRequest) {
         password: hashedPassword,
         associationId: finalAssociationId,
         role: userRole,
+        address: userType === 'particulier' ? address : null,
+        isChartrettesResident: userType === 'particulier' ? (isChartrettesResident ?? false) : false,
         verificationCode,
         verificationCodeExpiry,
         emailVerified: null, // Not verified yet

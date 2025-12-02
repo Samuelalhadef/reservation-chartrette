@@ -30,6 +30,8 @@ export default function SignUpPage() {
     password: '',
     confirmPassword: '',
     associationId: '',
+    address: '', // Adresse pour les particuliers
+    isChartrettesResident: false, // Indique si l'utilisateur habite à Chartrettes
     newAssociation: {
       name: '',
       description: '',
@@ -103,6 +105,14 @@ export default function SignUpPage() {
       }
     }
 
+    // Validation pour les particuliers
+    if (userType === 'particulier') {
+      if (!formData.address || formData.address.trim() === '') {
+        setError('L\'adresse est requise pour les particuliers');
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -116,6 +126,8 @@ export default function SignUpPage() {
           userType: userType,
           associationId: userType === 'association' && !showNewAssociationForm ? formData.associationId : null,
           newAssociation: userType === 'association' && showNewAssociationForm ? formData.newAssociation : null,
+          address: userType === 'particulier' ? formData.address : null,
+          isChartrettesResident: userType === 'particulier' ? formData.isChartrettesResident : false,
         }),
       });
 
@@ -481,8 +493,8 @@ export default function SignUpPage() {
 
             {/* Particulier Confirmation - Only shown if userType is 'particulier' */}
             {userType === 'particulier' && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Compte particulier
                   </label>
@@ -494,6 +506,7 @@ export default function SignUpPage() {
                     Changer de type
                   </button>
                 </div>
+
                 <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <div className="flex items-start gap-3">
                     <svg className="w-6 h-6 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -508,6 +521,52 @@ export default function SignUpPage() {
                       </p>
                     </div>
                   </div>
+                </div>
+
+                {/* Adresse */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Adresse complète *
+                  </label>
+                  <textarea
+                    required
+                    value={formData.address}
+                    onChange={(e) => {
+                      const address = e.target.value;
+                      setFormData({
+                        ...formData,
+                        address,
+                        // Détection automatique si l'adresse contient "Chartrettes"
+                        isChartrettesResident: address.toLowerCase().includes('chartrettes'),
+                      });
+                    }}
+                    rows={3}
+                    placeholder="Ex: 12 Rue de la Mairie, 77590 Chartrettes"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Cette adresse sera utilisée pour vérifier votre résidence
+                  </p>
+                </div>
+
+                {/* Indicateur de résidence à Chartrettes */}
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isChartrettesResident}
+                      onChange={(e) => setFormData({ ...formData, isChartrettesResident: e.target.checked })}
+                      className="mt-0.5 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <div className="font-semibold text-blue-900 dark:text-blue-300 text-sm">
+                        J'habite à Chartrettes
+                      </div>
+                      <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                        Les résidents de Chartrettes bénéficient d'une priorité pour les réservations
+                      </p>
+                    </div>
+                  </label>
                 </div>
               </div>
             )}

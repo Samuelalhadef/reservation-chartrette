@@ -36,6 +36,13 @@
       "when": 1764062146761,
       "tag": "0004_messy_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1764669485239,
+      "tag": "0005_lethal_kingpin",
+      "breakpoints": true
     }
   ]
 }
