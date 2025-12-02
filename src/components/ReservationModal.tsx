@@ -58,8 +58,69 @@ export default function ReservationModal({
       checkConventionStatus();
       setSelectedRoomIds([roomId]); // Réinitialiser la sélection
       setShowMultiRoomSelection(false);
+      loadPricing(); // Charger le prix au chargement
     }
   }, [isOpen, roomId]);
+
+  // Recharger le prix quand les créneaux ou salles changent
+  useEffect(() => {
+    if (isOpen && selectedRoomIds.length > 0) {
+      loadPricing();
+    }
+  }, [selectedRoomIds, startHour, endHour]);
+
+  const loadPricing = async () => {
+    setIsLoadingPrice(true);
+    try {
+      // Calculer les time slots
+      const timeSlots: { start: string; end: string }[] = [];
+      for (let hour = startHour; hour <= endHour; hour++) {
+        timeSlots.push({
+          start: `${hour}:00`,
+          end: `${hour + 1}:00`,
+        });
+      }
+
+      // Calculer le prix total pour toutes les salles sélectionnées
+      const pricingPromises = selectedRoomIds.map(async (roomIdToPrice) => {
+        const response = await fetch('/api/reservations/calculate-price', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            roomId: roomIdToPrice,
+            timeSlots,
+          }),
+        });
+
+        if (response.ok) {
+          return await response.json();
+        }
+        return null;
+      });
+
+      const allPricing = await Promise.all(pricingPromises);
+
+      // Additionner les prix de toutes les salles
+      const totalPricing = allPricing.reduce((acc, p) => {
+        if (!p || !p.pricing) return acc;
+        return {
+          totalPrice: acc.totalPrice + (p.pricing.totalPrice || 0),
+          depositAmount: acc.depositAmount + (p.pricing.depositAmount || 0),
+          durationType: p.pricing.durationType,
+          hourCount: p.pricing.hourCount,
+          userType: p.pricing.userType,
+        };
+      }, { totalPrice: 0, depositAmount: 0, durationType: 'hourly', hourCount: 0, userType: 'chartrettois' });
+
+      setPricing(totalPricing);
+    } catch (error) {
+      console.error('Erreur lors du calcul du prix:', error);
+    } finally {
+      setIsLoadingPrice(false);
+    }
+  };
 
   // Charger les salles du bâtiment
   const loadBuildingRooms = async () => {
@@ -302,6 +363,58 @@ export default function ReservationModal({
               </div>
             </div>
           </div>
+
+          {/* Affichage du prix */}
+          {pricing && pricing.totalPrice > 0 && (
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-700 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
+                  <Euro className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-2">Tarification</h3>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {getDurationTypeLabel(pricing.durationType)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Catégorie:</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {getUserTypeLabel(pricing.userType)}
+                      </span>
+                    </div>
+                    {selectedRoomIds.length > 1 && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600 dark:text-gray-400">Salles:</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {selectedRoomIds.length} salle{selectedRoomIds.length > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    )}
+                    <div className="pt-2 mt-2 border-t-2 border-green-200 dark:border-green-700">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-900 dark:text-white">Prix total:</span>
+                        <span className="text-xl font-bold text-green-600 dark:text-green-400">
+                          {formatPrice(pricing.totalPrice)}
+                        </span>
+                      </div>
+                      {pricing.depositAmount > 0 && (
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-gray-600 dark:text-gray-400">Caution:</span>
+                          <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
+                            {formatPrice(pricing.depositAmount)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Formulaire */}
@@ -435,6 +548,117 @@ export default function ReservationModal({
               required
             />
           </div>
+
+          {/* Affichage du prix */}
+          {pricing && (
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-5 rounded-xl border-2 border-green-200 dark:border-green-700">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
+                  <Euro className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base mb-3">
+                    Tarification
+                  </h3>
+
+                  <div className="space-y-2">
+                    {/* Type de tarif */}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Type de réservation
+                      </span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {getDurationTypeLabel(pricing.durationType)}
+                      </span>
+                    </div>
+
+                    {/* Catégorie d'utilisateur */}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Catégorie
+                      </span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {getUserTypeLabel(pricing.userType)}
+                      </span>
+                    </div>
+
+                    {/* Durée */}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        Durée
+                      </span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {pricing.hourCount} heure{pricing.hourCount > 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    {/* Séparateur */}
+                    <div className="border-t border-green-200 dark:border-green-700 my-2"></div>
+
+                    {/* Prix de location */}
+                    <div className="flex justify-between text-base">
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">
+                        Prix de location
+                      </span>
+                      <span className="font-bold text-green-700 dark:text-green-400 text-lg">
+                        {formatPrice(pricing.totalPrice)}
+                      </span>
+                    </div>
+
+                    {/* Caution */}
+                    {pricing.depositAmount > 0 && (
+                      <div className="flex justify-between text-base">
+                        <span className="text-gray-700 dark:text-gray-300 font-medium">
+                          Caution
+                        </span>
+                        <span className="font-bold text-orange-700 dark:text-orange-400 text-lg">
+                          {formatPrice(pricing.depositAmount)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Total */}
+                    <div className="border-t-2 border-green-300 dark:border-green-600 pt-2 mt-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-900 dark:text-white font-bold text-base sm:text-lg">
+                          Total à prévoir
+                        </span>
+                        <span className="font-bold text-green-700 dark:text-green-400 text-xl sm:text-2xl">
+                          {formatPrice(pricing.totalPrice + pricing.depositAmount)}
+                        </span>
+                      </div>
+                      {pricing.depositAmount > 0 && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                          La caution sera restituée après validation de l'état des lieux
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Salles multiples */}
+                  {selectedRoomIds.length > 1 && (
+                    <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-700">
+                      <p className="text-xs text-green-700 dark:text-green-400 font-medium">
+                        Prix total pour {selectedRoomIds.length} salles
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Loader du prix */}
+          {isLoadingPrice && !pricing && (
+            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Calcul du prix...
+                </span>
+              </div>
+            </div>
+          )}
         </form>
         </div>
 

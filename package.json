@@ -14,7 +14,6 @@
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@libsql/client": "^0.15.15",
-    "@next/swc-win32-x64-msvc": "^16.0.3",
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.4.7",
     "clsx": "^2.1.1",

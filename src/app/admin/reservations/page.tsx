@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, Users, CheckCircle, XCircle, MessageSquare, Repeat, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Users, CheckCircle, XCircle, MessageSquare, Repeat, ChevronDown, ChevronRight, DollarSign } from 'lucide-react';
 import Button from '@/components/Button';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
 import ViewToggle from '@/components/ViewToggle';
 import CalendarView from '@/components/CalendarView';
+import PaymentModal from '@/components/PaymentModal';
+import { formatPrice } from '@/lib/pricing';
 
 interface Reservation {
   id: string;
@@ -20,6 +22,12 @@ interface Reservation {
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   adminComment?: string;
   createdAt: string;
+  totalPrice: number;
+  depositAmount: number;
+  paymentStatus: string | null;
+  paymentMethod: string | null;
+  paymentReference: string | null;
+  paymentNotes: string | null;
 }
 
 interface Room {
@@ -42,6 +50,7 @@ export default function AdminReservationsPage() {
   const [comment, setComment] = useState('');
   const [applyToGroup, setApplyToGroup] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [paymentModalReservation, setPaymentModalReservation] = useState<Reservation | null>(null);
 
   useEffect(() => {
     fetchReservations();
@@ -452,9 +461,12 @@ export default function AdminReservationsPage() {
             {/* Réservations individuelles */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {singleReservations.map((reservation) => {
+              const isPaidReservation = reservation.totalPrice > 0 || reservation.depositAmount > 0;
               return (
               <div key={reservation.id} className={`p-4 rounded-xl transition-all shadow-md hover:shadow-lg ${
-                reservation.status === 'approved'
+                isPaidReservation
+                  ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-300 dark:border-amber-700 ring-2 ring-amber-200 dark:ring-amber-800'
+                  : reservation.status === 'approved'
                   ? 'bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/40 border-2 border-green-200 dark:border-green-800'
                   : reservation.status === 'rejected'
                   ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-2 border-red-200 dark:border-red-800'
@@ -465,6 +477,12 @@ export default function AdminReservationsPage() {
                     <h3 className="text-base font-semibold text-gray-900 dark:text-white flex-1">
                       {reservation.roomId.name}
                     </h3>
+                    {isPaidReservation && (
+                      <span className="ml-2 px-2 py-1 text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full flex items-center gap-1 shadow-md">
+                        <DollarSign className="w-3 h-3" />
+                        PAYANT
+                      </span>
+                    )}
                   </div>
 
                   <span
@@ -525,6 +543,61 @@ export default function AdminReservationsPage() {
                       <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
                         {reservation.adminComment}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Informations de paiement */}
+                  {(reservation.totalPrice > 0 || reservation.depositAmount > 0) && (
+                    <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg mb-3 border border-green-200 dark:border-green-800">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Tarification:
+                        </p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          reservation.paymentStatus === 'paid'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'
+                            : reservation.paymentStatus === 'check_deposited'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100'
+                            : reservation.paymentStatus === 'refunded'
+                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100'
+                        }`}>
+                          {reservation.paymentStatus === 'paid'
+                            ? 'Payé'
+                            : reservation.paymentStatus === 'check_deposited'
+                            ? 'Chèque déposé'
+                            : reservation.paymentStatus === 'refunded'
+                            ? 'Remboursé'
+                            : 'En attente'}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                        <div className="flex justify-between">
+                          <span>Location:</span>
+                          <span className="font-semibold">{formatPrice(reservation.totalPrice)}</span>
+                        </div>
+                        {reservation.depositAmount > 0 && (
+                          <div className="flex justify-between">
+                            <span>Caution:</span>
+                            <span className="font-semibold">{formatPrice(reservation.depositAmount)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-t border-green-200 dark:border-green-800 pt-1">
+                          <span className="font-medium">Total:</span>
+                          <span className="font-bold text-green-700 dark:text-green-400">
+                            {formatPrice(reservation.totalPrice + reservation.depositAmount)}
+                          </span>
+                        </div>
+                      </div>
+                      {reservation.status === 'approved' && (
+                        <button
+                          onClick={() => setPaymentModalReservation(reservation)}
+                          className="mt-2 w-full px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors flex items-center justify-center gap-1"
+                        >
+                          <DollarSign className="h-3 w-3" />
+                          Gérer le paiement
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -785,6 +858,19 @@ export default function AdminReservationsPage() {
         </div>
         );
       })()}
+
+      {/* Payment Modal */}
+      {paymentModalReservation && (
+        <PaymentModal
+          isOpen={true}
+          onClose={() => setPaymentModalReservation(null)}
+          reservation={paymentModalReservation}
+          onSuccess={() => {
+            fetchReservations();
+            setPaymentModalReservation(null);
+          }}
+        />
+      )}
     </div>
   );
 }
