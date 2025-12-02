@@ -66,6 +66,12 @@ export const rooms = sqliteTable('rooms', {
   rules: text('rules'),
   defaultTimeSlots: text('default_time_slots', { mode: 'json' }).$type<{ start: string; end: string }>().notNull().default(sql`'{"start":"08:00","end":"22:00"}'`),
   blockedDates: text('blocked_dates', { mode: 'json' }).$type<Array<{ startDate: string; endDate: string; reason: string }>>().notNull().default(sql`'[]'`),
+  // Tarification par type d'utilisateur et durée
+  pricingFullDay: text('pricing_full_day', { mode: 'json' }).$type<{ chartrettois: number; association: number; exterieur: number }>().default(sql`'{"chartrettois":0,"association":0,"exterieur":0}'`),
+  pricingHalfDay: text('pricing_half_day', { mode: 'json' }).$type<{ chartrettois: number; association: number; exterieur: number }>().default(sql`'{"chartrettois":0,"association":0,"exterieur":0}'`),
+  pricingHourly: text('pricing_hourly', { mode: 'json' }).$type<{ chartrettois: number; association: number; exterieur: number }>().default(sql`'{"chartrettois":0,"association":0,"exterieur":0}'`),
+  deposit: real('deposit').default(0), // Caution
+  isPaid: integer('is_paid', { mode: 'boolean' }).default(false), // Si la salle est payante
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
@@ -82,12 +88,22 @@ export const reservations = sqliteTable('reservations', {
   reason: text('reason').notNull(),
   estimatedParticipants: integer('estimated_participants').notNull(),
   requiredEquipment: text('required_equipment', { mode: 'json' }).$type<string[]>().default(sql`'[]'`),
-  status: text('status', { enum: ['pending', 'approved', 'rejected', 'cancelled'] }).notNull().default('pending'),
+  status: text('status', { enum: ['pending', 'approved', 'rejected', 'cancelled', 'awaiting_payment'] }).notNull().default('pending'),
   adminComment: text('admin_comment'),
   reviewedBy: text('reviewed_by').references(() => users.id),
   reviewedAt: integer('reviewed_at', { mode: 'timestamp' }),
   cancelledAt: integer('cancelled_at', { mode: 'timestamp' }),
   cancelReason: text('cancel_reason'),
+  // Champs de paiement
+  totalPrice: real('total_price').default(0), // Montant total à payer
+  depositAmount: real('deposit_amount').default(0), // Montant de la caution
+  durationType: text('duration_type', { enum: ['hourly', 'half_day', 'full_day'] }), // Type de durée pour le calcul du tarif
+  paymentStatus: text('payment_status', { enum: ['pending', 'check_deposited', 'paid', 'refunded'] }).default('pending'),
+  paymentMethod: text('payment_method'), // Ex: 'cheque', 'cash', etc.
+  paymentReference: text('payment_reference'), // Numéro de chèque ou autre référence
+  paymentValidatedBy: text('payment_validated_by').references(() => users.id),
+  paymentValidatedAt: integer('payment_validated_at', { mode: 'timestamp' }),
+  paymentNotes: text('payment_notes'), // Notes sur le paiement
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });

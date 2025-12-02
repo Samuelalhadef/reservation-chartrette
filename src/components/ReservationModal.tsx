@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Users as UsersIcon, FileText, User } from 'lucide-react';
+import { X, Calendar, Clock, Users as UsersIcon, FileText, User, Euro } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import ConventionModal from './ConventionModal';
+import { formatPrice, getDurationTypeLabel, getUserTypeLabel } from '@/lib/pricing';
+import type { PricingResult } from '@/lib/pricing';
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -44,6 +46,8 @@ export default function ReservationModal({
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([roomId]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  const [pricing, setPricing] = useState<PricingResult | null>(null);
+  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
 
   useEffect(() => {
     setResponsibleName(userName);

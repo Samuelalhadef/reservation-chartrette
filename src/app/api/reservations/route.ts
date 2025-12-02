@@ -6,6 +6,7 @@ import { eq, and, gte, lt, inArray, sql } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { sendEmail, emailTemplates } from '@/lib/email';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
+import { calculateReservationPrice } from '@/lib/pricing';
 
 export async function GET(req: NextRequest) {
   try {
@@ -274,6 +275,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Calculate pricing
+    const pricingResult = calculateReservationPrice(room, user, data.timeSlots);
+
     // Create reservation
     // Admin reservations are automatically approved
     const reservationStatus = session.user?.role === 'admin' ? 'approved' : 'pending';
@@ -290,6 +294,11 @@ export async function POST(req: NextRequest) {
         estimatedParticipants: data.estimatedParticipants,
         requiredEquipment: data.requiredEquipment || [],
         status: reservationStatus,
+        // Pricing fields
+        totalPrice: pricingResult.totalPrice,
+        depositAmount: pricingResult.depositAmount,
+        durationType: pricingResult.durationType,
+        paymentStatus: 'pending',
         // For admin, set review info immediately
         ...(session.user?.role === 'admin' && {
           reviewedBy: session.user.id,

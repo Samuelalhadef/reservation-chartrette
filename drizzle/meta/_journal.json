@@ -43,6 +43,20 @@
       "when": 1764669485239,
       "tag": "0005_lethal_kingpin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1764678887192,
+      "tag": "0006_amused_stark_industries",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1764679175075,
+      "tag": "0007_silent_scorpion",
+      "breakpoints": true
     }
   ]
 }
