@@ -440,18 +440,54 @@ export default function YearlyReservationModal({
 
           {/* Étape 2 : Sélection des horaires hebdomadaires */}
           {step === 2 && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
-                <Clock className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            <div className="space-y-4 sm:space-y-6">
+              <div className="flex items-center gap-3 p-3 sm:p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400" />
                 <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white">Horaires hebdomadaires</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <h3 className="font-bold text-gray-900 dark:text-white text-sm sm:text-base">Horaires hebdomadaires</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     Sélectionnez les créneaux qui se répéteront chaque semaine
                   </p>
                 </div>
               </div>
 
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 overflow-x-auto">
+              {/* Version mobile : liste par jour */}
+              <div className="lg:hidden space-y-3">
+                {weekDays.map((day, dayIndex) => (
+                  <div key={dayIndex} className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3">
+                    <div className="font-bold text-gray-900 dark:text-white mb-3 text-sm bg-purple-100 dark:bg-purple-900 p-2 rounded-lg text-center">
+                      {day}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {hours.map((hour) => {
+                        const selected = isSlotSelected(dayIndex, hour);
+                        const selectionStart = isSlotSelectionStart(dayIndex, hour);
+
+                        return (
+                          <button
+                            key={hour}
+                            type="button"
+                            onClick={() => handleSlotClick(dayIndex, hour)}
+                            className={`min-h-[52px] p-2 rounded-lg border-2 transition-all text-xs font-medium ${
+                              selected
+                                ? 'border-purple-500 bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100'
+                                : selectionStart
+                                ? 'border-orange-500 bg-orange-100 dark:bg-orange-900 text-orange-900 dark:text-orange-100'
+                                : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 active:border-purple-400'
+                            }`}
+                          >
+                            <div>{hour}:00</div>
+                            {selected && <div className="text-lg">✓</div>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Version desktop : grille complète */}
+              <div className="hidden lg:block bg-gray-50 dark:bg-gray-900 rounded-xl p-4 overflow-x-auto">
                 <div className="min-w-[600px]">
                   {/* Grille hebdomadaire */}
                   <div className="grid gap-2" style={{ gridTemplateColumns: '100px repeat(7, 1fr)' }}>
@@ -501,23 +537,23 @@ export default function YearlyReservationModal({
 
               {/* Liste des créneaux sélectionnés */}
               {timeSlots.length > 0 && (
-                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4">
-                  <h4 className="font-bold text-gray-900 dark:text-white mb-3">
+                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-3 sm:p-4">
+                  <h4 className="font-bold text-gray-900 dark:text-white mb-3 text-sm sm:text-base">
                     Créneaux sélectionnés ({timeSlots.length})
                   </h4>
                   <div className="space-y-2">
                     {timeSlots.map((slot, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg"
+                        className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 sm:p-3 rounded-lg"
                       >
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                           {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
                         </span>
                         <button
                           type="button"
                           onClick={() => removeTimeSlot(index)}
-                          className="text-red-600 hover:text-red-700 transition-colors"
+                          className="text-red-600 hover:text-red-700 transition-colors p-1"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -572,8 +608,8 @@ export default function YearlyReservationModal({
                 </p>
 
                 {/* Aperçu des dates concernées */}
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 max-h-96 overflow-y-auto">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3 sm:p-4 max-h-[60vh] sm:max-h-96 overflow-y-auto">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                     {getAffectedDates().slice(0, 50).map((date, index) => {
                       const isExcluded = excludedDates.some(d => isSameDay(d, date));
                       return (
@@ -581,10 +617,10 @@ export default function YearlyReservationModal({
                           key={index}
                           type="button"
                           onClick={() => toggleDateExclusion(date)}
-                          className={`p-2 rounded-lg border-2 transition-all text-sm ${
+                          className={`p-3 sm:p-2 rounded-lg border-2 transition-all text-sm sm:text-xs font-medium min-h-[48px] sm:min-h-0 ${
                             isExcluded
                               ? 'border-red-500 bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 line-through'
-                              : 'border-purple-200 dark:border-purple-700 hover:border-purple-400 text-gray-900 dark:text-white'
+                              : 'border-purple-200 dark:border-purple-700 hover:border-purple-400 active:border-purple-500 text-gray-900 dark:text-white'
                           }`}
                         >
                           {format(date, 'EEE d MMM', { locale: fr })}
