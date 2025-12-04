@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     let finalAssociationId = associationId;
-    let userRole = 'user'; // Par défaut pour les associations
+    let userRole: 'user' | 'admin' | 'particulier' = 'user'; // Par défaut pour les associations
 
     // Handle particulier users
     if (userType === 'particulier') {
