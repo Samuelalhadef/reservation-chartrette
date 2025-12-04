@@ -51,6 +51,7 @@ export default function AdminReservationsPage() {
   const [applyToGroup, setApplyToGroup] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [paymentModalReservation, setPaymentModalReservation] = useState<Reservation | null>(null);
+  const [confirmationText, setConfirmationText] = useState('');
 
   useEffect(() => {
     fetchReservations();
@@ -228,6 +229,7 @@ export default function AdminReservationsPage() {
     setCommentModal({ reservationId, action });
     setComment('');
     setApplyToGroup(false);
+    setConfirmationText('');
   };
 
   const handleReservationClick = (reservation: Reservation) => {
@@ -778,6 +780,9 @@ export default function AdminReservationsPage() {
         const reservation = reservations.find(r => r.id === commentModal.reservationId);
         const isYearly = reservation ? isPartOfYearlyReservation(reservation) : false;
         const relatedCount = reservation ? countRelatedReservations(reservation) : 0;
+        const isPaidReservation = reservation ? (reservation.totalPrice > 0 || reservation.depositAmount > 0) : false;
+        const requiresConfirmation = isPaidReservation && commentModal.action === 'approved';
+        const isConfirmationValid = !requiresConfirmation || confirmationText.trim().toLowerCase() === 'reservation payée';
 
         return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -829,6 +834,41 @@ export default function AdminReservationsPage() {
               />
             </div>
 
+            {requiresConfirmation && (
+              <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <DollarSign className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  <span className="font-semibold text-amber-900 dark:text-amber-100">
+                    Réservation payante - Confirmation requise
+                  </span>
+                </div>
+                <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
+                  Cette réservation implique un paiement de <strong>{formatPrice((reservation?.totalPrice || 0) + (reservation?.depositAmount || 0))}</strong>.
+                  Pour des raisons de sécurité, veuillez taper <strong>&ldquo;reservation payée&rdquo;</strong> ci-dessous pour confirmer.
+                </p>
+                <label className="block text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">
+                  Tapez &ldquo;reservation payée&rdquo; pour confirmer (obligatoire)
+                </label>
+                <input
+                  type="text"
+                  value={confirmationText}
+                  onChange={(e) => setConfirmationText(e.target.value)}
+                  className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                    confirmationText && !isConfirmationValid
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-amber-300 dark:border-amber-600 focus:ring-amber-500'
+                  }`}
+                  placeholder="reservation payée"
+                  autoComplete="off"
+                />
+                {confirmationText && !isConfirmationValid && (
+                  <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                    Le texte ne correspond pas. Veuillez taper exactement &ldquo;reservation payée&rdquo;
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-3">
               <Button
                 variant="secondary"
@@ -836,6 +876,7 @@ export default function AdminReservationsPage() {
                   setCommentModal(null);
                   setComment('');
                   setApplyToGroup(false);
+                  setConfirmationText('');
                 }}
                 className="flex-1"
               >
@@ -847,7 +888,8 @@ export default function AdminReservationsPage() {
                 isLoading={processingId === commentModal.reservationId}
                 disabled={
                   processingId === commentModal.reservationId ||
-                  (commentModal.action === 'rejected' && !comment.trim())
+                  (commentModal.action === 'rejected' && !comment.trim()) ||
+                  !isConfirmationValid
                 }
                 className="flex-1"
               >
