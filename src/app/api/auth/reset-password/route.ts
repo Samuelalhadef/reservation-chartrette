@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       { message: 'Votre mot de passe a été réinitialisé avec succès' },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Reset password error:', error);
     return NextResponse.json(
       { error: 'Une erreur est survenue. Veuillez réessayer.' },

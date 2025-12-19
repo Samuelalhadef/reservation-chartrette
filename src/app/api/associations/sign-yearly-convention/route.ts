@@ -7,14 +7,14 @@ import { authOptions } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions) as any;
+    const session = await getServerSession(authOptions);
 
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const body = await req.json();
-    const { signature, reservationDetails } = body;
+    const { signature } = body;
 
     if (!signature || !signature.trim()) {
       return NextResponse.json(
