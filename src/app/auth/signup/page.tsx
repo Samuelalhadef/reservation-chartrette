@@ -124,9 +124,9 @@ export default function SignUpPage() {
           email: formData.email,
           password: formData.password,
           userType: userType,
-          associationId: userType === 'association' && !showNewAssociationForm ? formData.associationId : null,
+          associationId: userType === 'association' && !showNewAssociationForm && formData.associationId ? formData.associationId : null,
           newAssociation: userType === 'association' && showNewAssociationForm ? formData.newAssociation : null,
-          address: userType === 'particulier' ? formData.address : null,
+          address: userType === 'particulier' && formData.address ? formData.address : null,
           isChartrettesResident: userType === 'particulier' ? formData.isChartrettesResident : false,
         }),
       });

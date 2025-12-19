@@ -4,10 +4,31 @@ import { db } from '@/lib/db';
 import { users, associations } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { sendEmail, emailTemplates } from '@/lib/email';
+import { sanitizeValue } from '@/lib/db/utils';
 
 export async function POST(req: NextRequest) {
   try {
     const { name, email, password, userType, associationId, newAssociation, address, isChartrettesResident } = await req.json();
+
+    // Debug logging
+    console.log('🔍 DEBUG - Received data:', JSON.stringify({
+      userType,
+      associationId,
+      address,
+      typeofAssociationId: typeof associationId,
+      typeofAddress: typeof address,
+    }, null, 2));
+
+    // Sanitize empty strings to null to prevent SQLite type errors
+    const sanitizedAssociationId = sanitizeValue(associationId);
+    const sanitizedAddress = sanitizeValue(address);
+
+    console.log('🔍 DEBUG - After sanitization:', JSON.stringify({
+      sanitizedAssociationId,
+      sanitizedAddress,
+      typeofSanitizedAssociationId: typeof sanitizedAssociationId,
+      typeofSanitizedAddress: typeof sanitizedAddress,
+    }, null, 2));
 
     // Validation
     if (!name || !email || !password) {
@@ -48,7 +69,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let finalAssociationId = associationId;
+    let finalAssociationId = sanitizedAssociationId;
     let userRole: 'user' | 'admin' | 'particulier' = 'user'; // Par défaut pour les associations
 
     // Handle particulier users
@@ -57,7 +78,7 @@ export async function POST(req: NextRequest) {
       finalAssociationId = null; // Les particuliers n'ont pas d'association
 
       // Validation de l'adresse pour les particuliers
-      if (!address || address.trim() === '') {
+      if (!sanitizedAddress) {
         return NextResponse.json(
           { error: 'Address is required for particulier users' },
           { status: 400 }
@@ -66,7 +87,7 @@ export async function POST(req: NextRequest) {
     } else {
       // Association users
       // If requesting new association
-      if (newAssociation && !associationId) {
+      if (newAssociation && !sanitizedAssociationId) {
         if (!newAssociation.name || !newAssociation.description) {
           return NextResponse.json(
             { error: 'Association name and description are required' },
@@ -91,12 +112,12 @@ export async function POST(req: NextRequest) {
           .returning();
 
         finalAssociationId = association.id;
-      } else if (associationId) {
+      } else if (sanitizedAssociationId) {
         // Verify association exists and is active
         const [association] = await db
           .select()
           .from(associations)
-          .where(eq(associations.id, associationId))
+          .where(eq(associations.id, sanitizedAssociationId))
           .limit(1);
 
         if (!association) {
@@ -127,20 +148,38 @@ export async function POST(req: NextRequest) {
     const verificationCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     // Create user (email not verified yet)
+    // Build values object conditionally - omit keys that should be null
+    const userValues: any = {
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      role: userRole,
+      verificationCode,
+      verificationCodeExpiry,
+      isChartrettesResident: userType === 'particulier' ? (isChartrettesResident ?? false) : false,
+    };
+
+    // Only add these fields if they have actual values
+    // For libSQL/Turso, it's better to omit the field than to pass null
+    if (finalAssociationId) {
+      userValues.associationId = finalAssociationId;
+    }
+
+    if (userType === 'particulier' && sanitizedAddress) {
+      userValues.address = sanitizedAddress;
+    }
+
+    // Debug logging
+    console.log('🔍 DEBUG - User values before insert:', JSON.stringify({
+      userValues,
+      hasAssociationId: 'associationId' in userValues,
+      hasAddress: 'address' in userValues,
+      hasEmailVerified: 'emailVerified' in userValues,
+    }, null, 2));
+
     const [user] = await db
       .insert(users)
-      .values({
-        name,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        associationId: finalAssociationId,
-        role: userRole,
-        address: userType === 'particulier' ? address : null,
-        isChartrettesResident: userType === 'particulier' ? (isChartrettesResident ?? false) : false,
-        verificationCode,
-        verificationCodeExpiry,
-        emailVerified: null, // Not verified yet
-      })
+      .values(userValues)
       .returning();
 
     // Send verification email
