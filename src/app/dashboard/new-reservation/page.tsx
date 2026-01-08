@@ -21,6 +21,11 @@ interface TimeSlot {
   end: string;
 }
 
+interface Association {
+  id: string;
+  name: string;
+}
+
 export default function NewReservationPage() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -29,6 +34,8 @@ export default function NewReservationPage() {
   const [error, setError] = useState('');
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [reservedSlots, setReservedSlots] = useState<TimeSlot[]>([]);
+  const [associations, setAssociations] = useState<Association[]>([]);
+  const [selectedAssociationId, setSelectedAssociationId] = useState<string>('');
 
   const isAdmin = (session?.user as any)?.role === 'admin';
 
@@ -42,7 +49,10 @@ export default function NewReservationPage() {
 
   useEffect(() => {
     fetchRooms();
-  }, []);
+    if (isAdmin) {
+      fetchAssociations();
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
     if (formData.roomId && formData.date) {
@@ -57,6 +67,16 @@ export default function NewReservationPage() {
       setRooms(data.rooms || []);
     } catch (error) {
       console.error('Error fetching rooms:', error);
+    }
+  };
+
+  const fetchAssociations = async () => {
+    try {
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      setAssociations(data.associations || []);
+    } catch (error) {
+      console.error('Error fetching associations:', error);
     }
   };
 
@@ -170,14 +190,21 @@ export default function NewReservationPage() {
     try {
       const timeSlots = convertToTimeSlots(selectedTimeSlots);
 
+      const requestBody: any = {
+        ...formData,
+        timeSlots,
+        estimatedParticipants: parseInt(formData.estimatedParticipants),
+      };
+
+      // Si admin et associationId sélectionnée, l'ajouter à la requête
+      if (isAdmin && selectedAssociationId) {
+        requestBody.associationId = selectedAssociationId;
+      }
+
       const res = await fetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          timeSlots,
-          estimatedParticipants: parseInt(formData.estimatedParticipants),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await res.json();
@@ -265,6 +292,34 @@ export default function NewReservationPage() {
             </div>
           )}
         </div>
+
+        {/* Association Selection (Admin only) */}
+        {isAdmin && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <div className="flex items-center mb-2">
+                <Users className="h-5 w-5 mr-2" />
+                Réserver pour une association (optionnel)
+              </div>
+            </label>
+            <select
+              value={selectedAssociationId}
+              onChange={(e) => setSelectedAssociationId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="">-- Réserver pour la Mairie --</option>
+              {associations.map((assoc) => (
+                <option key={assoc.id} value={assoc.id}>
+                  {assoc.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              En tant qu'administrateur, vous pouvez créer une réservation pour n'importe quelle association.
+              Si aucune association n'est sélectionnée, la réservation sera pour la Mairie de Chartrettes.
+            </p>
+          </div>
+        )}
 
         {/* Date Selection */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">

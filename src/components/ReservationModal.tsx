@@ -4,9 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Users as UsersIcon, FileText, User, Euro } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useSession } from 'next-auth/react';
 import ConventionModal from './ConventionModal';
 import { formatPrice, getDurationTypeLabel, getUserTypeLabel } from '@/lib/pricing';
 import type { PricingResult } from '@/lib/pricing';
+
+interface Association {
+  id: string;
+  name: string;
+}
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -35,6 +41,9 @@ export default function ReservationModal({
   onSuccess,
   buildingId,
 }: ReservationModalProps) {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === 'admin';
+
   const [numberOfPeople, setNumberOfPeople] = useState<number>(1);
   const [reason, setReason] = useState('');
   const [responsibleName, setResponsibleName] = useState(userName);
@@ -48,6 +57,8 @@ export default function ReservationModal({
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [pricing, setPricing] = useState<PricingResult | null>(null);
   const [isLoadingPrice, setIsLoadingPrice] = useState(false);
+  const [associations, setAssociations] = useState<Association[]>([]);
+  const [selectedAssociationId, setSelectedAssociationId] = useState<string>('');
 
   useEffect(() => {
     setResponsibleName(userName);
@@ -59,8 +70,21 @@ export default function ReservationModal({
       setSelectedRoomIds([roomId]); // Réinitialiser la sélection
       setShowMultiRoomSelection(false);
       loadPricing(); // Charger le prix au chargement
+      if (isAdmin) {
+        fetchAssociations(); // Charger les associations pour les admins
+      }
     }
-  }, [isOpen, roomId]);
+  }, [isOpen, roomId, isAdmin]);
+
+  const fetchAssociations = async () => {
+    try {
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      setAssociations(data.associations || []);
+    } catch (error) {
+      console.error('Error fetching associations:', error);
+    }
+  };
 
   // Recharger le prix quand les créneaux ou salles changent
   useEffect(() => {
@@ -263,19 +287,26 @@ export default function ReservationModal({
 
       // Créer les réservations pour toutes les salles sélectionnées
       const reservationPromises = selectedRoomIds.map(async (roomIdToReserve) => {
+        const requestBody: any = {
+          roomId: roomIdToReserve,
+          date: date.toISOString(),
+          timeSlots,
+          reason,
+          estimatedParticipants: numberOfPeople,
+          requiredEquipment: [],
+        };
+
+        // Si admin et associationId sélectionnée, l'ajouter à la requête
+        if (isAdmin && selectedAssociationId) {
+          requestBody.associationId = selectedAssociationId;
+        }
+
         const response = await fetch('/api/reservations', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            roomId: roomIdToReserve,
-            date: date.toISOString(),
-            timeSlots,
-            reason,
-            estimatedParticipants: numberOfPeople,
-            requiredEquipment: [],
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         const data = await response.json();
@@ -534,20 +565,44 @@ export default function ReservationModal({
             />
           </div>
 
-          {/* Nom du responsable */}
-          <div>
-            <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              Nom du responsable *
-            </label>
-            <input
-              type="text"
-              value={responsibleName}
-              onChange={(e) => setResponsibleName(e.target.value)}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:bg-gray-900 dark:text-white transition-colors"
-              required
-            />
-          </div>
+          {/* Association selection (Admin only) */}
+          {isAdmin ? (
+            <div>
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <UsersIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                Réserver pour une association (optionnel)
+              </label>
+              <select
+                value={selectedAssociationId}
+                onChange={(e) => setSelectedAssociationId(e.target.value)}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:bg-gray-900 dark:text-white transition-colors"
+              >
+                <option value="">-- Réserver pour la Mairie --</option>
+                {associations.map((assoc) => (
+                  <option key={assoc.id} value={assoc.id}>
+                    {assoc.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                En tant qu'administrateur, vous pouvez créer une réservation pour n'importe quelle association.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                Nom du responsable *
+              </label>
+              <input
+                type="text"
+                value={responsibleName}
+                onChange={(e) => setResponsibleName(e.target.value)}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:bg-gray-900 dark:text-white transition-colors"
+                required
+              />
+            </div>
+          )}
 
           {/* Affichage du prix */}
           {pricing && (

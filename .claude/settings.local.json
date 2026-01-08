@@ -17,7 +17,8 @@
       "Bash(npm run db:push:*)",
       "Bash(npx tsx:*)",
       "Bash(del migrate-add-address.ts)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []

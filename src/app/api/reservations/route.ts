@@ -157,6 +157,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Determine the target user ID
+    // If admin provides a userId, use that; otherwise use the session user's ID
+    let targetUserId = session.user.id;
+    if (session.user?.role === 'admin' && data.userId) {
+      targetUserId = data.userId;
+    }
+
     // Validate reservation date (règle des 30 jours pour tous les utilisateurs)
     const reservationDate = new Date(data.date);
     reservationDate.setHours(0, 0, 0, 0);
@@ -184,7 +191,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get user and room info
-    const [user] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
+    const [user] = await db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
     const [room] = await db.select().from(rooms).where(eq(rooms.id, data.roomId)).limit(1);
 
     if (!user || !room) {
@@ -198,7 +205,24 @@ export async function POST(req: NextRequest) {
     // For particuliers, create or use a special "Particuliers" association
     let associationId = user.associationId;
 
-    if (session.user?.role === 'admin') {
+    // If admin provides a custom associationId, use that
+    if (session.user?.role === 'admin' && data.associationId) {
+      // Verify the association exists
+      const [customAssoc] = await db
+        .select()
+        .from(associations)
+        .where(eq(associations.id, data.associationId))
+        .limit(1);
+
+      if (!customAssoc) {
+        return NextResponse.json(
+          { error: 'Association sélectionnée non trouvée' },
+          { status: 400 }
+        );
+      }
+
+      associationId = data.associationId;
+    } else if (user.role === 'admin') {
       // Find the "Mairie de Chartrettes" association
       const [mairieAssoc] = await db
         .select()
@@ -214,7 +238,7 @@ export async function POST(req: NextRequest) {
       }
 
       associationId = mairieAssoc.id;
-    } else if (session.user?.role === 'particulier') {
+    } else if (user.role === 'particulier') {
       // Find or create "Particuliers" association for individual users
       let [particuliersAssoc] = await db
         .select()
@@ -294,7 +318,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Calculate pricing
-    const pricingResult = calculateReservationPrice(room, user, data.timeSlots);
+    // If admin selected a custom association, calculate price as if it's an association reservation
+    let userForPricing = user;
+    if (session.user?.role === 'admin' && data.associationId) {
+      userForPricing = {
+        ...user,
+        role: 'user' as const,
+        associationId: data.associationId,
+      };
+    }
+    const pricingResult = calculateReservationPrice(room, userForPricing, data.timeSlots);
 
     // Create reservation
     // Admin reservations are automatically approved
@@ -303,7 +336,7 @@ export async function POST(req: NextRequest) {
     const [reservation] = await db
       .insert(reservations)
       .values({
-        userId: session.user.id,
+        userId: targetUserId,
         roomId: data.roomId,
         associationId: associationId,
         date: new Date(data.date),
