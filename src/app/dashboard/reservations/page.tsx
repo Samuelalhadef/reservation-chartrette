@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, Plus } from 'lucide-react';
-import Button from '@/components/Button';
+import { Calendar, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
 
 interface Reservation {
@@ -112,22 +110,13 @@ export default function ReservationsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Mes réservations
-          </h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Gérez et suivez l'état de vos réservations
-          </p>
-        </div>
-
-        <Link href="/dashboard/new-reservation">
-          <Button>
-            <Plus className="h-5 w-5 mr-2" />
-            Nouvelle réservation
-          </Button>
-        </Link>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Mes réservations
+        </h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
+          Gérez et suivez l'état de vos réservations
+        </p>
       </div>
 
       {showSuccess && (
@@ -238,18 +227,12 @@ export default function ReservationsPage() {
         ) : (
           <div className="p-8 text-center">
             <Calendar className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-gray-600 dark:text-gray-400">
               {filter === 'all'
                 ? 'Vous n\'avez pas encore de réservation'
                 : `Aucune réservation ${getStatusText(filter).toLowerCase()}`
               }
             </p>
-            <Link href="/dashboard/new-reservation">
-              <Button>
-                <Plus className="h-5 w-5 mr-2" />
-                Créer une réservation
-              </Button>
-            </Link>
           </div>
         )}
       </div>

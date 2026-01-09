@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
       targetUserId = data.userId;
     }
 
-    // Validate reservation date (règle des 30 jours pour tous les utilisateurs)
+    // Validate reservation date
     const reservationDate = new Date(data.date);
     reservationDate.setHours(0, 0, 0, 0);
 
@@ -179,15 +179,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Apply 30-day rule for all users
-    const minDate = new Date(today);
-    minDate.setDate(minDate.getDate() + 30);
+    // Apply 30-day rule only for non-admin users
+    if (session.user?.role !== 'admin') {
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 30);
 
-    if (reservationDate < minDate) {
-      return NextResponse.json(
-        { error: 'Vous devez réserver au minimum 30 jours à l\'avance pour permettre la validation par les administrateurs' },
-        { status: 400 }
-      );
+      if (reservationDate < minDate) {
+        return NextResponse.json(
+          { error: 'Vous devez réserver au minimum 30 jours à l\'avance pour permettre la validation par les administrateurs' },
+          { status: 400 }
+        );
+      }
     }
 
     // Get user and room info

@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
       estimatedParticipants,
       excludeSchoolHolidays,
       excludedDates,
+      associationId: customAssociationId,
     } = body;
 
     // Validation
@@ -74,7 +75,23 @@ export async function POST(req: NextRequest) {
       .where(eq(users.id, session.user.id))
       .limit(1);
 
-    if (!user || !user.associationId) {
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    // Déterminer l'association à utiliser
+    let targetAssociationId = user.associationId;
+
+    // Si c'est un admin et qu'une association personnalisée est fournie, l'utiliser
+    if (session.user?.role === 'admin' && customAssociationId) {
+      targetAssociationId = customAssociationId;
+    }
+
+    // Si pas d'associationId déterminé, erreur
+    if (!targetAssociationId) {
       return NextResponse.json(
         { error: 'Vous devez être associé à une association' },
         { status: 400 }
@@ -85,7 +102,7 @@ export async function POST(req: NextRequest) {
     const [association] = await db
       .select()
       .from(associations)
-      .where(eq(associations.id, user.associationId))
+      .where(eq(associations.id, targetAssociationId))
       .limit(1);
 
     if (!association) {
@@ -145,6 +162,9 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        // Admin reservations are automatically approved
+        const reservationStatus = session.user?.role === 'admin' ? 'approved' : 'pending';
+
         // Créer la réservation pour cette date
         const [reservation] = await db
           .insert(reservations)
@@ -157,7 +177,12 @@ export async function POST(req: NextRequest) {
             reason: reason,
             estimatedParticipants: estimatedParticipants,
             requiredEquipment: [],
-            status: 'pending',
+            status: reservationStatus,
+            // For admin, set review info immediately
+            ...(session.user?.role === 'admin' && {
+              reviewedBy: session.user.id,
+              reviewedAt: new Date(),
+            }),
           })
           .returning();
 

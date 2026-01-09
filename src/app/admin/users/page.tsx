@@ -127,7 +127,7 @@ export default function AdminUsersPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-12">
-          <p className="text-gray-600 dark:text-gray-400">Chargement des utilisateurs...</p>
+          <p className="text-gray-800 dark:text-gray-200">Chargement des utilisateurs...</p>
         </div>
       </div>
     );
@@ -141,7 +141,7 @@ export default function AdminUsersPage() {
           <Users className="w-8 h-8" />
           Gestion des utilisateurs
         </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
+        <p className="mt-2 text-gray-800 dark:text-gray-200">
           Gérer les comptes utilisateurs du système
         </p>
       </div>
@@ -149,29 +149,29 @@ export default function AdminUsersPage() {
       {/* Statistiques rapides */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Total utilisateurs</p>
+          <p className="text-sm text-gray-800 dark:text-gray-200">Total utilisateurs</p>
           <p className="text-2xl font-bold text-gray-900 dark:text-white">{users.length}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Administrateurs</p>
+          <p className="text-sm text-gray-800 dark:text-gray-200">Administrateurs</p>
           <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
             {users.filter(u => u.role === 'admin').length}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Avec association</p>
+          <p className="text-sm text-gray-800 dark:text-gray-200">Avec association</p>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
             {users.filter(u => u.associationId).length}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Chartrettes</p>
+          <p className="text-sm text-gray-800 dark:text-gray-200">Chartrettes</p>
           <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
             {users.filter(u => u.isChartrettesResident).length}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Email vérifié</p>
+          <p className="text-sm text-gray-800 dark:text-gray-200">Email vérifié</p>
           <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             {users.filter(u => u.emailVerified).length}
           </p>
@@ -190,7 +190,7 @@ export default function AdminUsersPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Nom, email, adresse ou association..."
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
           </div>
           <div>
@@ -200,7 +200,7 @@ export default function AdminUsersPage() {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="all">Tous les rôles</option>
               <option value="admin">Administrateurs</option>
@@ -215,7 +215,7 @@ export default function AdminUsersPage() {
             <select
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="all">Toutes les localisations</option>
               <option value="chartrettes">Résidents de Chartrettes</option>
@@ -297,7 +297,7 @@ export default function AdminUsersPage() {
                           </div>
                         </div>
                       ) : user.address ? (
-                        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs">
+                        <div className="text-sm text-gray-800 dark:text-gray-200 max-w-xs">
                           {user.address}
                         </div>
                       ) : (
@@ -310,7 +310,7 @@ export default function AdminUsersPage() {
                           Chartrettes
                         </span>
                       ) : user.role === 'particulier' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                           Autre
                         </span>
                       ) : (

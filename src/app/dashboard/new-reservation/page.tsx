@@ -165,7 +165,7 @@ export default function NewReservationPage() {
       return;
     }
 
-    // Valider la date de réservation (règle des 30 jours pour tous les utilisateurs)
+    // Valider la date de réservation
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const reservationDate = new Date(formData.date);
@@ -176,13 +176,15 @@ export default function NewReservationPage() {
       return;
     }
 
-    // Apply 30-day rule for all users
-    const minDate = new Date(today);
-    minDate.setDate(minDate.getDate() + 30);
+    // Apply 30-day rule only for non-admin users
+    if (!isAdmin) {
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 30);
 
-    if (reservationDate < minDate) {
-      setError('Vous devez réserver au minimum 30 jours à l\'avance pour permettre la validation par les administrateurs');
-      return;
+      if (reservationDate < minDate) {
+        setError('Vous devez réserver au minimum 30 jours à l\'avance pour permettre la validation par les administrateurs');
+        return;
+      }
     }
 
     setLoading(true);
@@ -225,8 +227,13 @@ export default function NewReservationPage() {
   const today = new Date();
   const minDate = new Date(today);
 
-  // All users need 30 days advance
-  minDate.setDate(minDate.getDate() + 30);
+  // Only non-admin users need 30 days advance
+  if (!isAdmin) {
+    minDate.setDate(minDate.getDate() + 30);
+  } else {
+    // Admin can book from today
+    minDate.setDate(minDate.getDate() + 1);
+  }
 
   const minDateStr = minDate.toISOString().split('T')[0];
 
@@ -236,7 +243,7 @@ export default function NewReservationPage() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Nouvelle réservation
         </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
+        <p className="mt-2 text-gray-800 dark:text-gray-200">
           Réservez une salle pour votre association
         </p>
       </div>
@@ -278,10 +285,10 @@ export default function NewReservationPage() {
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 {selectedRoom.name}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              <p className="text-sm text-gray-800 dark:text-gray-200 mb-3">
                 {selectedRoom.description}
               </p>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
+              <div className="text-sm text-gray-800 dark:text-gray-200">
                 <p><strong>Capacité:</strong> {selectedRoom.capacity} personnes</p>
                 {selectedRoom.equipment.length > 0 && (
                   <p className="mt-1">
@@ -314,7 +321,7 @@ export default function NewReservationPage() {
                 </option>
               ))}
             </select>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
               En tant qu'administrateur, vous pouvez créer une réservation pour n'importe quelle association.
               Si aucune association n'est sélectionnée, la réservation sera pour la Mairie de Chartrettes.
             </p>
@@ -334,8 +341,11 @@ export default function NewReservationPage() {
               setSelectedTimeSlots([]);
             }}
           />
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Vous devez réserver au minimum 30 jours à l'avance pour permettre la validation par les administrateurs
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
+            {isAdmin
+              ? 'En tant qu\'administrateur, vous pouvez réserver pour n\'importe quelle date future'
+              : 'Vous devez réserver au minimum 30 jours à l\'avance pour permettre la validation par les administrateurs'
+            }
           </p>
         </div>
 

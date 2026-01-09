@@ -261,19 +261,22 @@ export default function ReservationModal({
       const reservationDate = new Date(date);
       reservationDate.setHours(0, 0, 0, 0);
 
-      const minDate = new Date(today);
-      minDate.setDate(minDate.getDate() + 7);
-
       if (reservationDate < today) {
         alert('Vous ne pouvez pas réserver une salle pour une date passée');
         setIsSubmitting(false);
         return;
       }
 
-      if (reservationDate < minDate) {
-        alert('Réservation 7 jours à l\'avance minimum');
-        setIsSubmitting(false);
-        return;
+      // Règle d'avance uniquement pour les non-admins
+      if (!isAdmin) {
+        const minDate = new Date(today);
+        minDate.setDate(minDate.getDate() + 7);
+
+        if (reservationDate < minDate) {
+          alert('Réservation 7 jours à l\'avance minimum');
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       // Créer les time slots
@@ -375,7 +378,7 @@ export default function ReservationModal({
             <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
               <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400 flex-shrink-0" />
               <div>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Date</p>
+                <p className="text-xs text-gray-800 dark:text-gray-200">Date</p>
                 <p className="font-bold text-sm sm:text-base text-gray-900 dark:text-white">
                   {format(date, 'EEEE d MMMM yyyy', { locale: fr })}
                 </p>
@@ -384,7 +387,7 @@ export default function ReservationModal({
             <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
               <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
               <div>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Horaire</p>
+                <p className="text-xs text-gray-800 dark:text-gray-200">Horaire</p>
                 <p className="font-bold text-sm sm:text-base text-gray-900 dark:text-white">
                   {startHour}:00 - {endHour + 1}:00
                 </p>
@@ -406,20 +409,20 @@ export default function ReservationModal({
                   <h3 className="font-bold text-gray-900 dark:text-white mb-2">Tarification</h3>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                      <span className="text-gray-800 dark:text-gray-200">Type:</span>
                       <span className="font-semibold text-gray-900 dark:text-white">
                         {getDurationTypeLabel(pricing.durationType)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Catégorie:</span>
+                      <span className="text-gray-800 dark:text-gray-200">Catégorie:</span>
                       <span className="font-semibold text-gray-900 dark:text-white">
                         {getUserTypeLabel(pricing.userType)}
                       </span>
                     </div>
                     {selectedRoomIds.length > 1 && (
                       <div className="flex justify-between text-xs">
-                        <span className="text-gray-600 dark:text-gray-400">Salles:</span>
+                        <span className="text-gray-800 dark:text-gray-200">Salles:</span>
                         <span className="font-semibold text-gray-900 dark:text-white">
                           {selectedRoomIds.length} salle{selectedRoomIds.length > 1 ? 's' : ''}
                         </span>
@@ -434,7 +437,7 @@ export default function ReservationModal({
                       </div>
                       {pricing.depositAmount > 0 && (
                         <div className="flex justify-between items-center mt-1">
-                          <span className="text-xs text-gray-600 dark:text-gray-400">Caution:</span>
+                          <span className="text-xs text-gray-800 dark:text-gray-200">Caution:</span>
                           <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
                             {formatPrice(pricing.depositAmount)}
                           </span>
@@ -466,7 +469,7 @@ export default function ReservationModal({
                     <p className="font-bold text-gray-900 dark:text-white text-sm">
                       Réserver plusieurs salles
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                    <p className="text-xs text-gray-800 dark:text-gray-200">
                       {selectedRoomIds.length > 1
                         ? `${selectedRoomIds.length} salles sélectionnées`
                         : 'Même horaire, plusieurs salles'}
@@ -484,10 +487,10 @@ export default function ReservationModal({
                   {isLoadingRooms ? (
                     <div className="text-center py-4">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto"></div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">Chargement...</p>
+                      <p className="text-xs text-gray-800 dark:text-gray-200 mt-2">Chargement...</p>
                     </div>
                   ) : availableRooms.length === 0 ? (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-4">
+                    <p className="text-xs text-gray-700 dark:text-gray-200 text-center py-4">
                       Aucune autre salle disponible
                     </p>
                   ) : (
@@ -516,7 +519,7 @@ export default function ReservationModal({
                             <p className="font-semibold text-sm text-gray-900 dark:text-white">
                               {room.name}
                             </p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                            <p className="text-xs text-gray-800 dark:text-gray-200">
                               Capacité: {room.capacity} personnes
                             </p>
                           </div>
@@ -544,7 +547,7 @@ export default function ReservationModal({
               className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:bg-gray-900 dark:text-white transition-colors"
               required
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs text-gray-700 dark:text-gray-200 mt-1">
               Capacité maximale : {roomCapacity} personnes
             </p>
           </div>
@@ -575,7 +578,7 @@ export default function ReservationModal({
               <select
                 value={selectedAssociationId}
                 onChange={(e) => setSelectedAssociationId(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:bg-gray-900 dark:text-white transition-colors"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
               >
                 <option value="">-- Réserver pour la Mairie --</option>
                 {associations.map((assoc) => (
@@ -584,7 +587,7 @@ export default function ReservationModal({
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-xs text-gray-700 dark:text-gray-200 mt-1">
                 En tant qu'administrateur, vous pouvez créer une réservation pour n'importe quelle association.
               </p>
             </div>
@@ -619,7 +622,7 @@ export default function ReservationModal({
                   <div className="space-y-2">
                     {/* Type de tarif */}
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
+                      <span className="text-gray-800 dark:text-gray-200">
                         Type de réservation
                       </span>
                       <span className="font-semibold text-gray-900 dark:text-white">
@@ -629,7 +632,7 @@ export default function ReservationModal({
 
                     {/* Catégorie d'utilisateur */}
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
+                      <span className="text-gray-800 dark:text-gray-200">
                         Catégorie
                       </span>
                       <span className="font-semibold text-gray-900 dark:text-white">
@@ -639,7 +642,7 @@ export default function ReservationModal({
 
                     {/* Durée */}
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
+                      <span className="text-gray-800 dark:text-gray-200">
                         Durée
                       </span>
                       <span className="font-semibold text-gray-900 dark:text-white">
@@ -683,7 +686,7 @@ export default function ReservationModal({
                         </span>
                       </div>
                       {pricing.depositAmount > 0 && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                        <p className="text-xs text-gray-800 dark:text-gray-200 mt-2">
                           La caution sera restituée après validation de l'état des lieux
                         </p>
                       )}
@@ -708,7 +711,7 @@ export default function ReservationModal({
             <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="text-sm text-gray-800 dark:text-gray-200">
                   Calcul du prix...
                 </span>
               </div>

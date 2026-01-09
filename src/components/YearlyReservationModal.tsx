@@ -4,7 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Users as UsersIcon, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { format, addDays, eachDayOfInterval, isSameDay, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useSession } from 'next-auth/react';
 import YearlyConventionModal from './YearlyConventionModal';
+
+interface Association {
+  id: string;
+  name: string;
+}
 
 interface YearlyReservationModalProps {
   isOpen: boolean;
@@ -33,6 +39,9 @@ export default function YearlyReservationModal({
   onSuccess,
   buildingId,
 }: YearlyReservationModalProps) {
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === 'admin';
+
   const [step, setStep] = useState(1);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -45,6 +54,8 @@ export default function YearlyReservationModal({
   const [showConvention, setShowConvention] = useState(false);
   const [associationData, setAssociationData] = useState<any>(null);
   const [conventionReadOnlyMode, setConventionReadOnlyMode] = useState(false);
+  const [associations, setAssociations] = useState<Association[]>([]);
+  const [selectedAssociationId, setSelectedAssociationId] = useState<string>('');
 
   // Sélection hebdomadaire
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -66,10 +77,15 @@ export default function YearlyReservationModal({
       setExcludedDates([]);
       setSelectedDay(null);
       setSelectionStart(null);
+      setSelectedAssociationId('');
       // Charger les données de l'association
       loadAssociationData();
+      // Charger les associations pour les admins
+      if (isAdmin) {
+        fetchAssociations();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, isAdmin]);
 
   const loadAssociationData = async () => {
     try {
@@ -83,25 +99,42 @@ export default function YearlyReservationModal({
     }
   };
 
+  const fetchAssociations = async () => {
+    try {
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      setAssociations(data.associations || []);
+    } catch (error) {
+      console.error('Error fetching associations:', error);
+    }
+  };
+
   const submitYearlyReservation = async () => {
     console.log('Début de submitYearlyReservation');
     try {
       console.log('Envoi de la requête API...');
+      const requestBody: any = {
+        roomId,
+        startDate,
+        endDate,
+        timeSlots,
+        reason,
+        estimatedParticipants: numberOfPeople,
+        excludeSchoolHolidays,
+        excludedDates: excludedDates.map(d => d.toISOString()),
+      };
+
+      // Si admin et associationId sélectionnée, l'ajouter à la requête
+      if (isAdmin && selectedAssociationId) {
+        requestBody.associationId = selectedAssociationId;
+      }
+
       const response = await fetch('/api/reservations/yearly', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          roomId,
-          startDate,
-          endDate,
-          timeSlots,
-          reason,
-          estimatedParticipants: numberOfPeople,
-          excludeSchoolHolidays,
-          excludedDates: excludedDates.map(d => d.toISOString()),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       console.log('Réponse reçue, status:', response.status);
@@ -366,7 +399,7 @@ export default function YearlyReservationModal({
                 <AlertCircle className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                 <div>
                   <h3 className="font-bold text-gray-900 dark:text-white">Période de réservation</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-800 dark:text-gray-200">
                     Sélectionnez la période pour laquelle vous souhaitez réserver cette salle
                   </p>
                 </div>
@@ -416,7 +449,7 @@ export default function YearlyReservationModal({
                   className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:bg-gray-900 dark:text-white transition-colors"
                   required
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-xs text-gray-700 dark:text-gray-200 mt-1">
                   Capacité maximale : {roomCapacity} personnes
                 </p>
               </div>
@@ -435,6 +468,32 @@ export default function YearlyReservationModal({
                   required
                 />
               </div>
+
+              {/* Association selection (Admin only) */}
+              {isAdmin && (
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    <UsersIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    Réserver pour une association (optionnel)
+                  </label>
+                  <select
+                    value={selectedAssociationId}
+                    onChange={(e) => setSelectedAssociationId(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
+                  >
+                    <option value="">-- Réserver pour la Mairie --</option>
+                    {associations.map((assoc) => (
+                      <option key={assoc.id} value={assoc.id}>
+                        {assoc.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-700 dark:text-gray-200 mt-2">
+                    En tant qu'administrateur, vous pouvez créer une réservation pour n'importe quelle association.
+                    Si aucune association n'est sélectionnée, la réservation sera pour la Mairie de Chartrettes.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -572,7 +631,7 @@ export default function YearlyReservationModal({
                 <AlertCircle className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                 <div>
                   <h3 className="font-bold text-gray-900 dark:text-white">Exclusions</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-800 dark:text-gray-200">
                     Configurez les périodes où vous ne souhaitez pas réserver
                   </p>
                 </div>
@@ -629,7 +688,7 @@ export default function YearlyReservationModal({
                     })}
                   </div>
                   {getAffectedDates().length > 50 && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 text-center">
+                    <p className="text-xs text-gray-700 dark:text-gray-200 mt-4 text-center">
                       Affichage des 50 premières dates. Total: {getAffectedDates().length} dates
                     </p>
                   )}
@@ -663,7 +722,7 @@ export default function YearlyReservationModal({
                 <CheckCircle className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                 <div>
                   <h3 className="font-bold text-gray-900 dark:text-white">Récapitulatif</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-800 dark:text-gray-200">
                     Vérifiez les informations avant de valider
                   </p>
                 </div>
@@ -672,7 +731,7 @@ export default function YearlyReservationModal({
               <div className="space-y-4">
                 <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4">
                   <h4 className="font-bold text-gray-900 dark:text-white mb-3">Période</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-800 dark:text-gray-200">
                     Du {format(parseISO(startDate), 'dd MMMM yyyy', { locale: fr })} au{' '}
                     {format(parseISO(endDate), 'dd MMMM yyyy', { locale: fr })}
                   </p>

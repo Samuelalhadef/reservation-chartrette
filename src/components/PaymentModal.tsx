@@ -166,13 +166,13 @@ export default function PaymentModal({
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Prix de location</span>
+                <span className="text-gray-800 dark:text-gray-200">Prix de location</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
                   {formatPrice(reservation.totalPrice)}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Caution</span>
+                <span className="text-gray-800 dark:text-gray-200">Caution</span>
                 <span className="font-semibold text-gray-900 dark:text-white">
                   {formatPrice(reservation.depositAmount)}
                 </span>
@@ -195,7 +195,7 @@ export default function PaymentModal({
                 <CheckCircle2 className="w-5 h-5 text-purple-600" />
                 Confirmer le remboursement de la caution
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              <p className="text-sm text-gray-800 dark:text-gray-200 mb-4">
                 Vous êtes sur le point de rembourser la caution de <strong>{formatPrice(reservation.depositAmount)}</strong>.
                 Cette action ne peut pas être annulée.
               </p>
@@ -269,7 +269,7 @@ export default function PaymentModal({
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:bg-gray-900 dark:text-white transition-colors"
+                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
                 >
                   <option value="">Sélectionnez une méthode</option>
                   {paymentMethods.map((method) => (

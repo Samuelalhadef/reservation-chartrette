@@ -271,7 +271,7 @@ export default function RoomStatsPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center py-12">
-          <p className="text-gray-600 dark:text-gray-400">Chargement des statistiques...</p>
+          <p className="text-gray-800 dark:text-gray-200">Chargement des statistiques...</p>
         </div>
       </div>
     );
@@ -293,7 +293,7 @@ export default function RoomStatsPage() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               {selectedRoom ? `Détail : ${rooms.find(r => r.roomId === selectedRoom.roomId)?.roomName}` : 'Statistiques des Salles'}
             </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-gray-800 dark:text-gray-200">
               {selectedRoom ? 'Répartition par association' : 'Nombre d\'heures réservées par salle'}
             </p>
           </div>
@@ -305,7 +305,7 @@ export default function RoomStatsPage() {
                 setYear(parseInt(e.target.value));
                 setSelectedRoom(null);
               }}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               {[...Array(5)].map((_, i) => {
                 const y = new Date().getFullYear() - i;
@@ -338,7 +338,7 @@ export default function RoomStatsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total des heures</p>
+            <p className="text-sm text-gray-800 dark:text-gray-200">Total des heures</p>
             <Clock className="h-8 w-8 text-blue-600 dark:text-blue-400 opacity-50" />
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -348,7 +348,7 @@ export default function RoomStatsPage() {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-800 dark:text-gray-200">
               {selectedRoom ? 'Associations' : 'Salles'}
             </p>
             {selectedRoom ? (
@@ -364,7 +364,7 @@ export default function RoomStatsPage() {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Année</p>
+            <p className="text-sm text-gray-800 dark:text-gray-200">Année</p>
             <Clock className="h-8 w-8 text-purple-600 dark:text-purple-400 opacity-50" />
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">

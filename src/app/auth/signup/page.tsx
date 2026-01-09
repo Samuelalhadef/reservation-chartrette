@@ -198,7 +198,7 @@ export default function SignUpPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Inscription
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
+          <p className="text-gray-800 dark:text-gray-200 mt-2">
             Créez votre compte Réservation Chartrettes
           </p>
         </div>
@@ -292,7 +292,7 @@ export default function SignUpPage() {
                       </div>
                       <div>
                         <h3 className="font-bold text-gray-900 dark:text-white text-lg">Association</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Je représente une association</p>
+                        <p className="text-sm text-gray-800 dark:text-gray-200 mt-1">Je représente une association</p>
                       </div>
                     </div>
                   </button>
@@ -309,7 +309,7 @@ export default function SignUpPage() {
                       </div>
                       <div>
                         <h3 className="font-bold text-gray-900 dark:text-white text-lg">Particulier</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Je réserve à titre personnel</p>
+                        <p className="text-sm text-gray-800 dark:text-gray-200 mt-1">Je réserve à titre personnel</p>
                       </div>
                     </div>
                   </button>
@@ -338,7 +338,7 @@ export default function SignUpPage() {
                   <select
                     value={formData.associationId}
                     onChange={(e) => setFormData({ ...formData, associationId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                     required={!showNewAssociationForm}
                   >
                     <option value="">-- Choisir une association --</option>
@@ -483,7 +483,7 @@ export default function SignUpPage() {
                     }
                   />
 
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                  <p className="text-xs text-gray-800 dark:text-gray-200">
                     Votre demande sera examinée par un administrateur
                   </p>
                 </div>
@@ -603,7 +603,7 @@ export default function SignUpPage() {
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                 Vérifiez votre email
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-800 dark:text-gray-200">
                 Un code de vérification a été envoyé à<br />
                 <span className="font-semibold text-gray-900 dark:text-white">{userEmail}</span>
               </p>
@@ -653,7 +653,7 @@ export default function SignUpPage() {
               Vérifier et finaliser l'inscription
             </Button>
 
-            <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-center text-sm text-gray-800 dark:text-gray-200">
               Vous n'avez pas reçu le code ?{' '}
               <button
                 type="button"
@@ -667,7 +667,7 @@ export default function SignUpPage() {
         )}
 
         {step !== 3 && (
-          <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-6 text-center text-sm text-gray-800 dark:text-gray-200">
             Vous avez déjà un compte ?{' '}
             <Link
               href="/auth/signin"
