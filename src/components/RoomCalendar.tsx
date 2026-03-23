@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Calendar, Repeat } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isToday, isSameDay, addDays } from 'date-fns';
+import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Calendar, Repeat, LayoutGrid, CalendarDays } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, addMonths, subMonths, isToday, isSameDay, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import ReservationModal from './ReservationModal';
 import YearlyReservationModal from './YearlyReservationModal';
+import MonthCalendarView from './MonthCalendarView';
 
 interface RoomCalendarProps {
   roomId: string;
@@ -37,6 +38,12 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     return firstBookableDay;
   });
   const [isYearlyModalOpen, setIsYearlyModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const firstBookableDay = new Date();
+    firstBookableDay.setDate(firstBookableDay.getDate() + 30);
+    return firstBookableDay;
+  });
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -240,10 +247,38 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
               Emploi du temps
             </h2>
             <p className="text-blue-100">
-              Semaine du {format(weekStart, 'd', { locale: fr })} au {format(weekEnd, 'd MMMM yyyy', { locale: fr })}
+              {viewMode === 'week'
+                ? `Semaine du ${format(weekStart, 'd', { locale: fr })} au ${format(weekEnd, 'd MMMM yyyy', { locale: fr })}`
+                : format(currentMonth, 'MMMM yyyy', { locale: fr }).replace(/^./, (c) => c.toUpperCase())
+              }
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
+            {/* Toggle Semaine / Mois */}
+            <div className="flex bg-white/20 rounded-lg p-0.5 backdrop-blur-sm">
+              <button
+                onClick={() => setViewMode('month')}
+                className={`px-3 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                  viewMode === 'month'
+                    ? 'bg-white text-blue-600 shadow-md'
+                    : 'text-white hover:bg-white/10'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                Mois
+              </button>
+              <button
+                onClick={() => setViewMode('week')}
+                className={`px-3 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                  viewMode === 'week'
+                    ? 'bg-white text-blue-600 shadow-md'
+                    : 'text-white hover:bg-white/10'
+                }`}
+              >
+                <CalendarDays className="w-4 h-4" />
+                Semaine
+              </button>
+            </div>
             <button
               onClick={() => setIsYearlyModalOpen(true)}
               className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-semibold shadow-lg hover:shadow-xl flex items-center gap-2 justify-center"
@@ -254,22 +289,22 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
             </button>
             <div className="flex gap-2">
               <button
-                onClick={goToPreviousWeek}
+                onClick={viewMode === 'week' ? goToPreviousWeek : () => setCurrentMonth(subMonths(currentMonth, 1))}
                 className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm"
-                title="Semaine précédente"
+                title={viewMode === 'week' ? 'Semaine précédente' : 'Mois précédent'}
               >
                 <ChevronLeft className="w-6 h-6 text-white" />
               </button>
               <button
-                onClick={goToToday}
+                onClick={viewMode === 'week' ? goToToday : () => setCurrentMonth(new Date())}
                 className="px-4 py-2 bg-white hover:bg-gray-100 rounded-lg transition-colors font-semibold text-blue-600"
               >
                 Aujourd'hui
               </button>
               <button
-                onClick={goToNextWeek}
+                onClick={viewMode === 'week' ? goToNextWeek : () => setCurrentMonth(addMonths(currentMonth, 1))}
                 className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors backdrop-blur-sm"
-                title="Semaine suivante"
+                title={viewMode === 'week' ? 'Semaine suivante' : 'Mois suivant'}
               >
                 <ChevronRight className="w-6 h-6 text-white" />
               </button>
@@ -278,8 +313,25 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
         </div>
       </div>
 
+      {/* Vue Mois */}
+      {viewMode === 'month' && (
+        <MonthCalendarView
+          currentMonth={currentMonth}
+          reservations={reservations}
+          onDayClick={(day) => {
+            setCurrentWeek(day);
+            setSelectedMobileDay(day);
+            setViewMode('week');
+          }}
+          onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
+          onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
+          onGoToToday={() => setCurrentMonth(new Date())}
+          isDateInValidRange={isDateInValidRange}
+        />
+      )}
+
       {/* Vue Desktop (grille) */}
-      <div className="hidden md:block overflow-x-auto p-4 sm:p-6">
+      <div className={`${viewMode === 'month' ? 'hidden' : 'hidden md:block'} overflow-x-auto p-4 sm:p-6`}>
         <div className="min-w-full" style={{ width: 'max-content' }}>
           {/* En-tête des jours */}
           <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: '80px repeat(7, 140px)' }}>
@@ -455,7 +507,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
       </div>
 
       {/* Vue Mobile (liste par jour) */}
-      <div className="md:hidden p-4">
+      <div className={`${viewMode === 'month' ? 'hidden' : 'md:hidden'} p-4`}>
         {/* Carrousel de jours */}
         <div className="flex gap-2 overflow-x-auto mb-4 pb-2 scrollbar-hide">
           {weekDays.map((day) => {
@@ -613,8 +665,8 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
         </div>
       </div>
 
-      {/* Légende */}
-      <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border-t border-gray-200 dark:border-gray-700">
+      {/* Légende (vue semaine uniquement) */}
+      <div className={`${viewMode === 'month' ? 'hidden' : ''} p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border-t border-gray-200 dark:border-gray-700`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
             💡 Cliquez sur l'heure de début puis sur l'heure de fin pour sélectionner plusieurs créneaux
