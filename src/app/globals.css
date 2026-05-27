@@ -2,26 +2,149 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Design tokens — thème "Élégant municipal" (bleu ardoise / teal)
+   ============================================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f8fa;
+  --surface: #ffffff;
+  --foreground: #13243b;
+  --muted: #5b6b7d;
+  --border: #e2e9f1;
+  --ring: 67 101 133; /* primary-500 en rgb pour les ombres de focus */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #0b1726;
+  --surface: #13243b;
+  --foreground: #e8eef5;
+  --muted: #93a4b8;
+  --border: #1e3a5f;
+  --ring: 110 231 183; /* accent-300 */
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Transition douce lors du changement de thème */
+.theme-transition,
+.theme-transition * {
+  transition: background-color 0.25s ease, border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+/* ============================================================
+   Composants réutilisables
+   ============================================================ */
+@layer components {
+  /* --- Surfaces / cartes --- */
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-card
+           dark:border-primary-700/60 dark:bg-primary-800/40;
+  }
+  .card-hover {
+    @apply transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover;
+  }
+
+  /* --- Boutons --- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-lg
+           transition-all duration-200 focus:outline-none focus-visible:ring-2
+           focus-visible:ring-primary-500/50 focus-visible:ring-offset-2
+           dark:focus-visible:ring-offset-primary-900
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0;
+  }
+  .btn-primary {
+    @apply bg-primary-700 text-white hover:bg-primary-800 active:bg-primary-900
+           shadow-sm hover:shadow-md;
+  }
+  .btn-accent {
+    @apply bg-accent-600 text-white hover:bg-accent-700 active:bg-accent-800
+           shadow-sm hover:shadow-md;
+  }
+  .btn-outline {
+    @apply border-2 border-primary-700 text-primary-700 hover:bg-primary-50
+           dark:border-accent-400 dark:text-accent-300 dark:hover:bg-primary-700/40;
+  }
+  .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-primary-700/40;
+  }
+
+  /* --- Champs de formulaire --- */
+  .input {
+    @apply w-full px-3.5 py-2.5 rounded-lg border bg-white text-slate-900
+           border-slate-300 placeholder:text-slate-400
+           focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30
+           dark:bg-primary-900/40 dark:text-slate-100 dark:border-primary-700
+           dark:placeholder:text-slate-500
+           disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+  }
+
+  /* --- Badges de statut --- */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-success {
+    @apply bg-accent-100 text-accent-800 dark:bg-accent-900/40 dark:text-accent-300;
+  }
+  .badge-warning {
+    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300;
+  }
+  .badge-danger {
+    @apply bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300;
+  }
+  .badge-info {
+    @apply bg-primary-100 text-primary-800 dark:bg-primary-700/50 dark:text-primary-200;
+  }
+  .badge-neutral {
+    @apply bg-slate-100 text-slate-700 dark:bg-primary-700/40 dark:text-slate-300;
+  }
+
+  /* --- En-tête de section dégradé --- */
+  .header-gradient {
+    @apply bg-gradient-to-r from-primary-700 via-primary-600 to-accent-700 text-white;
+  }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+  .text-muted {
+    color: var(--muted);
+  }
+}
+
+/* ============================================================
+   Scrollbar discrète
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184 / 0.5);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139 / 0.7);
+  background-clip: content-box;
 }

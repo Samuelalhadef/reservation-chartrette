@@ -255,10 +255,10 @@ export default function AdminReservationsPage() {
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-primary-800 dark:text-white">
               Gestion des réservations
             </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-slate-600 dark:text-slate-300">
               Approuver ou refuser les demandes de réservation
             </p>
           </div>
@@ -269,7 +269,7 @@ export default function AdminReservationsPage() {
       {viewMode === 'list' ? (
         <>
           {/* Filter Tabs */}
-          <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div className="mb-6 bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60">
             <div className="flex flex-wrap gap-2 p-4">
               {(['all', 'pending', 'approved', 'rejected'] as const).map((status) => (
                 <button
@@ -277,8 +277,8 @@ export default function AdminReservationsPage() {
                   onClick={() => setFilter(status)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     filter === status
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      ? 'bg-primary-700 text-white'
+                      : 'bg-slate-100 dark:bg-primary-700/40 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-primary-700/60'
                   }`}
                 >
                   {status === 'all' && `Toutes (${statusCounts.all})`}
@@ -290,7 +290,7 @@ export default function AdminReservationsPage() {
             </div>
 
         {loading ? (
-          <div className="p-8 text-center text-gray-600 dark:text-gray-400">
+          <div className="p-8 text-center text-slate-600 dark:text-slate-300">
             Chargement...
           </div>
         ) : filteredReservations.length > 0 ? (
@@ -304,33 +304,33 @@ export default function AdminReservationsPage() {
               return (
                 <div key={groupKey} className={`rounded-xl border-2 transition-all shadow-md ${
                   groupStatus === 'approved'
-                    ? 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20'
+                    ? 'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20'
                     : groupStatus === 'rejected'
-                    ? 'border-purple-300 dark:border-purple-700 bg-purple-50/50 dark:bg-purple-900/10'
-                    : 'border-purple-400 dark:border-purple-600 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30'
+                    ? 'border-primary-300 dark:border-primary-700 bg-primary-50/50 dark:bg-primary-900/10'
+                    : 'border-primary-400 dark:border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/30 dark:to-primary-800/30'
                 }`}>
                   {/* En-tête du groupe */}
                   <div
                     onClick={() => toggleGroup(groupKey)}
-                    className="p-4 cursor-pointer hover:bg-purple-100/50 dark:hover:bg-purple-800/30 transition-colors rounded-t-xl"
+                    className="p-4 cursor-pointer hover:bg-primary-100/50 dark:hover:bg-primary-800/30 transition-colors rounded-t-xl"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
-                        <div className="p-2 bg-purple-600 dark:bg-purple-500 rounded-lg">
+                        <div className="p-2 bg-primary-700 dark:bg-primary-600 rounded-lg">
                           <Repeat className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                            <h3 className="text-lg font-bold text-primary-900 dark:text-primary-100">
                               Réservation à l'année
                             </h3>
-                            <span className="px-2 py-1 bg-purple-600 dark:bg-purple-500 text-white text-xs font-bold rounded-full">
+                            <span className="px-2 py-1 bg-primary-700 dark:bg-primary-600 text-white text-xs font-bold rounded-full">
                               {groupReservations.length} dates
                             </span>
                             <span
                               className={`px-2 py-1 text-xs font-semibold rounded-full ${
                                 groupStatus === 'approved'
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                  ? 'bg-accent-100 text-accent-800 dark:bg-accent-900/20 dark:text-accent-400'
                                   : groupStatus === 'rejected'
                                   ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                                   : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
@@ -343,7 +343,7 @@ export default function AdminReservationsPage() {
                                 : 'En attente'}
                             </span>
                           </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-purple-800 dark:text-purple-200">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-primary-800 dark:text-primary-200">
                             <div className="flex items-center gap-1">
                               <Users className="w-3 h-3" />
                               <span className="font-semibold">{firstReservation.userId.name}</span>
@@ -365,9 +365,9 @@ export default function AdminReservationsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {isExpanded ? (
-                          <ChevronDown className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                          <ChevronDown className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                         ) : (
-                          <ChevronRight className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                          <ChevronRight className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                         )}
                       </div>
                     </div>
@@ -375,22 +375,22 @@ export default function AdminReservationsPage() {
 
                   {/* Liste des réservations du groupe */}
                   {isExpanded && (
-                    <div className="border-t-2 border-purple-200 dark:border-purple-700">
+                    <div className="border-t-2 border-primary-200 dark:border-primary-700">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
                         {groupReservations.map((reservation) => (
                           <div key={reservation.id} className={`p-3 rounded-lg transition-all shadow-sm hover:shadow-md ${
                             reservation.status === 'approved'
-                              ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800'
+                              ? 'bg-accent-50 dark:bg-accent-900/30 border border-accent-200 dark:border-accent-800'
                               : reservation.status === 'rejected'
                               ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                              : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                              : 'bg-white dark:bg-primary-800/40 border border-slate-200 dark:border-primary-700/60'
                           }`}>
                             <div className="flex flex-col h-full">
                               <div className="flex items-center gap-2 mb-2">
-                                <Calendar className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-                                <span className="text-sm font-semibold text-gray-900 dark:text-white">{formatDate(reservation.date)}</span>
+                                <Calendar className="h-3 w-3 text-primary-600 dark:text-primary-400" />
+                                <span className="text-sm font-semibold text-slate-900 dark:text-white">{formatDate(reservation.date)}</span>
                               </div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                              <div className="text-xs text-slate-600 dark:text-slate-300 mb-2">
                                 <Clock className="h-3 w-3 inline mr-1" />
                                 {reservation.timeSlots
                                   .map((slot) => formatTimeSlot(slot.start, slot.end))
@@ -422,8 +422,8 @@ export default function AdminReservationsPage() {
                       </div>
                       {/* Actions groupées */}
                       {firstReservation.status === 'pending' && (
-                        <div className="border-t-2 border-purple-200 dark:border-purple-700 p-4 bg-purple-100/50 dark:bg-purple-900/20">
-                          <p className="text-sm text-purple-900 dark:text-purple-100 font-semibold mb-3">
+                        <div className="border-t-2 border-primary-200 dark:border-primary-700 p-4 bg-primary-100/50 dark:bg-primary-900/20">
+                          <p className="text-sm text-primary-900 dark:text-primary-100 font-semibold mb-3">
                             Actions groupées sur toutes les réservations :
                           </p>
                           <div className="flex gap-3">
@@ -465,18 +465,18 @@ export default function AdminReservationsPage() {
             {singleReservations.map((reservation) => {
               const isPaidReservation = reservation.totalPrice > 0 || reservation.depositAmount > 0;
               return (
-              <div key={reservation.id} className={`p-4 rounded-xl transition-all shadow-md hover:shadow-lg ${
+              <div key={reservation.id} className={`p-4 rounded-xl transition-all shadow-card hover:shadow-lg ${
                 isPaidReservation
                   ? 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-300 dark:border-amber-700 ring-2 ring-amber-200 dark:ring-amber-800'
                   : reservation.status === 'approved'
-                  ? 'bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/40 border-2 border-green-200 dark:border-green-800'
+                  ? 'bg-accent-50 dark:bg-accent-900/30 hover:bg-accent-100 dark:hover:bg-accent-900/40 border-2 border-accent-200 dark:border-accent-800'
                   : reservation.status === 'rejected'
                   ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border-2 border-red-200 dark:border-red-800'
-                  : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 border border-gray-200 dark:border-gray-700'
+                  : 'bg-white dark:bg-primary-800/40 hover:bg-slate-50 dark:hover:bg-primary-700/50 border border-slate-200 dark:border-primary-700/60'
               }`}>
                 <div className="flex flex-col h-full">
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white flex-1">
+                    <h3 className="text-base font-semibold text-slate-900 dark:text-white flex-1">
                       {reservation.roomId.name}
                     </h3>
                     {isPaidReservation && (
@@ -490,7 +490,7 @@ export default function AdminReservationsPage() {
                   <span
                     className={`inline-block px-2 py-1 text-xs font-semibold rounded-full mb-3 ${
                       reservation.status === 'approved'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        ? 'bg-accent-100 text-accent-800 dark:bg-accent-900/20 dark:text-accent-400'
                         : reservation.status === 'rejected'
                         ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                         : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
@@ -504,17 +504,17 @@ export default function AdminReservationsPage() {
                   </span>
 
                   <div className="space-y-2 mb-3 text-xs">
-                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center text-slate-600 dark:text-slate-300">
                       <Users className="h-3 w-3 mr-2 flex-shrink-0" />
                       <span className="truncate">
                         <strong>{reservation.userId.name}</strong>
                       </span>
                     </div>
-                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center text-slate-600 dark:text-slate-300">
                       <Calendar className="h-3 w-3 mr-2 flex-shrink-0" />
                       <span className="truncate">{formatDate(reservation.date)}</span>
                     </div>
-                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center text-slate-600 dark:text-slate-300">
                       <Clock className="h-3 w-3 mr-2 flex-shrink-0" />
                       <span className="truncate">
                         {reservation.timeSlots
@@ -522,27 +522,27 @@ export default function AdminReservationsPage() {
                           .join(', ')}
                       </span>
                     </div>
-                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center text-slate-600 dark:text-slate-300">
                       <Users className="h-3 w-3 mr-2 flex-shrink-0" />
                       <span>{reservation.estimatedParticipants} pers.</span>
                     </div>
                   </div>
 
                   <div className="mb-3 flex-1">
-                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                       Motif:
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
                       {reservation.reason}
                     </p>
                   </div>
 
                   {reservation.adminComment && (
-                    <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg mb-3">
-                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <div className="p-2 bg-slate-100 dark:bg-primary-700/40 rounded-lg mb-3">
+                      <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                         Commentaire:
                       </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
                         {reservation.adminComment}
                       </p>
                     </div>
@@ -550,18 +550,18 @@ export default function AdminReservationsPage() {
 
                   {/* Informations de paiement */}
                   {(reservation.totalPrice > 0 || reservation.depositAmount > 0) && (
-                    <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg mb-3 border border-green-200 dark:border-green-800">
+                    <div className="p-2 bg-accent-50 dark:bg-accent-900/20 rounded-lg mb-3 border border-accent-200 dark:border-accent-800">
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
                           Tarification:
                         </p>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           reservation.paymentStatus === 'paid'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'
+                            ? 'bg-accent-100 text-accent-800 dark:bg-accent-800 dark:text-accent-100'
                             : reservation.paymentStatus === 'check_deposited'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100'
+                            ? 'bg-primary-100 text-primary-800 dark:bg-primary-800 dark:text-primary-100'
                             : reservation.paymentStatus === 'refunded'
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100'
+                            ? 'bg-primary-100 text-primary-800 dark:bg-primary-800 dark:text-primary-100'
                             : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100'
                         }`}>
                           {reservation.paymentStatus === 'paid'
@@ -573,7 +573,7 @@ export default function AdminReservationsPage() {
                             : 'En attente'}
                         </span>
                       </div>
-                      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                      <div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
                         <div className="flex justify-between">
                           <span>Location:</span>
                           <span className="font-semibold">{formatPrice(reservation.totalPrice)}</span>
@@ -584,9 +584,9 @@ export default function AdminReservationsPage() {
                             <span className="font-semibold">{formatPrice(reservation.depositAmount)}</span>
                           </div>
                         )}
-                        <div className="flex justify-between border-t border-green-200 dark:border-green-800 pt-1">
+                        <div className="flex justify-between border-t border-accent-200 dark:border-accent-800 pt-1">
                           <span className="font-medium">Total:</span>
-                          <span className="font-bold text-green-700 dark:text-green-400">
+                          <span className="font-bold text-accent-700 dark:text-accent-400">
                             {formatPrice(reservation.totalPrice + reservation.depositAmount)}
                           </span>
                         </div>
@@ -594,7 +594,7 @@ export default function AdminReservationsPage() {
                       {reservation.status === 'approved' && (
                         <button
                           onClick={() => setPaymentModalReservation(reservation)}
-                          className="mt-2 w-full px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors flex items-center justify-center gap-1"
+                          className="mt-2 w-full px-2 py-1.5 bg-accent-600 hover:bg-accent-700 text-white text-xs font-medium rounded transition-colors flex items-center justify-center gap-1"
                         >
                           <DollarSign className="h-3 w-3" />
                           Gérer le paiement
@@ -604,7 +604,7 @@ export default function AdminReservationsPage() {
                   )}
 
                   {reservation.status === 'pending' && (
-                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-slate-200 dark:border-primary-700/60">
                       <Button
                         variant="success"
                         onClick={() => openCommentModal(reservation.id, 'approved')}
@@ -626,7 +626,7 @@ export default function AdminReservationsPage() {
                     </div>
                   )}
 
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 pt-2 border-t border-slate-200 dark:border-primary-700/60">
                     {new Date(reservation.createdAt).toLocaleDateString('fr-FR')}
                   </p>
                 </div>
@@ -636,7 +636,7 @@ export default function AdminReservationsPage() {
             </div>
           </div>
         ) : (
-          <div className="p-8 text-center text-gray-600 dark:text-gray-400">
+          <div className="p-8 text-center text-slate-600 dark:text-slate-300">
             Aucune réservation trouvée
           </div>
         )}
@@ -654,15 +654,15 @@ export default function AdminReservationsPage() {
       {/* Reservation Details Modal */}
       {selectedReservation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-primary-700/60">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                <h3 className="text-2xl font-bold text-primary-800 dark:text-white">
                   Détails de la réservation
                 </h3>
                 <button
                   onClick={() => setSelectedReservation(null)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-2xl"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl"
                 >
                   ×
                 </button>
@@ -671,13 +671,13 @@ export default function AdminReservationsPage() {
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center space-x-3 mb-3">
-                    <h4 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    <h4 className="text-xl font-semibold text-slate-900 dark:text-white">
                       {selectedReservation.roomId.name}
                     </h4>
                     <span
                       className={`px-3 py-1 text-xs font-semibold rounded-full ${
                         selectedReservation.status === 'approved'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                          ? 'bg-accent-100 text-accent-800 dark:bg-accent-900/20 dark:text-accent-400'
                           : selectedReservation.status === 'rejected'
                           ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                           : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
@@ -693,17 +693,17 @@ export default function AdminReservationsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-center text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center text-slate-600 dark:text-slate-300">
                     <Users className="h-4 w-4 mr-2 flex-shrink-0" />
                     <span>
                       <strong>{selectedReservation.userId.name}</strong> ({selectedReservation.associationId.name})
                     </span>
                   </div>
-                  <div className="flex items-center text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center text-slate-600 dark:text-slate-300">
                     <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
                     <span>{formatDate(selectedReservation.date)}</span>
                   </div>
-                  <div className="flex items-center text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center text-slate-600 dark:text-slate-300">
                     <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
                     <span>
                       {selectedReservation.timeSlots
@@ -711,38 +711,38 @@ export default function AdminReservationsPage() {
                         .join(', ')}
                     </span>
                   </div>
-                  <div className="flex items-center text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center text-slate-600 dark:text-slate-300">
                     <Users className="h-4 w-4 mr-2 flex-shrink-0" />
                     <span>{selectedReservation.estimatedParticipants} participants</span>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Motif:
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
                     {selectedReservation.reason}
                   </p>
                 </div>
 
                 {selectedReservation.adminComment && (
-                  <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <div className="p-3 bg-slate-100 dark:bg-primary-700/40 rounded-lg">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                       Commentaire administrateur:
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
                       {selectedReservation.adminComment}
                     </p>
                   </div>
                 )}
 
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Demande créée le {new Date(selectedReservation.createdAt).toLocaleString('fr-FR')}
                 </p>
 
                 {selectedReservation.status === 'pending' && (
-                  <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-primary-700/60">
                     <Button
                       variant="success"
                       onClick={() => {
@@ -786,20 +786,20 @@ export default function AdminReservationsPage() {
 
         return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+          <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-xl max-w-md w-full p-6 border border-slate-200 dark:border-primary-700/60">
+            <h3 className="text-xl font-bold text-primary-800 dark:text-white mb-4">
               {commentModal.action === 'approved' ? 'Approuver' : 'Refuser'} la réservation
             </h3>
 
             {isYearly && (
-              <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-200 dark:border-purple-700 rounded-lg">
+              <div className="mb-4 p-3 bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-200 dark:border-primary-700 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <Repeat className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  <span className="font-semibold text-purple-900 dark:text-purple-100">
+                  <Repeat className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                  <span className="font-semibold text-primary-900 dark:text-primary-100">
                     Réservation annuelle détectée
                   </span>
                 </div>
-                <p className="text-sm text-purple-800 dark:text-purple-200">
+                <p className="text-sm text-primary-800 dark:text-primary-200">
                   Cette réservation fait partie d'un groupe de <strong>{relatedCount} réservations</strong>.
                 </p>
                 <label className="flex items-start gap-2 mt-3 cursor-pointer">
@@ -807,9 +807,9 @@ export default function AdminReservationsPage() {
                     type="checkbox"
                     checked={applyToGroup}
                     onChange={(e) => setApplyToGroup(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                    className="mt-0.5 w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                   />
-                  <span className="text-sm text-purple-900 dark:text-purple-100">
+                  <span className="text-sm text-primary-900 dark:text-primary-100">
                     Appliquer cette action à toutes les réservations du groupe
                   </span>
                 </label>
@@ -817,14 +817,14 @@ export default function AdminReservationsPage() {
             )}
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                 Commentaire {commentModal.action === 'rejected' && '(obligatoire)'}
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/30 text-slate-900 dark:text-slate-100"
                 placeholder={
                   commentModal.action === 'approved'
                     ? 'Ajoutez des instructions ou informations complémentaires (optionnel)...'
@@ -853,7 +853,7 @@ export default function AdminReservationsPage() {
                   type="text"
                   value={confirmationText}
                   onChange={(e) => setConfirmationText(e.target.value)}
-                  className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                  className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-primary-900/30 text-slate-900 dark:text-slate-100 ${
                     confirmationText && !isConfirmationValid
                       ? 'border-red-500 focus:ring-red-500'
                       : 'border-amber-300 dark:border-amber-600 focus:ring-amber-500'

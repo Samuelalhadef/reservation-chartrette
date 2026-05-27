@@ -174,11 +174,11 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved':
-        return 'bg-green-500 dark:bg-green-600';
+        return 'bg-accent-500 dark:bg-accent-600';
       case 'pending':
         return 'bg-yellow-500 dark:bg-yellow-600';
       default:
-        return 'bg-gray-300 dark:bg-gray-600';
+        return 'bg-slate-300 dark:bg-primary-700';
     }
   };
 
@@ -242,50 +242,50 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
   return (
     <div className="space-y-4">
       {/* Navigation Header */}
-      <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+      <div className="flex items-center justify-between bg-white dark:bg-primary-800/40 p-4 rounded-lg shadow">
         <div className="flex items-center gap-2">
           <button
             onClick={goToPreviousWeek}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-50 dark:hover:bg-primary-900/40 rounded-lg transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={goToNextWeek}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-50 dark:hover:bg-primary-900/40 rounded-lg transition-colors"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
 
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
           {formatWeekRange()}
         </h2>
 
         <button
           onClick={goToToday}
-          className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+          className="px-4 py-2 text-sm font-medium text-primary-700 dark:text-accent-300 hover:bg-primary-50 dark:hover:bg-accent-500/10 rounded-lg transition-colors"
         >
           Aujourd&apos;hui
         </button>
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[1400px]">
             <thead>
-              <tr className="bg-gray-50 dark:bg-gray-700">
-                <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-600 min-w-[200px]">
+              <tr className="bg-slate-50 dark:bg-primary-900/40">
+                <th className="sticky left-0 z-10 bg-slate-50 dark:bg-primary-900/40 px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60 min-w-[200px]">
                   Salles
                 </th>
                 {weekDays.map((day, index) => (
                   <th
                     key={index}
-                    className={`px-2 py-3 text-center text-sm font-semibold border-r border-gray-200 dark:border-gray-600 min-w-[180px] ${
+                    className={`px-2 py-3 text-center text-sm font-semibold border-r border-slate-200 dark:border-primary-700/60 min-w-[180px] ${
                       isToday(day)
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                        : 'text-gray-900 dark:text-white'
+                        ? 'bg-primary-50 dark:bg-accent-500/10 text-primary-700 dark:text-accent-300'
+                        : 'text-slate-900 dark:text-white'
                     }`}
                   >
                     <div className="flex flex-col">
@@ -303,10 +303,10 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-slate-200 dark:divide-primary-700/60">
               {rooms.map((room) => (
-                <tr key={room.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <td className="sticky left-0 z-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-4 py-3 text-sm font-medium text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-600">
+                <tr key={room.id} className="hover:bg-slate-50 dark:hover:bg-primary-900/40 transition-colors">
+                  <td className="sticky left-0 z-10 bg-white dark:bg-primary-800/40 hover:bg-slate-50 dark:hover:bg-primary-900/40 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60">
                     {room.name}
                   </td>
                   {weekDays.map((day, dayIndex) => {
@@ -314,8 +314,8 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                     return (
                       <td
                         key={dayIndex}
-                        className={`px-2 py-2 border-r border-gray-200 dark:border-gray-600 ${
-                          isToday(day) ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''
+                        className={`px-2 py-2 border-r border-slate-200 dark:border-primary-700/60 ${
+                          isToday(day) ? 'bg-primary-50/30 dark:bg-accent-500/10' : ''
                         }`}
                       >
                         <div className="flex flex-col gap-1 min-h-[120px]">
@@ -331,7 +331,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                                 className={`relative flex-1 min-h-[36px] rounded transition-all flex items-center justify-center ${
                                   hasReservations
                                     ? `${getStatusColor(firstReservation.status)} hover:opacity-90 cursor-pointer shadow-sm`
-                                    : 'bg-gray-50 dark:bg-gray-700/30'
+                                    : 'bg-slate-100 dark:bg-primary-900/40'
                                 }`}
                                 onMouseEnter={(e) => hasReservations && handleMouseEnter(cellId, e)}
                                 onMouseLeave={handleMouseLeave}
@@ -340,7 +340,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                                 {hasReservations ? (
                                   <>
                                     {cellReservations.length > 1 && (
-                                      <div className="absolute top-1 right-1 bg-white dark:bg-gray-800 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow border border-gray-300">
+                                      <div className="absolute top-1 right-1 bg-white dark:bg-primary-800/40 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow border border-slate-300">
                                         {cellReservations.length}
                                       </div>
                                     )}
@@ -349,7 +349,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                                     </span>
                                   </>
                                 ) : (
-                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-medium">
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-medium">
                                     {period === 'morning' ? 'M' : period === 'afternoon' ? 'A' : 'S'}
                                   </span>
                                 )}
@@ -357,7 +357,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                                 {/* Tooltip */}
                                 {hoveredCell === cellId && (
                                   <div
-                                    className="fixed z-50 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 p-4"
+                                    className="fixed z-50 w-80 bg-white dark:bg-primary-800/40 rounded-lg shadow-2xl border border-slate-200 dark:border-primary-700/60 p-4"
                                     style={{
                                       left: `${tooltipPosition.x}px`,
                                       top: `${tooltipPosition.y - 10}px`,
@@ -367,20 +367,20 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                                     onMouseLeave={handleTooltipMouseLeave}
                                   >
                                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                                      <div className="font-semibold text-sm text-gray-900 dark:text-white border-b pb-2">
+                                      <div className="font-semibold text-sm text-slate-900 dark:text-white border-b pb-2">
                                         {getPeriodLabel(period)}
                                       </div>
 
                                       {cellReservations.map((reservation) => (
-                                        <div key={reservation.id} className="space-y-2 pb-3 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                                        <div key={reservation.id} className="space-y-2 pb-3 border-b border-slate-200 dark:border-primary-700/60 last:border-0">
                                           <div className="flex items-center justify-between">
-                                            <span className="font-semibold text-gray-900 dark:text-white text-sm">
+                                            <span className="font-semibold text-slate-900 dark:text-white text-sm">
                                               {reservation.associationId.name}
                                             </span>
                                             <span
                                               className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
                                                 reservation.status === 'approved'
-                                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                                  ? 'bg-accent-100 text-accent-800 dark:bg-accent-500/10 dark:text-accent-300'
                                                   : reservation.status === 'rejected'
                                                   ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                                                   : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
@@ -390,7 +390,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                                             </span>
                                           </div>
 
-                                          <div className="text-xs space-y-1 text-gray-600 dark:text-gray-400">
+                                          <div className="text-xs space-y-1 text-slate-600 dark:text-slate-300">
                                             <div className="flex items-center gap-1">
                                               <Users className="w-3 h-3" />
                                               <span>{reservation.userId.name}</span>
@@ -409,14 +409,14 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                                             </div>
                                           </div>
 
-                                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                                          <div className="text-xs text-slate-600 dark:text-slate-300">
                                             <span className="font-medium">Motif:</span> {reservation.reason}
                                           </div>
 
                                           {reservation.adminComment && (
-                                            <div className="text-xs bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
-                                              <span className="font-medium text-gray-700 dark:text-gray-300">Admin:</span>{' '}
-                                              <span className="text-gray-600 dark:text-gray-400">{reservation.adminComment}</span>
+                                            <div className="text-xs bg-slate-50 dark:bg-primary-900/40 p-2 rounded">
+                                              <span className="font-medium text-slate-600 dark:text-slate-300">Admin:</span>{' '}
+                                              <span className="text-slate-600 dark:text-slate-300">{reservation.adminComment}</span>
                                             </div>
                                           )}
 
@@ -428,7 +428,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                                                   onApprove(reservation.id);
                                                   setHoveredCell(null);
                                                 }}
-                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-medium transition-colors"
+                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-accent-500 hover:bg-accent-600 text-white rounded text-xs font-medium transition-colors"
                                               >
                                                 <CheckCircle className="w-3 h-3" />
                                                 Approuver
@@ -466,21 +466,21 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Légende :</span>
+      <div className="flex flex-wrap items-center gap-6 bg-white dark:bg-primary-800/40 p-4 rounded-lg shadow">
+        <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Légende :</span>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-green-500 dark:bg-green-600 shadow-sm"></div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Approuvée</span>
+          <div className="w-6 h-6 rounded bg-accent-500 dark:bg-accent-600 shadow-sm"></div>
+          <span className="text-sm text-slate-600 dark:text-slate-300">Approuvée</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-yellow-500 dark:bg-yellow-600 shadow-sm"></div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">En attente</span>
+          <span className="text-sm text-slate-600 dark:text-slate-300">En attente</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-gray-50 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600"></div>
-          <span className="text-sm text-gray-600 dark:text-gray-400">Libre</span>
+          <div className="w-6 h-6 rounded bg-slate-100 dark:bg-primary-900/40 border border-slate-300 dark:border-primary-700/60"></div>
+          <span className="text-sm text-slate-600 dark:text-slate-300">Libre</span>
         </div>
-        <div className="text-xs text-gray-500 dark:text-gray-500 ml-4">
+        <div className="text-xs text-slate-500 dark:text-slate-400 ml-4">
           M = Matin (8h-12h) • A = Après-midi (12h-18h) • S = Soir (18h-22h)
         </div>
       </div>

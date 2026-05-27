@@ -170,7 +170,7 @@ export default function AdminPricingPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -188,33 +188,33 @@ export default function AdminPricingPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-          <Euro className="w-8 h-8 text-green-600" />
+        <h1 className="text-3xl font-bold text-primary-800 dark:text-white flex items-center gap-3">
+          <Euro className="w-8 h-8 text-accent-600" />
           Configuration des tarifs
         </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
+        <p className="mt-2 text-slate-600 dark:text-slate-300">
           Gérez les tarifs de location et les cautions pour chaque salle
         </p>
       </div>
 
       {/* Légende des catégories */}
-      <div className="mb-6 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-5">
-        <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-blue-600" />
+      <div className="mb-6 bg-primary-50 dark:bg-accent-500/10 border-2 border-primary-200 dark:border-primary-700/60 rounded-xl p-5">
+        <h3 className="font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-primary-700" />
           Catégories d'utilisateurs
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div>
-            <p className="font-semibold text-blue-900 dark:text-blue-100">Chartrettois</p>
-            <p className="text-blue-700 dark:text-blue-300">Résidents de Chartrettes</p>
+            <p className="font-semibold text-primary-900 dark:text-primary-100">Chartrettois</p>
+            <p className="text-primary-700 dark:text-accent-300">Résidents de Chartrettes</p>
           </div>
           <div>
-            <p className="font-semibold text-blue-900 dark:text-blue-100">Association</p>
-            <p className="text-blue-700 dark:text-blue-300">Associations conventionnées</p>
+            <p className="font-semibold text-primary-900 dark:text-primary-100">Association</p>
+            <p className="text-primary-700 dark:text-accent-300">Associations conventionnées</p>
           </div>
           <div>
-            <p className="font-semibold text-blue-900 dark:text-blue-100">Extérieur</p>
-            <p className="text-blue-700 dark:text-blue-300">Autres utilisateurs</p>
+            <p className="font-semibold text-primary-900 dark:text-primary-100">Extérieur</p>
+            <p className="text-primary-700 dark:text-accent-300">Autres utilisateurs</p>
           </div>
         </div>
       </div>
@@ -223,8 +223,8 @@ export default function AdminPricingPage() {
       {Object.entries(roomsByBuilding).map(([buildingName, buildingRooms]) => (
         <div key={buildingName} className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <Building className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <Building className="w-6 h-6 text-slate-600 dark:text-slate-300" />
+            <h2 className="text-2xl font-bold text-primary-800 dark:text-white">
               {buildingName}
             </h2>
           </div>
@@ -233,9 +233,9 @@ export default function AdminPricingPage() {
             {buildingRooms.map((room) => (
               <div
                 key={room.id}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700"
+                className="bg-white dark:bg-primary-800/40 rounded-xl shadow-card overflow-hidden border-2 border-slate-200 dark:border-primary-700/60"
               >
-                <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-4">
+                <div className="bg-gradient-to-r from-accent-500 to-accent-600 p-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-white">{room.name}</h3>
                     {hasUnsavedChanges(room.id) && (
@@ -254,14 +254,14 @@ export default function AdminPricingPage() {
                         type="checkbox"
                         checked={getIsPaidValue(room.id)}
                         onChange={(e) => handleIsPaidChange(room.id, e.target.checked)}
-                        className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500"
+                        className="w-5 h-5 text-accent-600 rounded focus:ring-2 focus:ring-accent-500"
                       />
-                      <span className="font-semibold text-gray-900 dark:text-white">
+                      <span className="font-semibold text-slate-900 dark:text-white">
                         Salle payante
                       </span>
                     </label>
                     {!getIsPaidValue(room.id) && (
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
                         (La location sera gratuite)
                       </span>
                     )}
@@ -271,17 +271,17 @@ export default function AdminPricingPage() {
                     <>
                       {/* Tarifs journée complète */}
                       <div>
-                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                        <h4 className="font-semibold text-slate-900 dark:text-white mb-3">
                           Journée complète (8h et +)
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {(['chartrettois', 'association', 'exterieur'] as const).map((userType) => (
                             <div key={userType}>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 capitalize">
+                              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2 capitalize">
                                 {userType}
                               </label>
                               <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
                                   €
                                 </span>
                                 <input
@@ -292,7 +292,7 @@ export default function AdminPricingPage() {
                                   onChange={(e) =>
                                     handlePricingChange(room.id, 'pricingFullDay', userType, e.target.value)
                                   }
-                                  className="w-full pl-8 pr-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:bg-gray-900 dark:text-white transition-colors"
+                                  className="w-full pl-8 pr-4 py-2 border-2 border-slate-200 dark:border-primary-700/60 rounded-lg focus:border-accent-500 focus:ring-2 focus:ring-accent-200 dark:bg-primary-950 dark:text-white transition-colors"
                                 />
                               </div>
                             </div>
@@ -302,17 +302,17 @@ export default function AdminPricingPage() {
 
                       {/* Tarifs demi-journée */}
                       <div>
-                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                        <h4 className="font-semibold text-slate-900 dark:text-white mb-3">
                           Demi-journée (4-7h)
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {(['chartrettois', 'association', 'exterieur'] as const).map((userType) => (
                             <div key={userType}>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 capitalize">
+                              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2 capitalize">
                                 {userType}
                               </label>
                               <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
                                   €
                                 </span>
                                 <input
@@ -323,7 +323,7 @@ export default function AdminPricingPage() {
                                   onChange={(e) =>
                                     handlePricingChange(room.id, 'pricingHalfDay', userType, e.target.value)
                                   }
-                                  className="w-full pl-8 pr-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:bg-gray-900 dark:text-white transition-colors"
+                                  className="w-full pl-8 pr-4 py-2 border-2 border-slate-200 dark:border-primary-700/60 rounded-lg focus:border-accent-500 focus:ring-2 focus:ring-accent-200 dark:bg-primary-950 dark:text-white transition-colors"
                                 />
                               </div>
                             </div>
@@ -333,17 +333,17 @@ export default function AdminPricingPage() {
 
                       {/* Tarifs horaires */}
                       <div>
-                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                        <h4 className="font-semibold text-slate-900 dark:text-white mb-3">
                           Tarif horaire (&lt;4h)
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {(['chartrettois', 'association', 'exterieur'] as const).map((userType) => (
                             <div key={userType}>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 capitalize">
+                              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2 capitalize">
                                 {userType} / heure
                               </label>
                               <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
                                   €
                                 </span>
                                 <input
@@ -354,7 +354,7 @@ export default function AdminPricingPage() {
                                   onChange={(e) =>
                                     handlePricingChange(room.id, 'pricingHourly', userType, e.target.value)
                                   }
-                                  className="w-full pl-8 pr-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:bg-gray-900 dark:text-white transition-colors"
+                                  className="w-full pl-8 pr-4 py-2 border-2 border-slate-200 dark:border-primary-700/60 rounded-lg focus:border-accent-500 focus:ring-2 focus:ring-accent-200 dark:bg-primary-950 dark:text-white transition-colors"
                                 />
                               </div>
                             </div>
@@ -364,12 +364,12 @@ export default function AdminPricingPage() {
 
                       {/* Caution */}
                       <div>
-                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3">
+                        <h4 className="font-semibold text-slate-900 dark:text-white mb-3">
                           Caution (dépôt de garantie)
                         </h4>
                         <div className="max-w-xs">
                           <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
                               €
                             </span>
                             <input
@@ -378,10 +378,10 @@ export default function AdminPricingPage() {
                               min="0"
                               value={getDepositValue(room.id)}
                               onChange={(e) => handleDepositChange(room.id, e.target.value)}
-                              className="w-full pl-8 pr-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 dark:bg-gray-900 dark:text-white transition-colors"
+                              className="w-full pl-8 pr-4 py-2 border-2 border-slate-200 dark:border-primary-700/60 rounded-lg focus:border-accent-500 focus:ring-2 focus:ring-accent-200 dark:bg-primary-950 dark:text-white transition-colors"
                             />
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                             Montant remboursable après vérification de l'état des lieux
                           </p>
                         </div>
@@ -391,7 +391,7 @@ export default function AdminPricingPage() {
 
                   {/* Bouton de sauvegarde */}
                   {hasUnsavedChanges(room.id) && (
-                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="pt-4 border-t border-slate-200 dark:border-primary-700/60">
                       <Button
                         variant="success"
                         onClick={() => handleSave(room.id)}
@@ -413,7 +413,7 @@ export default function AdminPricingPage() {
 
       {rooms.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500 dark:text-gray-400">
+          <p className="text-slate-500 dark:text-slate-400">
             Aucune salle disponible
           </p>
         </div>

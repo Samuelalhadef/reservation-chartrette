@@ -22,10 +22,10 @@ export default async function AdminLayout({
 
   return (
     <SessionProvider>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen bg-slate-50 dark:bg-primary-950">
         <Navbar />
         <AdminMenu />
-        <main className="py-6">{children}</main>
+        <main className="py-6 animate-fade-in">{children}</main>
       </div>
     </SessionProvider>
   );

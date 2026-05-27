@@ -154,9 +154,9 @@ export default function YearlyConventionModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-primary-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* En-tête */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 sm:p-6 relative flex-shrink-0">
+        <div className="header-gradient p-4 sm:p-6 relative flex-shrink-0">
           <button
             onClick={onClose}
             className="absolute top-3 right-3 sm:top-4 sm:right-4 p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
@@ -169,7 +169,7 @@ export default function YearlyConventionModal({
               <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">
                 Convention de réservation à l'année
               </h2>
-              <p className="text-sm text-purple-100">
+              <p className="text-sm text-primary-100">
                 Signature requise pour valider votre demande
               </p>
             </div>
@@ -178,16 +178,16 @@ export default function YearlyConventionModal({
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {/* Document de convention */}
-          <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-6 border-2 border-gray-200 dark:border-gray-700 mb-6">
+          <div className="bg-slate-50 dark:bg-primary-900/40 rounded-xl p-6 border-2 border-slate-200 dark:border-primary-700/60 mb-6">
             <div className="prose dark:prose-invert max-w-none">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 text-center">
                 CONVENTION D'UTILISATION DES SALLES MUNICIPALES
               </h3>
-              <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4 text-center">
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-4 text-center">
                 ANNÉE SCOLAIRE 2025-2026
               </h4>
 
-              <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+              <div className="space-y-4 text-sm text-slate-600 dark:text-slate-300">
                 <p className="font-semibold">
                   La présente convention a pour objectif de préciser les conditions de mise à disposition des salles et matériel de l'Espace Culturel Renée Wanner et de la salle des Vergers. Elle regroupe les modalités de réservations, d'utilisations des salles et du matériel mis à disposition, ainsi que les contreparties éventuellement négociées avec la collectivité.
                 </p>
@@ -200,7 +200,7 @@ export default function YearlyConventionModal({
                   <p className="font-bold text-center text-base">Il a été convenu ce qui suit</p>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded space-y-2">
+                <div className="bg-primary-50 dark:bg-accent-500/10 p-4 rounded space-y-2">
                   <p className="font-bold">Entre</p>
                   <p><strong>ASSOCIATION :</strong> {associationData.name}</p>
                   <p><strong>OBJET SOCIAL :</strong> {reservationDetails.reason}</p>
@@ -209,7 +209,7 @@ export default function YearlyConventionModal({
                   <p className="text-xs italic mt-2">Fonction : Président</p>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded space-y-2">
+                <div className="bg-primary-50 dark:bg-accent-500/10 p-4 rounded space-y-2">
                   <p className="font-bold">Et</p>
                   <p><strong>LA MAIRIE DE CHARTRETTES</strong></p>
                   <p>37 rue Georges Clemenceau</p>
@@ -219,7 +219,7 @@ export default function YearlyConventionModal({
                 </div>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 1 : DURÉE ET RENOUVELLEMENT</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 1 : DURÉE ET RENOUVELLEMENT</h4>
                   <p>
                     La commune décide de soutenir l'association dans la poursuite de ses objectifs sociaux et statutaires en mettant gratuitement à sa disposition les locaux désignés à l'article 4 de la présente Convention. Elle est faite à titre précaire et révocable à tout moment pour des motifs d'intérêt général. La commune peut temporairement annuler la mise à disposition sans préavis ni dédommagement.
                   </p>
@@ -239,21 +239,21 @@ export default function YearlyConventionModal({
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 2 : TARIFICATION</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 2 : TARIFICATION</h4>
                   <p>
                     GRATUITE pour les associations Chartrettoises pour l'utilisation de l'ensemble des salles attribuées annuellement par la présente convention.
                   </p>
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 3 : CARACTÉRISTIQUES DU MATÉRIEL</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 3 : CARACTÉRISTIQUES DU MATÉRIEL</h4>
                   <p>
                     Se référer à l'ANNEXE joint à la présente convention.
                   </p>
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 4 : DESTINATION ET DÉSIGNATION DES LOCAUX MIS À DISPOSITION</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 4 : DESTINATION ET DÉSIGNATION DES LOCAUX MIS À DISPOSITION</h4>
                   <p>
                     Les locaux seront utilisés par l'association à usage exclusif de l'association pour la réalisation de son objet social et pour les activités déclarées. Il est à ce sujet expressément convenu que tout changement à cette destination, qui ne serait pas autorisé par la commune au préalable, entraînerait la résiliation immédiate de la présente convention.
                   </p>
@@ -278,7 +278,7 @@ export default function YearlyConventionModal({
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 5 : PROPRIÉTÉ DU MATÉRIEL</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 5 : PROPRIÉTÉ DU MATÉRIEL</h4>
                   <p>
                     Il est parfaitement entendu entre les parties que la présente convention de mise à disposition n'entraîne aucun transfert de propriété du matériel visé à l'article 3.
                   </p>
@@ -291,7 +291,7 @@ export default function YearlyConventionModal({
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 6 : FERMETURE DES ÉQUIPEMENTS</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 6 : FERMETURE DES ÉQUIPEMENTS</h4>
                   <p>
                     Chaque association est responsable de la fermeture de l'équipement utilisé. Ainsi chaque professeur doit fermer la salle et les espaces annexes (vestiaires, placards, porte de secours claquées) après chaque utilisation afin d'éviter tout problème d'intrusion et de détérioration du matériel.
                   </p>
@@ -313,7 +313,7 @@ export default function YearlyConventionModal({
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 7 : CESSION ET TRANSFERT DE RESPONSABILITÉ</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 7 : CESSION ET TRANSFERT DE RESPONSABILITÉ</h4>
                   <p>
                     Il est expressément rappelé que la présente convention est strictement réservée à servir l'objet de la seule association signataire ; que les droits et avantages ne pourront en aucun cas être cédés à un quelconque tiers sans l'accord préalable et écrit du Maire.
                   </p>
@@ -326,7 +326,7 @@ export default function YearlyConventionModal({
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 8 : ORGANISATION D'ÉVÉNEMENTS</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 8 : ORGANISATION D'ÉVÉNEMENTS</h4>
                   <p>
                     Les associations peuvent organiser des évènements et se voir attribuer des salles supplémentaires à ces occasions.
                   </p>
@@ -339,7 +339,7 @@ export default function YearlyConventionModal({
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 9 : COMMUNICATION</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 9 : COMMUNICATION</h4>
                   <p>
                     L'association ayant recours à la mise à disposition de salle ou de matériel devra faire figurer le logo de la Mairie sur les publications concernant le ou les événements auquel aura servi cette mise à disposition. L'association présentera à la ville, en amont de sa publication, la maquette du moyen de communication utilisé.
                   </p>
@@ -355,7 +355,7 @@ export default function YearlyConventionModal({
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 10 : DÉSISTEMENT ET DÉFAILLANCE</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 10 : DÉSISTEMENT ET DÉFAILLANCE</h4>
                   <p>
                     Au cas où des difficultés surviendraient entre les deux partenaires à propos de la présente convention, celles-ci s'engagent à d'abord coopérer pleinement avec diligence et bonne foi en vue de trouver une solution amiable au litige.
                   </p>
@@ -365,35 +365,35 @@ export default function YearlyConventionModal({
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 11 : OBLIGATIONS SANITAIRES</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 11 : OBLIGATIONS SANITAIRES</h4>
                   <p>
                     En cas d'épisode sanitaire impliquant des mesures de prévention spécifiques, l'association s'engage à appliquer strictement les mesures préconisées par les autorités sanitaires, municipales et fédérales. Le non-respect de ces mesures expose l'utilisateur à un arrêt de son activité dans ces locaux. Ces mesures sont susceptibles d'impacter les conditions d'utilisation définies dans la présente convention et dans le règlement d'utilisation des salles municipales (nombre de personnes par salle, accès certains locaux, etc…)
                   </p>
                 </section>
 
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-gray-900 dark:text-white">ARTICLE 12 : SIGNATURE DU CONTRAT D'ENGAGEMENT RÉPUBLICAIN</h4>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 12 : SIGNATURE DU CONTRAT D'ENGAGEMENT RÉPUBLICAIN</h4>
                   <p>
                     L'association s'engage à signer le « contrat d'engagement républicain » joint à la présente Convention (Décret n° 2021-1947 du 31 décembre 2021 pris pour l'application de l'article 10-1 de la loi N° 2000-321 du 12 avril 2000 et approuvant le contrat d'engagement républicain des associations et fondations bénéficiant de subventions publiques ou d'un agrément de l'État).
                   </p>
                 </section>
 
-                <div className="mt-8 pt-4 border-t border-gray-300 dark:border-gray-600">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded">
-                    <p className="font-bold text-center text-gray-900 dark:text-white mb-3">
+                <div className="mt-8 pt-4 border-t border-slate-300 dark:border-primary-700/60">
+                  <div className="bg-primary-50 dark:bg-accent-500/10 p-4 rounded">
+                    <p className="font-bold text-center text-slate-900 dark:text-white mb-3">
                       L'Association {associationData.name}
                     </p>
-                    <p className="font-semibold text-center text-gray-900 dark:text-white mb-3">
+                    <p className="font-semibold text-center text-slate-900 dark:text-white mb-3">
                       Représentée par son Président M/Mme {associationData.contactName}
                     </p>
-                    <p className="font-bold text-center text-gray-900 dark:text-white uppercase">
+                    <p className="font-bold text-center text-slate-900 dark:text-white uppercase">
                       ATTESTE AVOIR PRIS CONNAISSANCE DES CLAUSES DE LA PRÉSENTE CONVENTION ET DU RÈGLEMENT D'UTILISATION DES SALLES DE LA VILLE DE CHARTRETTES ET S'ENGAGE À EN RESPECTER TOUTES LES DISPOSITIONS
                     </p>
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-4">
+                  <p className="text-sm text-slate-500 dark:text-slate-300 text-center mt-4">
                     Fait à Chartrettes, le {format(new Date(), 'dd MMMM yyyy', { locale: fr })}
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center italic mt-2">
+                  <p className="text-sm text-slate-500 dark:text-slate-300 text-center italic mt-2">
                     Signature précédée de la mention « lu et approuvé » - « Le Président »
                   </p>
                 </div>
@@ -404,24 +404,24 @@ export default function YearlyConventionModal({
           {/* Section inférieure avec informations et signature */}
           <div className="space-y-4">
             {/* Informations de l'association */}
-            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4">
-              <h4 className="font-bold text-gray-900 dark:text-white mb-3">Informations de l'association</h4>
+            <div className="bg-primary-50 dark:bg-primary-900/30 rounded-xl p-4">
+              <h4 className="font-bold text-slate-900 dark:text-white mb-3">Informations de l'association</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">Association :</span>
-                  <p className="font-semibold text-gray-900 dark:text-white">{associationData.name}</p>
+                  <span className="text-slate-500 dark:text-slate-300">Association :</span>
+                  <p className="font-semibold text-slate-900 dark:text-white">{associationData.name}</p>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">Contact :</span>
-                  <p className="font-semibold text-gray-900 dark:text-white">{associationData.contactName}</p>
+                  <span className="text-slate-500 dark:text-slate-300">Contact :</span>
+                  <p className="font-semibold text-slate-900 dark:text-white">{associationData.contactName}</p>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">Email :</span>
-                  <p className="font-semibold text-gray-900 dark:text-white">{associationData.contactEmail}</p>
+                  <span className="text-slate-500 dark:text-slate-300">Email :</span>
+                  <p className="font-semibold text-slate-900 dark:text-white">{associationData.contactEmail}</p>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">Téléphone :</span>
-                  <p className="font-semibold text-gray-900 dark:text-white">{associationData.contactPhone}</p>
+                  <span className="text-slate-500 dark:text-slate-300">Téléphone :</span>
+                  <p className="font-semibold text-slate-900 dark:text-white">{associationData.contactPhone}</p>
                 </div>
               </div>
             </div>
@@ -435,7 +435,7 @@ export default function YearlyConventionModal({
                     type="checkbox"
                     checked={hasRead}
                     onChange={(e) => setHasRead(e.target.checked)}
-                    className="mt-1 w-5 h-5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                    className="mt-1 w-5 h-5 text-primary-700 rounded focus:ring-2 focus:ring-primary-500"
                   />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">
@@ -450,29 +450,29 @@ export default function YearlyConventionModal({
               </div>
 
               {/* Zone de signature avec canvas */}
-              <div className="p-4 sm:p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border-2 border-purple-300 dark:border-purple-700">
+              <div className="p-4 sm:p-6 bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-900/30 dark:to-accent-900/20 rounded-xl border-2 border-primary-300 dark:border-primary-700/60">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
-                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-2 sm:p-3 rounded-xl">
+                  <div className="bg-primary-700 p-2 sm:p-3 rounded-xl">
                     <PenTool className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
                       Signature électronique
                     </h3>
-                    <p className="text-xs sm:text-sm text-purple-600 dark:text-purple-400 font-medium">
+                    <p className="text-xs sm:text-sm text-primary-700 dark:text-accent-300 font-medium">
                       Pour finaliser la convention, veuillez apposer votre signature ci-dessous
                     </p>
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 p-3 sm:p-4 rounded-xl shadow-lg border-2 border-purple-300 dark:border-purple-700">
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 bg-purple-600 rounded-full"></span>
+                <div className="bg-white dark:bg-primary-800 p-3 sm:p-4 rounded-xl shadow-lg border-2 border-primary-300 dark:border-primary-700/60">
+                  <p className="text-xs text-slate-500 dark:text-slate-300 mb-3 flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 bg-primary-700 rounded-full"></span>
                     <span className="hidden sm:inline">Signez avec votre souris ou votre trackpad dans le cadre ci-dessous</span>
                     <span className="sm:hidden">Signez avec votre doigt ci-dessous</span>
                   </p>
                   <div className="relative group">
-                    <div className={`border-3 ${hasSignature ? 'border-green-500' : 'border-dashed border-gray-400 dark:border-gray-600'} rounded-xl overflow-hidden bg-white shadow-inner transition-all`}>
+                    <div className={`border-3 ${hasSignature ? 'border-accent-500' : 'border-dashed border-slate-400 dark:border-primary-600'} rounded-xl overflow-hidden bg-white shadow-inner transition-all`}>
                       <canvas
                         ref={canvasRef}
                         width={800}
@@ -509,7 +509,7 @@ export default function YearlyConventionModal({
                     </div>
                     {!hasSignature && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <p className="text-xs sm:text-sm font-medium text-gray-400 dark:text-gray-600">
+                        <p className="text-xs sm:text-sm font-medium text-slate-400 dark:text-primary-500">
                           ✍️ Signez ici
                         </p>
                       </div>
@@ -526,13 +526,13 @@ export default function YearlyConventionModal({
                       Effacer la signature
                     </button>
                     {hasSignature && (
-                      <span className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
-                        <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                      <span className="text-xs text-accent-600 dark:text-accent-400 font-medium flex items-center gap-1">
+                        <span className="inline-block w-2 h-2 bg-accent-500 rounded-full animate-pulse"></span>
                         Signature enregistrée
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 text-center">
+                  <p className="text-xs text-slate-500 dark:text-slate-300 mt-3 text-center">
                     Votre signature électronique a la même valeur juridique qu'une signature manuscrite.
                   </p>
                 </div>
@@ -546,7 +546,7 @@ export default function YearlyConventionModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all font-semibold shadow-lg hover:shadow-xl"
+                  className="w-full px-6 py-3 bg-primary-700 hover:bg-primary-800 text-white rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl"
                 >
                   Fermer
                 </button>
@@ -555,14 +555,14 @@ export default function YearlyConventionModal({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="w-full sm:flex-1 px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-semibold"
+                    className="w-full sm:flex-1 px-6 py-3 border-2 border-slate-300 dark:border-primary-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-primary-800 transition-colors font-semibold"
                   >
                     Annuler
                   </button>
                   <button
                     onClick={handleSign}
                     disabled={!hasRead || !hasSignature || isSigning}
-                    className="w-full sm:flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full sm:flex-1 px-6 py-3 bg-primary-700 hover:bg-primary-800 text-white rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isSigning ? (
                       <>

@@ -60,13 +60,13 @@ export default function ReservationsPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'approved':
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
+        return <CheckCircle className="h-5 w-5 text-accent-600" />;
       case 'rejected':
         return <XCircle className="h-5 w-5 text-red-600" />;
       case 'pending':
         return <Clock className="h-5 w-5 text-yellow-600" />;
       default:
-        return <AlertCircle className="h-5 w-5 text-gray-600" />;
+        return <AlertCircle className="h-5 w-5 text-slate-600" />;
     }
   };
 
@@ -88,15 +88,15 @@ export default function ReservationsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved':
-        return 'bg-green-800 text-white dark:bg-green-700 dark:text-green-50';
+        return 'bg-accent-700 text-white dark:bg-accent-700 dark:text-accent-50';
       case 'rejected':
         return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
       case 'cancelled':
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400';
+        return 'bg-slate-100 text-slate-800 dark:bg-primary-900/40 dark:text-slate-400';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-slate-100 text-slate-800';
     }
   };
 
@@ -111,32 +111,32 @@ export default function ReservationsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
           Mes réservations
         </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
+        <p className="mt-2 text-slate-600 dark:text-slate-300">
           Gérez et suivez l'état de vos réservations
         </p>
       </div>
 
       {showSuccess && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 flex items-center">
+        <div className="mb-6 p-4 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded-lg text-accent-700 dark:text-accent-400 flex items-center">
           <CheckCircle className="h-5 w-5 mr-3" />
           Votre demande de réservation a été soumise avec succès !
         </div>
       )}
 
       {/* Filter Tabs */}
-      <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="flex flex-wrap gap-2 p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="mb-6 bg-white dark:bg-primary-800/40 rounded-lg shadow border border-slate-200 dark:border-primary-700/60">
+        <div className="flex flex-wrap gap-2 p-4 border-b border-slate-200 dark:border-primary-700/60">
           {(['all', 'pending', 'approved', 'rejected', 'cancelled'] as FilterStatus[]).map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 filter === status
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-primary-700 text-white'
+                  : 'bg-slate-100 dark:bg-primary-900/40 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-primary-800/60'
               }`}
             >
               {status === 'all' ? 'Toutes' : getStatusText(status)} ({statusCounts[status]})
@@ -145,7 +145,7 @@ export default function ReservationsPage() {
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-gray-600 dark:text-gray-400">
+          <div className="p-8 text-center text-slate-600 dark:text-slate-300">
             Chargement...
           </div>
         ) : filteredReservations.length > 0 ? (
@@ -153,15 +153,15 @@ export default function ReservationsPage() {
             {filteredReservations.map((reservation) => (
               <div key={reservation.id} className={`p-4 rounded-xl transition-all shadow-md hover:shadow-lg ${
                 reservation.status === 'approved'
-                  ? 'bg-green-50 dark:bg-green-900/40 hover:bg-green-100 dark:hover:bg-green-900/50 border-2 border-green-200 dark:border-green-800'
-                  : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 border border-gray-200 dark:border-gray-700'
+                  ? 'bg-accent-50 dark:bg-accent-900/40 hover:bg-accent-100 dark:hover:bg-accent-900/50 border-2 border-accent-200 dark:border-accent-800'
+                  : 'bg-white dark:bg-primary-800/40 hover:bg-slate-50 dark:hover:bg-primary-800/60 border border-slate-200 dark:border-primary-700/60'
               }`}>
                 <div className="flex flex-col h-full">
                   <div className="flex items-start justify-between mb-3">
                     <h3 className={`text-base font-semibold flex-1 ${
                       reservation.status === 'approved'
-                        ? 'text-green-900 dark:text-green-200'
-                        : 'text-gray-900 dark:text-white'
+                        ? 'text-accent-900 dark:text-accent-200'
+                        : 'text-slate-900 dark:text-white'
                     }`}>
                       {reservation.roomId.name}
                     </h3>
@@ -173,11 +173,11 @@ export default function ReservationsPage() {
                   </span>
 
                   <div className="space-y-2 mb-3 flex-1">
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-300">
                       <Calendar className="h-4 w-4 mr-2 flex-shrink-0" />
                       <span className="truncate">{formatDate(reservation.date)}</span>
                     </div>
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center text-sm text-slate-600 dark:text-slate-300">
                       <Clock className="h-4 w-4 mr-2 flex-shrink-0" />
                       <span className="truncate">
                         {reservation.timeSlots.map((slot) => formatTimeSlot(slot.start, slot.end)).join(', ')}
@@ -186,30 +186,30 @@ export default function ReservationsPage() {
                   </div>
 
                   <div className="mb-3">
-                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
                       Motif:
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
                       {reservation.reason}
                     </p>
                   </div>
 
-                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                  <div className="text-xs text-slate-600 dark:text-slate-300 mb-3">
                     <span className="font-medium">Participants:</span> {reservation.estimatedParticipants}
                   </div>
 
                   {reservation.adminComment && (
                     <div className={`p-2 rounded-lg mb-3 ${
                       reservation.status === 'approved'
-                        ? 'bg-green-100 dark:bg-green-900/30'
+                        ? 'bg-accent-100 dark:bg-accent-900/30'
                         : 'bg-red-50 dark:bg-red-900/20'
                     }`}>
-                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
                         Commentaire admin:
                       </p>
                       <p className={`text-xs line-clamp-2 ${
                         reservation.status === 'approved'
-                          ? 'text-green-900 dark:text-green-300'
+                          ? 'text-accent-900 dark:text-accent-300'
                           : 'text-red-700 dark:text-red-400'
                       }`}>
                         {reservation.adminComment}
@@ -217,7 +217,7 @@ export default function ReservationsPage() {
                     </div>
                   )}
 
-                  <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-primary-700/60">
                     {new Date(reservation.createdAt).toLocaleDateString('fr-FR')}
                   </div>
                 </div>
@@ -226,8 +226,8 @@ export default function ReservationsPage() {
           </div>
         ) : (
           <div className="p-8 text-center">
-            <Calendar className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">
+            <Calendar className="h-16 w-16 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+            <p className="text-slate-600 dark:text-slate-300">
               {filter === 'all'
                 ? 'Vous n\'avez pas encore de réservation'
                 : `Aucune réservation ${getStatusText(filter).toLowerCase()}`

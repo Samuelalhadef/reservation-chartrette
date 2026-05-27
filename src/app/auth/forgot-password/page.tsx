@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
-import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import AuthShell from '@/components/AuthShell';
+import { Mail, ArrowLeft } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -43,50 +44,37 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-          <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-4">
-              <Mail className="h-8 w-8 text-green-600 dark:text-green-400" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Email envoyé !
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Si l'email existe dans notre système, vous recevrez un lien de réinitialisation dans quelques instants.
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
-              Vérifiez votre boîte de réception et vos spams.
-            </p>
-            <Link href="/auth/signin">
-              <Button className="w-full">
-                Retour à la connexion
-              </Button>
-            </Link>
+      <AuthShell title="Email envoyé !">
+        <div className="text-center">
+          <div className="mx-auto w-16 h-16 bg-accent-100 dark:bg-accent-900/40 rounded-full flex items-center justify-center mb-4">
+            <Mail className="h-8 w-8 text-accent-600 dark:text-accent-400" />
           </div>
+          <p className="text-slate-600 dark:text-slate-300 mb-4">
+            Si l'email existe dans notre système, vous recevrez un lien de réinitialisation dans quelques instants.
+          </p>
+          <p className="text-sm text-slate-500 mb-6">
+            Vérifiez votre boîte de réception et vos spams.
+          </p>
+          <Link href="/auth/signin">
+            <Button className="w-full">Retour à la connexion</Button>
+          </Link>
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-        <div className="mb-8">
-          <Link
-            href="/auth/signin"
-            className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Retour à la connexion
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Mot de passe oublié ?
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Entrez votre email pour recevoir un lien de réinitialisation
-          </p>
-        </div>
+    <AuthShell
+      title="Mot de passe oublié ?"
+      subtitle="Entrez votre email pour recevoir un lien de réinitialisation"
+    >
+        <Link
+          href="/auth/signin"
+          className="inline-flex items-center text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300 dark:hover:text-accent-200 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Retour à la connexion
+        </Link>
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
@@ -117,17 +105,16 @@ export default function ForgotPasswordPage() {
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             Vous vous souvenez de votre mot de passe ?{' '}
             <Link
               href="/auth/signin"
-              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold"
+              className="text-primary-700 hover:text-primary-800 dark:text-accent-300 font-semibold"
             >
               Se connecter
             </Link>
           </p>
         </div>
-      </div>
-    </div>
+    </AuthShell>
   );
 }

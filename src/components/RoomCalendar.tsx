@@ -19,10 +19,10 @@ interface RoomCalendarProps {
 
 export default function RoomCalendar({ roomId, roomName, roomCapacity, reservations: initialReservations = [], buildingId }: RoomCalendarProps) {
   const { data: session } = useSession();
-  // Initialiser le calendrier sur le premier jour réservable (30 jours dans le futur)
+  // Initialiser le calendrier sur le premier jour réservable (10 jours dans le futur)
   const [currentWeek, setCurrentWeek] = useState(() => {
     const firstBookableDay = new Date();
-    firstBookableDay.setDate(firstBookableDay.getDate() + 30);
+    firstBookableDay.setDate(firstBookableDay.getDate() + 10);
     return firstBookableDay;
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,14 +34,14 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const [isCanceling, setIsCanceling] = useState(false);
   const [selectedMobileDay, setSelectedMobileDay] = useState<Date>(() => {
     const firstBookableDay = new Date();
-    firstBookableDay.setDate(firstBookableDay.getDate() + 30);
+    firstBookableDay.setDate(firstBookableDay.getDate() + 10);
     return firstBookableDay;
   });
   const [isYearlyModalOpen, setIsYearlyModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
   const [currentMonth, setCurrentMonth] = useState(() => {
     const firstBookableDay = new Date();
-    firstBookableDay.setDate(firstBookableDay.getDate() + 30);
+    firstBookableDay.setDate(firstBookableDay.getDate() + 10);
     return firstBookableDay;
   });
 
@@ -79,7 +79,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     return similarReservations.length > 0;
   };
 
-  // Vérifier si une date est dans la plage valide (minimum 30 jours à l'avance)
+  // Vérifier si une date est dans la plage valide (minimum 10 jours à l'avance)
   const isDateInValidRange = (day: Date): boolean => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -87,9 +87,9 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     checkDate.setHours(0, 0, 0, 0);
 
     const minDate = new Date(today);
-    minDate.setDate(minDate.getDate() + 30);
+    minDate.setDate(minDate.getDate() + 10);
 
-    // La date doit être au minimum 30 jours dans le futur
+    // La date doit être au minimum 10 jours dans le futur
     return checkDate >= minDate;
   };
 
@@ -119,7 +119,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const handleSlotClick = (day: Date, hour: number) => {
     // Vérifier si la date est dans la plage valide
     if (!isDateInValidRange(day)) {
-      alert('Réservation 30 jours à l\'avance minimum');
+      alert('Réservation 10 jours à l\'avance minimum');
       return;
     }
 
@@ -238,15 +238,15 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+    <div className="bg-white dark:bg-primary-800/40 rounded-2xl shadow-xl overflow-hidden">
       {/* En-tête du calendrier */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
+      <div className="bg-gradient-to-r from-primary-700 to-accent-700 p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-white mb-1">
               Emploi du temps
             </h2>
-            <p className="text-blue-100">
+            <p className="text-primary-100">
               {viewMode === 'week'
                 ? `Semaine du ${format(weekStart, 'd', { locale: fr })} au ${format(weekEnd, 'd MMMM yyyy', { locale: fr })}`
                 : format(currentMonth, 'MMMM yyyy', { locale: fr }).replace(/^./, (c) => c.toUpperCase())
@@ -260,7 +260,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                 onClick={() => setViewMode('month')}
                 className={`px-3 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 ${
                   viewMode === 'month'
-                    ? 'bg-white text-blue-600 shadow-md'
+                    ? 'bg-white text-primary-700 shadow-md'
                     : 'text-white hover:bg-white/10'
                 }`}
               >
@@ -271,7 +271,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                 onClick={() => setViewMode('week')}
                 className={`px-3 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 ${
                   viewMode === 'week'
-                    ? 'bg-white text-blue-600 shadow-md'
+                    ? 'bg-white text-primary-700 shadow-md'
                     : 'text-white hover:bg-white/10'
                 }`}
               >
@@ -281,7 +281,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
             </div>
             <button
               onClick={() => setIsYearlyModalOpen(true)}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-semibold shadow-lg hover:shadow-xl flex items-center gap-2 justify-center"
+              className="px-4 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg transition-colors font-semibold shadow-lg hover:shadow-xl flex items-center gap-2 justify-center"
             >
               <Calendar className="w-5 h-5" />
               <span className="hidden sm:inline">Réservation à l'année</span>
@@ -297,7 +297,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
               </button>
               <button
                 onClick={viewMode === 'week' ? goToToday : () => setCurrentMonth(new Date())}
-                className="px-4 py-2 bg-white hover:bg-gray-100 rounded-lg transition-colors font-semibold text-blue-600"
+                className="px-4 py-2 bg-white hover:bg-slate-50 rounded-lg transition-colors font-semibold text-primary-700"
               >
                 Aujourd'hui
               </button>
@@ -343,16 +343,16 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                   key={day.toISOString()}
                   className={`text-center p-3 rounded-xl shadow-sm ${
                     today
-                      ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
-                      : 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800'
+                      ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white'
+                      : 'bg-gradient-to-br from-slate-50 to-slate-100 dark:from-primary-900/40 dark:to-primary-800/40'
                   }`}
                 >
                   <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${
-                    today ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'
+                    today ? 'text-primary-100' : 'text-slate-600 dark:text-slate-400'
                   }`}>
                     {format(day, 'EEE', { locale: fr })}
                   </div>
-                  <div className={`text-2xl font-bold ${today ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                  <div className={`text-2xl font-bold ${today ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                     {format(day, 'd')}
                   </div>
                 </div>
@@ -365,7 +365,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
             {hours.map((hour) => (
               <React.Fragment key={`hour-row-${hour}`}>
                 <div
-                  className="text-center py-4 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg flex items-center justify-center"
+                  className="text-center py-4 text-sm font-bold text-slate-600 dark:text-slate-300 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-primary-900/40 dark:to-primary-800/40 rounded-lg flex items-center justify-center"
                 >
                   {hour}:00
                 </div>
@@ -391,36 +391,36 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                       className={`
                         min-h-[70px] p-3 rounded-xl border-2 transition-all duration-200 relative group
                         ${isOutOfRange
-                          ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 cursor-not-allowed opacity-50'
+                          ? 'border-slate-300 dark:border-primary-700/60 bg-slate-100 dark:bg-primary-900/40 cursor-not-allowed opacity-50'
                           : isRejectedReservation
                           ? 'border-red-700 dark:border-red-600 bg-gradient-to-br from-red-200 to-rose-200 dark:from-red-900 dark:to-rose-900 cursor-not-allowed'
                           : isYearlyApprovedReservation && isOwnReservation
-                          ? 'border-green-900 dark:border-green-800 bg-gradient-to-br from-green-700 to-emerald-700 dark:from-green-900 dark:to-emerald-900 cursor-pointer hover:from-green-800 hover:to-emerald-800 dark:hover:from-green-800 dark:hover:to-emerald-800 hover:shadow-lg hover:scale-105'
+                          ? 'border-primary-900 dark:border-primary-700 bg-gradient-to-br from-primary-700 to-primary-800 dark:from-primary-900 dark:to-primary-950 cursor-pointer hover:from-primary-800 hover:to-primary-900 dark:hover:from-primary-800 dark:hover:to-primary-900 hover:shadow-lg hover:scale-105'
                           : isYearlyApprovedReservation && !isOwnReservation
-                          ? 'border-green-900 dark:border-green-800 bg-gradient-to-br from-green-700 to-emerald-700 dark:from-green-900 dark:to-emerald-900 cursor-not-allowed'
+                          ? 'border-primary-900 dark:border-primary-700 bg-gradient-to-br from-primary-700 to-primary-800 dark:from-primary-900 dark:to-primary-950 cursor-not-allowed'
                           : isReserved && isApprovedReservation && isOwnReservation
-                          ? 'border-green-700 dark:border-green-600 bg-gradient-to-br from-green-200 to-emerald-200 dark:from-green-800 dark:to-emerald-800 cursor-pointer hover:from-green-300 hover:to-emerald-300 dark:hover:from-green-700 dark:hover:to-emerald-700 hover:shadow-lg hover:scale-105'
+                          ? 'border-accent-600 dark:border-accent-500 bg-gradient-to-br from-accent-100 to-accent-200 dark:from-accent-900 dark:to-accent-800 cursor-pointer hover:from-accent-200 hover:to-accent-300 dark:hover:from-accent-800 dark:hover:to-accent-700 hover:shadow-lg hover:scale-105'
                           : isReserved && isApprovedReservation && !isOwnReservation
-                          ? 'border-green-700 dark:border-green-600 bg-gradient-to-br from-green-200 to-emerald-200 dark:from-green-800 dark:to-emerald-800 cursor-not-allowed'
+                          ? 'border-accent-600 dark:border-accent-500 bg-gradient-to-br from-accent-100 to-accent-200 dark:from-accent-900 dark:to-accent-800 cursor-not-allowed'
                           : isPendingReservation && isOwnReservation
-                          ? 'border-gray-500 dark:border-gray-600 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 cursor-pointer hover:from-gray-400 hover:to-gray-500 dark:hover:from-gray-600 dark:hover:to-gray-700 hover:shadow-lg hover:scale-105'
+                          ? 'border-slate-500 dark:border-primary-600 bg-gradient-to-br from-slate-300 to-slate-400 dark:from-primary-700 dark:to-primary-800 cursor-pointer hover:from-slate-400 hover:to-slate-500 dark:hover:from-primary-600 dark:hover:to-primary-700 hover:shadow-lg hover:scale-105'
                           : isPendingReservation && !isOwnReservation
-                          ? 'border-gray-500 dark:border-gray-600 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-800 cursor-not-allowed'
+                          ? 'border-slate-500 dark:border-primary-600 bg-gradient-to-br from-slate-300 to-slate-400 dark:from-primary-700 dark:to-primary-800 cursor-not-allowed'
                           : selected
-                          ? 'border-green-500 dark:border-green-600 bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900 dark:to-emerald-900 shadow-lg scale-105'
+                          ? 'border-accent-500 dark:border-accent-600 bg-gradient-to-br from-accent-50 to-accent-100 dark:from-accent-900 dark:to-accent-800 shadow-lg scale-105'
                           : selectionStartSlot
                           ? 'border-orange-500 dark:border-orange-600 bg-gradient-to-br from-orange-100 to-yellow-100 dark:from-orange-900 dark:to-yellow-900 shadow-md scale-102'
                           : today
-                          ? 'border-blue-300 dark:border-blue-700 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900 dark:hover:to-indigo-900'
-                          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gradient-to-br hover:from-blue-50 hover:to-white dark:hover:from-gray-700 dark:hover:to-gray-800'
+                          ? 'border-primary-300 dark:border-primary-600 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 hover:from-primary-100 hover:to-primary-200 dark:hover:from-primary-900 dark:hover:to-primary-800'
+                          : 'border-slate-200 dark:border-primary-700/60 bg-white dark:bg-primary-800/40 hover:bg-gradient-to-br hover:from-primary-50 hover:to-white dark:hover:from-primary-900/40 dark:hover:to-primary-800/40'
                         }
-                        ${!selected && !isReserved && !isOutOfRange && 'hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg hover:scale-105'}
+                        ${!selected && !isReserved && !isOutOfRange && 'hover:border-primary-500 dark:hover:border-primary-400 hover:shadow-lg hover:scale-105'}
                       `}
                       title={`${
                         isReserved
                           ? (isRejectedReservation ? 'Réservation refusée' : isApprovedReservation ? 'Réservation validée' : 'En attente') + ` par ${reservation.association?.name || reservation.user?.name || 'Association'}`
                           : isOutOfRange
-                          ? 'Réservation 30 jours à l\'avance minimum'
+                          ? 'Réservation 10 jours à l\'avance minimum'
                           : selected
                           ? 'Sélectionné'
                           : selectionStartSlot
@@ -430,23 +430,23 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                     >
                       <div className={`text-xs font-medium transition-colors ${
                         isOutOfRange
-                          ? 'text-gray-500 dark:text-gray-400'
+                          ? 'text-slate-500 dark:text-slate-400'
                           : isRejectedReservation
                           ? 'text-red-900 dark:text-red-200 font-semibold'
                           : isYearlyApprovedReservation
-                          ? 'text-white dark:text-green-100 font-semibold'
+                          ? 'text-white dark:text-primary-100 font-semibold'
                           : isReserved && isApprovedReservation
-                          ? 'text-green-900 dark:text-green-200 font-semibold'
+                          ? 'text-accent-900 dark:text-accent-200 font-semibold'
                           : isPendingReservation
-                          ? 'text-gray-900 dark:text-gray-200 font-semibold'
+                          ? 'text-slate-900 dark:text-slate-200 font-semibold'
                           : selected
-                          ? 'text-green-700 dark:text-green-300 font-bold'
+                          ? 'text-accent-700 dark:text-accent-300 font-bold'
                           : selectionStartSlot
                           ? 'text-orange-700 dark:text-orange-300 font-bold'
-                          : 'text-green-600 dark:text-green-400 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                          : 'text-accent-600 dark:text-accent-400 group-hover:text-primary-700 dark:group-hover:text-accent-300'
                       }`}>
                         {isOutOfRange ? (
-                          <span className="text-[10px]">Réservation 30j min</span>
+                          <span className="text-[10px]">Réservation 10j min</span>
                         ) : isReserved ? (
                           <div className="flex flex-col items-center justify-center">
                             {isRejectedReservation ? (
@@ -458,37 +458,37 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                               </>
                             ) : isYearlyApprovedReservation ? (
                               <>
-                                <Repeat className="w-5 h-5 mb-1 text-white dark:text-green-100" />
-                                <span className="text-[10px] leading-tight text-center text-white dark:text-green-100 font-bold">Réservation annuelle</span>
-                                <span className="text-[10px] font-bold mt-1 text-center leading-tight text-white dark:text-green-50">({reservation.association?.name || reservation.user?.name || 'Association'})</span>
+                                <Repeat className="w-5 h-5 mb-1 text-white dark:text-primary-100" />
+                                <span className="text-[10px] leading-tight text-center text-white dark:text-primary-100 font-bold">Réservation annuelle</span>
+                                <span className="text-[10px] font-bold mt-1 text-center leading-tight text-white dark:text-primary-50">({reservation.association?.name || reservation.user?.name || 'Association'})</span>
                                 {isOwnReservation && (
                                   <div className="flex items-center gap-1 mt-1">
-                                    <X className="w-3 h-3 text-white dark:text-green-100" />
-                                    <span className="text-[9px] text-white dark:text-green-100">Cliquez pour annuler</span>
+                                    <X className="w-3 h-3 text-white dark:text-primary-100" />
+                                    <span className="text-[9px] text-white dark:text-primary-100">Cliquez pour annuler</span>
                                   </div>
                                 )}
                               </>
                             ) : isApprovedReservation ? (
                               <>
-                                <CheckCircle className="w-5 h-5 mb-1 text-green-900 dark:text-green-100" />
-                                <span className="text-[10px] leading-tight text-center text-green-900 dark:text-green-100 font-semibold">Réservation validée</span>
-                                <span className="text-[10px] font-bold mt-1 text-center leading-tight text-green-950 dark:text-green-50">({reservation.association?.name || reservation.user?.name || 'Association'})</span>
+                                <CheckCircle className="w-5 h-5 mb-1 text-accent-900 dark:text-accent-100" />
+                                <span className="text-[10px] leading-tight text-center text-accent-900 dark:text-accent-100 font-semibold">Réservation validée</span>
+                                <span className="text-[10px] font-bold mt-1 text-center leading-tight text-accent-950 dark:text-accent-50">({reservation.association?.name || reservation.user?.name || 'Association'})</span>
                                 {isOwnReservation && (
                                   <div className="flex items-center gap-1 mt-1">
-                                    <X className="w-3 h-3 text-green-900 dark:text-green-100" />
-                                    <span className="text-[9px] text-green-900 dark:text-green-100">Cliquez pour annuler</span>
+                                    <X className="w-3 h-3 text-accent-900 dark:text-accent-100" />
+                                    <span className="text-[9px] text-accent-900 dark:text-accent-100">Cliquez pour annuler</span>
                                   </div>
                                 )}
                               </>
                             ) : (
                               <>
-                                <span className="text-[10px] text-gray-900 dark:text-gray-200">En cours de</span>
-                                <span className="text-[10px] text-gray-900 dark:text-gray-200">réservation par</span>
-                                <span className="font-bold mt-1 text-center leading-tight text-gray-950 dark:text-gray-100">{reservation.association?.name || reservation.user?.name || 'Association'}</span>
+                                <span className="text-[10px] text-slate-900 dark:text-slate-200">En cours de</span>
+                                <span className="text-[10px] text-slate-900 dark:text-slate-200">réservation par</span>
+                                <span className="font-bold mt-1 text-center leading-tight text-slate-950 dark:text-slate-100">{reservation.association?.name || reservation.user?.name || 'Association'}</span>
                                 {isOwnReservation && (
                                   <div className="flex items-center gap-1 mt-1">
-                                    <X className="w-3 h-3 text-gray-900 dark:text-gray-200" />
-                                    <span className="text-[9px] text-gray-900 dark:text-gray-200">Cliquez pour annuler</span>
+                                    <X className="w-3 h-3 text-slate-900 dark:text-slate-200" />
+                                    <span className="text-[9px] text-slate-900 dark:text-slate-200">Cliquez pour annuler</span>
                                   </div>
                                 )}
                               </>
@@ -496,7 +496,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                           </div>
                         ) : selected ? '✓ Sélectionné' : selectionStartSlot ? '⏱ Début' : '✓ Disponible'}
                       </div>
-                      {!selected && !isReserved && <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-indigo-500/0 group-hover:from-blue-500/5 group-hover:to-indigo-500/5 rounded-xl transition-all"></div>}
+                      {!selected && !isReserved && <div className="absolute inset-0 bg-gradient-to-br from-primary-500/0 to-accent-500/0 group-hover:from-primary-500/5 group-hover:to-accent-500/5 rounded-xl transition-all"></div>}
                     </button>
                   );
                 })}
@@ -519,18 +519,18 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                 onClick={() => setSelectedMobileDay(day)}
                 className={`flex-shrink-0 text-center p-3 rounded-xl shadow-sm min-w-[80px] transition-all ${
                   isSelected
-                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white scale-105'
+                    ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white scale-105'
                     : today
-                    ? 'bg-gradient-to-br from-blue-400 to-indigo-500 text-white opacity-70'
-                    : 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800'
+                    ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white opacity-70'
+                    : 'bg-gradient-to-br from-slate-50 to-slate-100 dark:from-primary-900/40 dark:to-primary-800/40'
                 }`}
               >
                 <div className={`text-xs font-semibold uppercase tracking-wide mb-1 ${
-                  isSelected || today ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'
+                  isSelected || today ? 'text-primary-100' : 'text-slate-600 dark:text-slate-400'
                 }`}>
                   {format(day, 'EEE.', { locale: fr })}
                 </div>
-                <div className={`text-2xl font-bold ${isSelected || today ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                <div className={`text-2xl font-bold ${isSelected || today ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                   {format(day, 'd')}
                 </div>
               </button>
@@ -558,41 +558,41 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                 disabled={(isReserved && !isOwnReservation) || isRejectedReservation || isOutOfRange}
                 className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                   isOutOfRange
-                    ? 'border-gray-300 bg-gray-100 dark:bg-gray-900 dark:border-gray-600 cursor-not-allowed opacity-50'
+                    ? 'border-slate-300 bg-slate-100 dark:bg-primary-900/40 dark:border-primary-700/60 cursor-not-allowed opacity-50'
                     : isRejectedReservation
                     ? 'border-red-500 bg-gradient-to-r from-red-100 to-rose-100 dark:from-red-900 dark:to-rose-900 cursor-not-allowed'
                     : isReserved && isApprovedReservation && isOwnReservation
-                    ? 'border-green-500 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-800 dark:to-emerald-800 cursor-pointer hover:from-green-200 hover:to-emerald-200'
+                    ? 'border-accent-500 bg-gradient-to-r from-accent-100 to-accent-200 dark:from-accent-900 dark:to-accent-800 cursor-pointer hover:from-accent-200 hover:to-accent-300'
                     : isReserved && isApprovedReservation && !isOwnReservation
-                    ? 'border-green-500 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-800 dark:to-emerald-800 cursor-not-allowed'
+                    ? 'border-accent-500 bg-gradient-to-r from-accent-100 to-accent-200 dark:from-accent-900 dark:to-accent-800 cursor-not-allowed'
                     : isPendingReservation && isOwnReservation
-                    ? 'border-gray-500 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 cursor-pointer hover:from-gray-300 hover:to-gray-400'
+                    ? 'border-slate-500 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-primary-700 dark:to-primary-800 cursor-pointer hover:from-slate-300 hover:to-slate-400'
                     : isPendingReservation && !isOwnReservation
-                    ? 'border-gray-500 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 cursor-not-allowed'
+                    ? 'border-slate-500 bg-gradient-to-r from-slate-200 to-slate-300 dark:from-primary-700 dark:to-primary-800 cursor-not-allowed'
                     : selected
-                    ? 'border-green-500 bg-gradient-to-r from-green-200 to-emerald-200 dark:from-green-900 dark:to-emerald-900 shadow-lg scale-105'
+                    ? 'border-accent-500 bg-gradient-to-r from-accent-100 to-accent-200 dark:from-accent-900 dark:to-accent-800 shadow-lg scale-105'
                     : selectionStartSlot
                     ? 'border-orange-500 bg-gradient-to-r from-orange-100 to-yellow-100 dark:from-orange-900 dark:to-yellow-900 shadow-md'
-                    : 'border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                    : 'border-slate-200 bg-white dark:bg-primary-800/40 dark:border-primary-700/60 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-accent-500/10'
                 }`}
               >
                 <div className={`flex-shrink-0 w-16 text-center rounded-lg p-2 transition-colors ${
                   selected
-                    ? 'bg-green-600 dark:bg-green-700'
+                    ? 'bg-accent-600 dark:bg-accent-700'
                     : selectionStartSlot
                     ? 'bg-orange-600 dark:bg-orange-700'
                     : isReserved && isApprovedReservation
-                    ? 'bg-green-500 dark:bg-green-600'
+                    ? 'bg-accent-500 dark:bg-accent-600'
                     : isPendingReservation
-                    ? 'bg-gray-500 dark:bg-gray-600'
+                    ? 'bg-slate-500 dark:bg-primary-600'
                     : isRejectedReservation
                     ? 'bg-red-500 dark:bg-red-600'
-                    : 'bg-gray-100 dark:bg-gray-700'
+                    : 'bg-slate-100 dark:bg-primary-900/40'
                 }`}>
                   <div className={`text-base font-bold ${
                     selected || selectionStartSlot || isReserved
                       ? 'text-white'
-                      : 'text-gray-900 dark:text-white'
+                      : 'text-slate-900 dark:text-white'
                   }`}>
                     {hour}:00
                   </div>
@@ -610,15 +610,15 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                     </div>
                   ) : isReserved && isApprovedReservation ? (
                     <div>
-                      <div className="text-sm font-bold text-green-700 dark:text-green-300 flex items-center gap-1">
+                      <div className="text-sm font-bold text-accent-700 dark:text-accent-300 flex items-center gap-1">
                         <CheckCircle className="w-4 h-4" />
                         Réservation validée
                       </div>
-                      <div className="text-xs text-green-600 dark:text-green-400 mt-0.5">
+                      <div className="text-xs text-accent-600 dark:text-accent-400 mt-0.5">
                         {reservation.association?.name || reservation.user?.name || 'Association'}
                       </div>
                       {isOwnReservation && (
-                        <div className="text-xs text-green-700 dark:text-green-300 mt-1 flex items-center gap-1">
+                        <div className="text-xs text-accent-700 dark:text-accent-300 mt-1 flex items-center gap-1">
                           <X className="w-3 h-3" />
                           Cliquez pour annuler
                         </div>
@@ -626,25 +626,25 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                     </div>
                   ) : isPendingReservation ? (
                     <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      <div className="text-sm font-medium text-slate-900 dark:text-white">
                         En attente de validation
                       </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                      <div className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
                         {reservation.association?.name || reservation.user?.name || 'Association'}
                       </div>
                       {isOwnReservation && (
-                        <div className="text-xs text-gray-700 dark:text-gray-300 mt-1 flex items-center gap-1">
+                        <div className="text-xs text-slate-600 dark:text-slate-300 mt-1 flex items-center gap-1">
                           <X className="w-3 h-3" />
                           Cliquez pour annuler
                         </div>
                       )}
                     </div>
                   ) : isOutOfRange ? (
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Réservation 30j min
+                    <div className="text-sm text-slate-500 dark:text-slate-400">
+                      Réservation 10j min
                     </div>
                   ) : selected ? (
-                    <div className="text-sm text-green-700 dark:text-green-300 font-bold flex items-center gap-1">
+                    <div className="text-sm text-accent-700 dark:text-accent-300 font-bold flex items-center gap-1">
                       <CheckCircle className="w-4 h-4" />
                       Créneau de fin sélectionné
                     </div>
@@ -654,7 +654,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                       <div className="text-xs font-normal mt-1">Cliquez sur l'heure de fin</div>
                     </div>
                   ) : (
-                    <div className="text-sm text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                    <div className="text-sm text-accent-600 dark:text-accent-400 font-medium flex items-center gap-1">
                       <span>✓</span> Disponible
                     </div>
                   )}
@@ -666,35 +666,35 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
       </div>
 
       {/* Légende (vue semaine uniquement) */}
-      <div className={`${viewMode === 'month' ? 'hidden' : ''} p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border-t border-gray-200 dark:border-gray-700`}>
+      <div className={`${viewMode === 'month' ? 'hidden' : ''} p-6 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/40 dark:to-primary-800/40 border-t border-slate-200 dark:border-primary-700/60`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
             💡 Cliquez sur l'heure de début puis sur l'heure de fin pour sélectionner plusieurs créneaux
           </p>
           <div className="flex gap-4 text-xs flex-wrap">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-white border border-gray-200"></div>
-              <span className="text-gray-600 dark:text-gray-400">Disponible</span>
+              <div className="w-4 h-4 rounded bg-white border border-slate-200"></div>
+              <span className="text-slate-600 dark:text-slate-400">Disponible</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-gradient-to-br from-green-200 to-emerald-200 border border-green-700"></div>
-              <span className="text-gray-600 dark:text-gray-400">Réservation validée</span>
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-accent-100 to-accent-200 border border-accent-600"></div>
+              <span className="text-slate-600 dark:text-slate-400">Réservation validée</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-gradient-to-br from-green-700 to-emerald-700 border border-green-900"></div>
-              <span className="text-gray-600 dark:text-gray-400">Réservation annuelle</span>
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-primary-700 to-primary-800 border border-primary-900"></div>
+              <span className="text-slate-600 dark:text-slate-400">Réservation annuelle</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-gradient-to-br from-gray-300 to-gray-400 border border-gray-500"></div>
-              <span className="text-gray-600 dark:text-gray-400">En attente</span>
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-slate-300 to-slate-400 border border-slate-500"></div>
+              <span className="text-slate-600 dark:text-slate-400">En attente</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 rounded bg-gradient-to-br from-red-200 to-rose-200 border border-red-700"></div>
-              <span className="text-gray-600 dark:text-gray-400">Réservation refusée</span>
+              <span className="text-slate-600 dark:text-slate-400">Réservation refusée</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-500 to-indigo-600"></div>
-              <span className="text-gray-600 dark:text-gray-400">Aujourd'hui</span>
+              <div className="w-4 h-4 rounded bg-gradient-to-br from-primary-600 to-primary-700"></div>
+              <span className="text-slate-600 dark:text-slate-400">Aujourd'hui</span>
             </div>
           </div>
         </div>
@@ -703,19 +703,19 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
       {/* Petite modale de validation rapide */}
       {selectedSlots && !isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-4 sm:p-6 max-w-md w-full animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-primary-800/40 rounded-xl shadow-2xl p-4 sm:p-6 max-w-md w-full animate-in fade-in zoom-in duration-200">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-accent-500 flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-xl">✓</span>
               </div>
               <div className="flex-1">
-                <p className="font-bold text-gray-900 dark:text-white text-base sm:text-lg">
+                <p className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">
                   {selectedSlots.endHour - selectedSlots.startHour + 1} créneau(x) sélectionné(s)
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
                   De {selectedSlots.startHour}:00 à {selectedSlots.endHour + 1}:00
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
                   {format(selectedSlots.date, 'EEEE d MMMM yyyy', { locale: fr })}
                 </p>
               </div>
@@ -723,13 +723,13 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
             <div className="flex gap-3">
               <button
                 onClick={handleCancelSelection}
-                className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-semibold"
+                className="flex-1 px-4 py-2.5 bg-slate-200 dark:bg-primary-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-primary-600 transition-colors font-semibold"
               >
                 Annuler
               </button>
               <button
                 onClick={handleValidateSelection}
-                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all font-semibold shadow-lg hover:shadow-xl"
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-accent-600 to-accent-700 text-white rounded-lg hover:from-accent-700 hover:to-accent-800 transition-all font-semibold shadow-lg hover:shadow-xl"
               >
                 Valider
               </button>
@@ -778,7 +778,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
             }
           }}
         >
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full">
+          <div className="bg-white dark:bg-primary-800/40 rounded-2xl shadow-2xl max-w-md w-full">
             {/* En-tête */}
             <div className="bg-gradient-to-r from-red-600 to-rose-600 p-6 relative">
               <button
@@ -801,32 +801,32 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
             {/* Contenu */}
             <div className="p-6">
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 rounded-xl">
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
                   Vous êtes sur le point d'annuler la réservation suivante :
                 </p>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Date :</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
+                    <span className="text-slate-600 dark:text-slate-300">Date :</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
                       {format(new Date(reservationToCancel.date), 'EEEE d MMMM yyyy', { locale: fr })}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Créneaux :</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">
+                    <span className="text-slate-600 dark:text-slate-300">Créneaux :</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
                       {reservationToCancel.timeSlots?.map((slot: any) => `${slot.start}-${slot.end}`).join(', ')}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Raison :</span>
-                    <span className="font-semibold text-gray-900 dark:text-white text-right">
+                    <span className="text-slate-600 dark:text-slate-300">Raison :</span>
+                    <span className="font-semibold text-slate-900 dark:text-white text-right">
                       {reservationToCancel.reason}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
                 Cette action ne peut pas être annulée.
               </p>
 
@@ -838,7 +838,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                     setReservationToCancel(null);
                   }}
                   disabled={isCanceling}
-                  className="flex-1 px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-6 py-3 border-2 border-slate-300 dark:border-primary-600 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Non, garder
                 </button>

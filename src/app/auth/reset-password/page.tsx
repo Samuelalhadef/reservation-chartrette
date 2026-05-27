@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
-import { Lock, CheckCircle } from 'lucide-react';
+import AuthShell from '@/components/AuthShell';
+import { CheckCircle } from 'lucide-react';
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -67,61 +68,42 @@ function ResetPasswordForm() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-          <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Mot de passe réinitialisé !
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Votre mot de passe a été réinitialisé avec succès.
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
-              Vous allez être redirigé vers la page de connexion...
-            </p>
+      <AuthShell title="Mot de passe réinitialisé !">
+        <div className="text-center">
+          <div className="mx-auto w-16 h-16 bg-accent-100 dark:bg-accent-900/40 rounded-full flex items-center justify-center mb-4">
+            <CheckCircle className="h-8 w-8 text-accent-600 dark:text-accent-400" />
           </div>
+          <p className="text-slate-600 dark:text-slate-300 mb-4">
+            Votre mot de passe a été réinitialisé avec succès.
+          </p>
+          <p className="text-sm text-slate-500 mb-2">
+            Vous allez être redirigé vers la page de connexion...
+          </p>
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
   if (!token || error === 'Le lien de réinitialisation est invalide') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Lien invalide
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Le lien de réinitialisation est invalide ou a expiré.
-            </p>
-            <Link href="/auth/forgot-password">
-              <Button className="w-full">
-                Demander un nouveau lien
-              </Button>
-            </Link>
-          </div>
+      <AuthShell title="Lien invalide">
+        <div className="text-center">
+          <p className="text-slate-600 dark:text-slate-300 mb-6">
+            Le lien de réinitialisation est invalide ou a expiré.
+          </p>
+          <Link href="/auth/forgot-password">
+            <Button className="w-full">Demander un nouveau lien</Button>
+          </Link>
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Nouveau mot de passe
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Choisissez un nouveau mot de passe pour votre compte
-          </p>
-        </div>
-
+    <AuthShell
+      title="Nouveau mot de passe"
+      subtitle="Choisissez un nouveau mot de passe pour votre compte"
+    >
         {error && error !== 'Le lien de réinitialisation est invalide' && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
             {error}
@@ -139,7 +121,7 @@ function ResetPasswordForm() {
               placeholder="••••••••"
               minLength={6}
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Minimum 6 caractères
             </p>
           </div>
@@ -169,23 +151,22 @@ function ResetPasswordForm() {
         <div className="mt-6 text-center">
           <Link
             href="/auth/signin"
-            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            className="text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300"
           >
             Retour à la connexion
           </Link>
         </div>
-      </div>
-    </div>
+    </AuthShell>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 to-accent-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="mt-4 text-white/80">Chargement...</p>
         </div>
       </div>
     }>

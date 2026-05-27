@@ -37,72 +37,78 @@ export async function GET(req: NextRequest) {
         break;
     }
 
-    // Total counts using aggregation
-    const [totalReservationsResult] = await db.select({ count: count() }).from(reservations);
-    const totalReservations = totalReservationsResult.count;
-
-    const [totalRoomsResult] = await db.select({ count: count() }).from(rooms).where(eq(rooms.isActive, true));
-    const totalRooms = totalRoomsResult.count;
-
-    const [totalAssociationsResult] = await db.select({ count: count() }).from(associations).where(eq(associations.status, 'active'));
-    const totalAssociations = totalAssociationsResult.count;
-
-    const [totalUsersResult] = await db.select({ count: count() }).from(users).where(eq(users.role, 'user'));
-    const totalUsers = totalUsersResult.count;
-
-    // Pending requests
-    const [pendingReservationsResult] = await db.select({ count: count() }).from(reservations).where(eq(reservations.status, 'pending'));
-    const pendingReservations = pendingReservationsResult.count;
-
-    const [pendingAssociationsResult] = await db.select({ count: count() }).from(associations).where(eq(associations.status, 'pending'));
-    const pendingAssociations = pendingAssociationsResult.count;
-
-    // Status breakdown using raw SQL for GROUP BY
-    const statusBreakdown = await client.execute(`
-      SELECT status as _id, COUNT(*) as count
-      FROM reservations
-      GROUP BY status
-    `);
-
-    // Reservations by room
-    const reservationsByRoom = await client.execute(`
-      SELECT r.name as roomName, COUNT(res.id) as count
-      FROM reservations res
-      LEFT JOIN rooms r ON res.room_id = r.id
-      WHERE res.date >= ${startDate.getTime()} AND res.status IN ('approved', 'pending')
-      GROUP BY res.room_id, r.name
-      ORDER BY count DESC
-      LIMIT 10
-    `);
-
-    // Top associations
-    const topAssociations = await client.execute(`
-      SELECT a.name as associationName, COUNT(res.id) as count
-      FROM reservations res
-      LEFT JOIN associations a ON res.association_id = a.id
-      WHERE res.date >= ${startDate.getTime()} AND res.status IN ('approved', 'pending')
-      GROUP BY res.association_id, a.name
-      ORDER BY count DESC
-      LIMIT 10
-    `);
-
-    // Reservations over time
     const dateFormat = period === 'year' ? '%Y-%m' : '%Y-%m-%d';
-    const reservationsOverTime = await client.execute(`
-      SELECT strftime('${dateFormat}', datetime(date / 1000, 'unixepoch')) as _id, COUNT(*) as count
-      FROM reservations
-      WHERE date >= ${startDate.getTime()}
-      GROUP BY strftime('${dateFormat}', datetime(date / 1000, 'unixepoch'))
-      ORDER BY _id ASC
-    `);
 
-    // Acceptance rate
-    const acceptanceStats = await client.execute(`
-      SELECT status as _id, COUNT(*) as count
-      FROM reservations
-      WHERE status IN ('approved', 'rejected')
-      GROUP BY status
-    `);
+    // Toutes ces requêtes sont indépendantes : on les exécute en parallèle
+    // (auparavant exécutées en série, ce qui multipliait les allers-retours DB).
+    const [
+      [totalReservationsResult],
+      [totalRoomsResult],
+      [totalAssociationsResult],
+      [totalUsersResult],
+      [pendingReservationsResult],
+      [pendingAssociationsResult],
+      statusBreakdown,
+      reservationsByRoom,
+      topAssociations,
+      reservationsOverTime,
+      acceptanceStats,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(reservations),
+      db.select({ count: count() }).from(rooms).where(eq(rooms.isActive, true)),
+      db.select({ count: count() }).from(associations).where(eq(associations.status, 'active')),
+      db.select({ count: count() }).from(users).where(eq(users.role, 'user')),
+      db.select({ count: count() }).from(reservations).where(eq(reservations.status, 'pending')),
+      db.select({ count: count() }).from(associations).where(eq(associations.status, 'pending')),
+      // Répartition par statut
+      client.execute(`
+        SELECT status as _id, COUNT(*) as count
+        FROM reservations
+        GROUP BY status
+      `),
+      // Réservations par salle
+      client.execute(`
+        SELECT r.name as roomName, COUNT(res.id) as count
+        FROM reservations res
+        LEFT JOIN rooms r ON res.room_id = r.id
+        WHERE res.date >= ${startDate.getTime()} AND res.status IN ('approved', 'pending')
+        GROUP BY res.room_id, r.name
+        ORDER BY count DESC
+        LIMIT 10
+      `),
+      // Top associations
+      client.execute(`
+        SELECT a.name as associationName, COUNT(res.id) as count
+        FROM reservations res
+        LEFT JOIN associations a ON res.association_id = a.id
+        WHERE res.date >= ${startDate.getTime()} AND res.status IN ('approved', 'pending')
+        GROUP BY res.association_id, a.name
+        ORDER BY count DESC
+        LIMIT 10
+      `),
+      // Réservations dans le temps
+      client.execute(`
+        SELECT strftime('${dateFormat}', datetime(date / 1000, 'unixepoch')) as _id, COUNT(*) as count
+        FROM reservations
+        WHERE date >= ${startDate.getTime()}
+        GROUP BY strftime('${dateFormat}', datetime(date / 1000, 'unixepoch'))
+        ORDER BY _id ASC
+      `),
+      // Taux d'acceptation
+      client.execute(`
+        SELECT status as _id, COUNT(*) as count
+        FROM reservations
+        WHERE status IN ('approved', 'rejected')
+        GROUP BY status
+      `),
+    ]);
+
+    const totalReservations = totalReservationsResult.count;
+    const totalRooms = totalRoomsResult.count;
+    const totalAssociations = totalAssociationsResult.count;
+    const totalUsers = totalUsersResult.count;
+    const pendingReservations = pendingReservationsResult.count;
+    const pendingAssociations = pendingAssociationsResult.count;
 
     const approved = (acceptanceStats.rows as any[]).find((s: any) => s._id === 'approved')?.count || 0;
     const rejected = (acceptanceStats.rows as any[]).find((s: any) => s._id === 'rejected')?.count || 0;

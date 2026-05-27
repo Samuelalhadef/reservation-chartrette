@@ -1,0 +1,30 @@
+# Dépendances et artefacts de build (réinstallés/régénérés dans l'image)
+node_modules
+.next
+out
+build
+
+# Secrets — fournis via les variables d'environnement de Portainer, jamais dans l'image
+.env
+.env.*
+
+# Git / IDE
+.git
+.gitignore
+.vscode
+.idea
+.claude
+
+# Bases locales et gros fichiers inutiles au runtime
+local.db
+*.db
+pdf_page_*.png
+nul
+
+# Docs / divers
+*.md
+coverage
+*.tsbuildinfo
+Dockerfile
+.dockerignore
+docker-compose.yml

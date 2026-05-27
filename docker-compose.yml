@@ -1,0 +1,44 @@
+# Stack Portainer pour "Réservation Chartrettes"
+# -------------------------------------------------
+# Deux façons de l'utiliser dans Portainer (voir DEPLOY_PORTAINER.md) :
+#   1. Build par Portainer  : laissez la section "build" ci-dessous.
+#   2. Image pré-construite  : commentez "build" et décommentez "image".
+#
+# Les variables ${...} sont à renseigner dans l'onglet
+# "Environment variables" de la stack Portainer.
+
+services:
+  reservation-chartrettes:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # image: reservation-chartrettes:latest   # si vous poussez l'image dans un registre
+    container_name: reservation-chartrettes
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # --- Base de données Turso (libSQL) ---
+      TURSO_DATABASE_URL: ${TURSO_DATABASE_URL}
+      TURSO_AUTH_TOKEN: ${TURSO_AUTH_TOKEN}
+      # --- NextAuth ---
+      # NEXTAUTH_URL = URL publique EXACTE de l'app (ex: https://reservation.mondomaine.fr)
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      # --- Google OAuth (optionnel) ---
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      # --- E-mail (NodeMailer) ---
+      EMAIL_SERVER_HOST: ${EMAIL_SERVER_HOST}
+      EMAIL_SERVER_PORT: ${EMAIL_SERVER_PORT}
+      EMAIL_SERVER_USER: ${EMAIL_SERVER_USER}
+      EMAIL_SERVER_PASSWORD: ${EMAIL_SERVER_PASSWORD}
+      EMAIL_FROM: ${EMAIL_FROM}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

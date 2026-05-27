@@ -89,7 +89,7 @@ export default async function BuildingRoomsPage({
         {/* Bouton retour */}
         <Link
           href="/dashboard"
-          className="absolute top-6 left-6 z-40 bg-white/90 hover:bg-white backdrop-blur-sm text-gray-800 px-4 py-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 group"
+          className="absolute top-6 left-6 z-40 bg-white/90 hover:bg-white backdrop-blur-sm text-slate-800 px-4 py-2 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-medium">Retour aux bâtiments</span>
@@ -109,12 +109,12 @@ export default async function BuildingRoomsPage({
                 href={`/buildings/${building.id}/rooms/${room.id}/calendar`}
                 className="group"
               >
-                <div className={`bg-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 p-8 text-center h-full flex flex-col items-center justify-center min-h-[200px] relative overflow-hidden ${
-                  hasApprovedReservation ? 'border-2 border-green-400' : ''
+                <div className={`bg-white rounded-2xl shadow-card hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 p-8 text-center h-full flex flex-col items-center justify-center min-h-[200px] relative overflow-hidden ${
+                  hasApprovedReservation ? 'border-2 border-accent-400' : ''
                 }`}>
                   {/* Badge "Réservation validée" */}
                   {hasApprovedReservation && (
-                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-2 px-4 flex items-center justify-center gap-2 shadow-lg">
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-accent-500 to-accent-600 text-white py-2 px-4 flex items-center justify-center gap-2 shadow-lg">
                       <CheckCircle className="w-4 h-4" />
                       <span className="text-xs font-bold uppercase tracking-wider">Réservation validée</span>
                     </div>
@@ -122,20 +122,20 @@ export default async function BuildingRoomsPage({
 
                   <div className={`mb-4 p-4 rounded-full transition-colors ${
                     hasApprovedReservation
-                      ? 'bg-green-100 group-hover:bg-green-200'
-                      : 'bg-gray-100 group-hover:bg-blue-50'
+                      ? 'bg-accent-100 group-hover:bg-accent-200'
+                      : 'bg-slate-100 group-hover:bg-primary-50'
                   }`}>
                     <Icon className={`w-12 h-12 transition-colors ${
                       hasApprovedReservation
-                        ? 'text-green-600 group-hover:text-green-700'
-                        : 'text-gray-600 group-hover:text-blue-600'
+                        ? 'text-accent-600 group-hover:text-accent-700'
+                        : 'text-slate-600 group-hover:text-primary-700'
                     }`} />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 uppercase tracking-wide">
+                  <h3 className="text-xl font-bold text-slate-900 uppercase tracking-wide">
                     {room.name}
                   </h3>
                   {room.description && (
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-slate-500 mt-2">
                       {room.description}
                     </p>
                   )}
@@ -147,7 +147,7 @@ export default async function BuildingRoomsPage({
 
         {buildingRooms.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-slate-600">
               Aucune salle disponible dans cet établissement pour le moment.
             </p>
           </div>

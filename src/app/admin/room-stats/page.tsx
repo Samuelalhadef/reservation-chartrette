@@ -1,29 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ArrowLeft, Download, ChevronRight, Clock, Building2, Users, BarChart3, FileSpreadsheet } from 'lucide-react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Bar, Pie } from 'react-chartjs-2';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
+// Chart.js chargé dynamiquement côté client (hors bundle initial).
+const chartLoading = () => (
+  <div className="flex h-64 items-center justify-center text-slate-400">
+    Chargement du graphique…
+  </div>
 );
+const Bar = dynamic(() => import('@/components/charts/BarChart'), { ssr: false, loading: chartLoading });
+const Pie = dynamic(() => import('@/components/charts/PieChart'), { ssr: false, loading: chartLoading });
 
 interface RoomStat {
   roomId: string;
@@ -165,16 +154,16 @@ export default function RoomStatsPage() {
   // Préparer les données pour le graphique en barres (toutes les salles)
   const generateColors = (count: number) => {
     const colors = [
-      'rgba(59, 130, 246, 0.8)',
-      'rgba(16, 185, 129, 0.8)',
-      'rgba(245, 158, 11, 0.8)',
-      'rgba(239, 68, 68, 0.8)',
-      'rgba(139, 92, 246, 0.8)',
-      'rgba(236, 72, 153, 0.8)',
-      'rgba(14, 165, 233, 0.8)',
-      'rgba(34, 197, 94, 0.8)',
-      'rgba(251, 146, 60, 0.8)',
-      'rgba(168, 85, 247, 0.8)',
+      'rgba(30, 58, 95, 0.85)',
+      'rgba(5, 150, 105, 0.85)',
+      'rgba(245, 158, 11, 0.85)',
+      'rgba(239, 68, 68, 0.85)',
+      'rgba(67, 101, 133, 0.85)',
+      'rgba(52, 211, 153, 0.85)',
+      'rgba(30, 58, 95, 0.85)',
+      'rgba(5, 150, 105, 0.85)',
+      'rgba(245, 158, 11, 0.85)',
+      'rgba(67, 101, 133, 0.85)',
     ];
     return Array.from({ length: count }, (_, i) => colors[i % colors.length]);
   };
@@ -185,8 +174,8 @@ export default function RoomStatsPage() {
       {
         label: 'Heures réservées',
         data: rooms.slice(0, 10).map(r => r.hours),
-        backgroundColor: 'rgba(59, 130, 246, 0.8)',
-        borderColor: 'rgba(59, 130, 246, 1)',
+        backgroundColor: 'rgba(30, 58, 95, 0.85)',
+        borderColor: 'rgba(30, 58, 95, 1)',
         borderWidth: 1,
       },
     ],
@@ -271,7 +260,7 @@ export default function RoomStatsPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center py-12">
-          <p className="text-gray-800 dark:text-gray-200">Chargement des statistiques...</p>
+          <p className="text-slate-600 dark:text-slate-300">Chargement des statistiques...</p>
         </div>
       </div>
     );
@@ -283,17 +272,17 @@ export default function RoomStatsPage() {
       <div className="mb-8">
         <Link
           href="/admin"
-          className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 mb-4"
+          className="inline-flex items-center text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300 mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Retour au dashboard
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-primary-800 dark:text-white">
               {selectedRoom ? `Détail : ${rooms.find(r => r.roomId === selectedRoom.roomId)?.roomName}` : 'Statistiques des Salles'}
             </h1>
-            <p className="mt-2 text-gray-800 dark:text-gray-200">
+            <p className="mt-2 text-slate-600 dark:text-slate-300">
               {selectedRoom ? 'Répartition par association' : 'Nombre d\'heures réservées par salle'}
             </p>
           </div>
@@ -305,7 +294,7 @@ export default function RoomStatsPage() {
                 setYear(parseInt(e.target.value));
                 setSelectedRoom(null);
               }}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="px-4 py-2 border border-slate-300 dark:border-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/30 text-slate-900 dark:text-slate-100"
             >
               {[...Array(5)].map((_, i) => {
                 const y = new Date().getFullYear() - i;
@@ -316,7 +305,7 @@ export default function RoomStatsPage() {
             {selectedRoom ? (
               <button
                 onClick={exportToCSV}
-                className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-accent-600 hover:bg-accent-700 text-white rounded-lg transition-colors"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Exporter CSV
@@ -324,7 +313,7 @@ export default function RoomStatsPage() {
             ) : (
               <button
                 onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-accent-600 hover:bg-accent-700 text-white rounded-lg transition-colors"
               >
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Exporter Excel
@@ -336,38 +325,38 @@ export default function RoomStatsPage() {
 
       {/* Statistiques globales */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-800 dark:text-gray-200">Total des heures</p>
-            <Clock className="h-8 w-8 text-blue-600 dark:text-blue-400 opacity-50" />
+            <p className="text-sm text-slate-600 dark:text-slate-300">Total des heures</p>
+            <Clock className="h-8 w-8 text-primary-700 dark:text-accent-300 opacity-50" />
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {selectedRoom ? selectedRoom.totalHours : totalHours}h
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-800 dark:text-gray-200">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               {selectedRoom ? 'Associations' : 'Salles'}
             </p>
             {selectedRoom ? (
-              <Users className="h-8 w-8 text-green-600 dark:text-green-400 opacity-50" />
+              <Users className="h-8 w-8 text-accent-600 dark:text-accent-400 opacity-50" />
             ) : (
-              <Building2 className="h-8 w-8 text-green-600 dark:text-green-400 opacity-50" />
+              <Building2 className="h-8 w-8 text-accent-600 dark:text-accent-400 opacity-50" />
             )}
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {selectedRoom ? selectedRoom.associations.length : rooms.length}
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-800 dark:text-gray-200">Année</p>
-            <Clock className="h-8 w-8 text-purple-600 dark:text-purple-400 opacity-50" />
+            <p className="text-sm text-slate-600 dark:text-slate-300">Année</p>
+            <Clock className="h-8 w-8 text-primary-600 dark:text-primary-400 opacity-50" />
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {year}
           </p>
         </div>
@@ -377,9 +366,9 @@ export default function RoomStatsPage() {
       {selectedRoom ? (
         // Graphique en camembert pour le détail
         pieChartData && selectedRoom.associations.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+          <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
                 <BarChart3 className="h-5 w-5 mr-2" />
                 Visualisation des données
               </h2>
@@ -392,9 +381,9 @@ export default function RoomStatsPage() {
       ) : (
         // Graphique en barres pour toutes les salles
         rooms.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+          <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
                 <BarChart3 className="h-5 w-5 mr-2" />
                 Visualisation des données
               </h2>
@@ -407,16 +396,16 @@ export default function RoomStatsPage() {
       )}
 
       {/* Tableau principal ou détail */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 overflow-hidden">
+        <div className="p-6 border-b border-slate-200 dark:border-primary-700/60">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
               {selectedRoom ? 'Répartition par association' : 'Toutes les salles'}
             </h2>
             {selectedRoom && (
               <button
                 onClick={() => setSelectedRoom(null)}
-                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                className="text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300"
               >
                 ← Retour à la liste
               </button>
@@ -425,74 +414,74 @@ export default function RoomStatsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-primary-700/60">
+            <thead className="bg-slate-50 dark:bg-primary-900/30">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">
                   {selectedRoom ? 'Association' : 'Salle'}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">
                   Heures
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">
                   Réservations
                 </th>
                 {!selectedRoom && (
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">
                     Action
                   </th>
                 )}
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white dark:bg-primary-800/40 divide-y divide-slate-200 dark:divide-primary-700/60">
               {selectedRoom ? (
                 detailLoading ? (
                   <tr>
-                    <td colSpan={3} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={3} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">
                       Chargement...
                     </td>
                   </tr>
                 ) : selectedRoom.associations.length > 0 ? (
                   selectedRoom.associations.map((assoc) => (
-                    <tr key={assoc.associationId} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                    <tr key={assoc.associationId} className="hover:bg-slate-50 dark:hover:bg-primary-700/30">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-white">
                         {assoc.associationName}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-300">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200">
                           {assoc.hours}h
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         {assoc.reservations}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan={3} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">
                       Aucune réservation pour cette salle
                     </td>
                   </tr>
                 )
               ) : rooms.length > 0 ? (
                 rooms.map((room) => (
-                  <tr key={room.roomId} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                  <tr key={room.roomId} className="hover:bg-slate-50 dark:hover:bg-primary-700/30">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-white">
                       {room.roomName}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-300">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200">
                         {room.hours}h
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                       {room.reservations}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <button
                         onClick={() => fetchRoomDetail(room.roomId, room.roomName)}
-                        className="inline-flex items-center text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                        className="inline-flex items-center text-primary-700 hover:text-primary-800 dark:text-accent-300 dark:hover:text-accent-200"
                       >
                         Voir détails
                         <ChevronRight className="h-4 w-4 ml-1" />
@@ -502,7 +491,7 @@ export default function RoomStatsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={4} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">
                     Aucune donnée disponible pour {year}
                   </td>
                 </tr>
@@ -510,19 +499,19 @@ export default function RoomStatsPage() {
             </tbody>
             {/* Footer avec totaux */}
             {(selectedRoom ? selectedRoom.associations.length > 0 : rooms.length > 0) && (
-              <tfoot className="bg-gray-50 dark:bg-gray-700">
+              <tfoot className="bg-slate-50 dark:bg-primary-900/30">
                 <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 dark:text-white">
                     TOTAL
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 dark:text-white">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-accent-100 text-accent-800 dark:bg-accent-900/40 dark:text-accent-200">
                       {selectedRoom
                         ? selectedRoom.totalHours
                         : totalHours}h
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 dark:text-white">
                     {selectedRoom
                       ? selectedRoom.associations.reduce((sum, a) => sum + a.reservations, 0)
                       : rooms.reduce((sum, r) => sum + r.reservations, 0)}

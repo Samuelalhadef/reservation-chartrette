@@ -192,13 +192,13 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-      <div className="max-w-2xl w-full bg-white dark:bg-gray-800 rounded-xl shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 via-primary-800 to-accent-900 dark:from-primary-950 dark:via-primary-900 dark:to-primary-950 px-4 py-8">
+      <div className="max-w-2xl w-full bg-white dark:bg-primary-800 rounded-xl shadow-xl p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
             Inscription
           </h1>
-          <p className="text-gray-800 dark:text-gray-200 mt-2">
+          <p className="text-slate-600 dark:text-slate-300 mt-2">
             Créez votre compte Réservation Chartrettes
           </p>
         </div>
@@ -206,15 +206,15 @@ export default function SignUpPage() {
         {/* Step indicator */}
         <div className="flex items-center justify-center mb-8">
           <div className="flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-primary-700 text-white' : 'bg-slate-300 text-slate-600'}`}>
               1
             </div>
-            <div className={`w-16 h-1 ${step >= 2 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+            <div className={`w-16 h-1 ${step >= 2 ? 'bg-primary-700' : 'bg-slate-300'}`}></div>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-primary-700 text-white' : 'bg-slate-300 text-slate-600'}`}>
               2
             </div>
-            <div className={`w-16 h-1 ${step >= 3 ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+            <div className={`w-16 h-1 ${step >= 3 ? 'bg-primary-700' : 'bg-slate-300'}`}></div>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-primary-700 text-white' : 'bg-slate-300 text-slate-600'}`}>
               3
             </div>
           </div>
@@ -275,41 +275,41 @@ export default function SignUpPage() {
             {/* User Type Selection */}
             {!userType && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4 text-center">
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-4 text-center">
                   Vous êtes :
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     type="button"
                     onClick={() => setUserType('association')}
-                    className="p-6 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                    className="p-6 border-2 border-slate-200 dark:border-primary-700/60 rounded-xl hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-accent-500/10 transition-all group"
                   >
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-primary-600 to-accent-600 rounded-full flex items-center justify-center">
                         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                       </div>
                       <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white text-lg">Association</h3>
-                        <p className="text-sm text-gray-800 dark:text-gray-200 mt-1">Je représente une association</p>
+                        <h3 className="font-bold text-slate-900 dark:text-white text-lg">Association</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">Je représente une association</p>
                       </div>
                     </div>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUserType('particulier')}
-                    className="p-6 border-2 border-gray-300 dark:border-gray-600 rounded-xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
+                    className="p-6 border-2 border-slate-200 dark:border-primary-700/60 rounded-xl hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-accent-500/10 transition-all group"
                   >
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-accent-500 to-accent-600 rounded-full flex items-center justify-center">
                         <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                       </div>
                       <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white text-lg">Particulier</h3>
-                        <p className="text-sm text-gray-800 dark:text-gray-200 mt-1">Je réserve à titre personnel</p>
+                        <h3 className="font-bold text-slate-900 dark:text-white text-lg">Particulier</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">Je réserve à titre personnel</p>
                       </div>
                     </div>
                   </button>
@@ -321,13 +321,13 @@ export default function SignUpPage() {
             {userType === 'association' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">
                     Sélectionnez votre association
                   </label>
                   <button
                     type="button"
                     onClick={() => setUserType('')}
-                    className="text-sm text-gray-600 hover:text-gray-700 dark:text-gray-400"
+                    className="text-sm text-slate-600 hover:text-slate-700 dark:text-slate-400"
                   >
                     Changer de type
                   </button>
@@ -338,7 +338,7 @@ export default function SignUpPage() {
                   <select
                     value={formData.associationId}
                     onChange={(e) => setFormData({ ...formData, associationId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-slate-100"
                     required={!showNewAssociationForm}
                   >
                     <option value="">-- Choisir une association --</option>
@@ -352,21 +352,21 @@ export default function SignUpPage() {
                   <button
                     type="button"
                     onClick={() => setShowNewAssociationForm(true)}
-                    className="mt-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    className="mt-2 text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300"
                   >
                     Mon association n'est pas dans la liste
                   </button>
                 </>
               ) : (
-                <div className="space-y-4 p-4 border border-gray-300 dark:border-gray-600 rounded-lg">
+                <div className="space-y-4 p-4 border border-slate-200 dark:border-primary-700/60 rounded-lg">
                   <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                    <h3 className="font-semibold text-slate-900 dark:text-white">
                       Demande d'ajout d'association
                     </h3>
                     <button
                       type="button"
                       onClick={() => setShowNewAssociationForm(false)}
-                      className="text-sm text-gray-600 hover:text-gray-700 dark:text-gray-400"
+                      className="text-sm text-slate-600 hover:text-slate-700 dark:text-slate-400"
                     >
                       Annuler
                     </button>
@@ -386,7 +386,7 @@ export default function SignUpPage() {
                   />
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                       Description
                     </label>
                     <textarea
@@ -399,7 +399,7 @@ export default function SignUpPage() {
                         })
                       }
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-slate-100"
                     />
                   </div>
 
@@ -417,7 +417,7 @@ export default function SignUpPage() {
                   />
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                       Objet social
                     </label>
                     <textarea
@@ -430,7 +430,7 @@ export default function SignUpPage() {
                       }
                       rows={2}
                       placeholder="L'objet principal de l'association"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-slate-100"
                     />
                   </div>
 
@@ -483,7 +483,7 @@ export default function SignUpPage() {
                     }
                   />
 
-                  <p className="text-xs text-gray-800 dark:text-gray-200">
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
                     Votre demande sera examinée par un administrateur
                   </p>
                 </div>
@@ -495,28 +495,28 @@ export default function SignUpPage() {
             {userType === 'particulier' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">
                     Compte particulier
                   </label>
                   <button
                     type="button"
                     onClick={() => setUserType('')}
-                    className="text-sm text-gray-600 hover:text-gray-700 dark:text-gray-400"
+                    className="text-sm text-slate-600 hover:text-slate-700 dark:text-slate-400"
                   >
                     Changer de type
                   </button>
                 </div>
 
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="p-4 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded-lg">
                   <div className="flex items-start gap-3">
-                    <svg className="w-6 h-6 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-accent-600 dark:text-accent-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div>
-                      <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+                      <p className="text-sm font-semibold text-accent-800 dark:text-accent-300">
                         Vous créez un compte en tant que particulier
                       </p>
-                      <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+                      <p className="text-xs text-accent-700 dark:text-accent-400 mt-1">
                         Vous pourrez réserver des salles pour vos événements personnels après validation de votre demande par les administrateurs.
                       </p>
                     </div>
@@ -525,7 +525,7 @@ export default function SignUpPage() {
 
                 {/* Adresse */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                     Adresse complète *
                   </label>
                   <textarea
@@ -542,27 +542,27 @@ export default function SignUpPage() {
                     }}
                     rows={3}
                     placeholder="Ex: 12 Rue de la Mairie, 77590 Chartrettes"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-slate-100"
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Cette adresse sera utilisée pour vérifier votre résidence
                   </p>
                 </div>
 
                 {/* Indicateur de résidence à Chartrettes */}
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="p-3 bg-primary-50 dark:bg-accent-500/10 border border-primary-200 dark:border-primary-700/60 rounded-lg">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.isChartrettesResident}
                       onChange={(e) => setFormData({ ...formData, isChartrettesResident: e.target.checked })}
-                      className="mt-0.5 w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                      className="mt-0.5 w-5 h-5 text-primary-700 rounded focus:ring-2 focus:ring-primary-500"
                     />
                     <div className="flex-1">
-                      <div className="font-semibold text-blue-900 dark:text-blue-300 text-sm">
+                      <div className="font-semibold text-primary-900 dark:text-accent-300 text-sm">
                         J'habite à Chartrettes
                       </div>
-                      <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                      <p className="text-xs text-primary-700 dark:text-accent-400 mt-1">
                         Les résidents de Chartrettes bénéficient d'une priorité pour les réservations
                       </p>
                     </div>
@@ -595,22 +595,22 @@ export default function SignUpPage() {
           /* Step 3: Email verification */
           <form onSubmit={handleVerifyCode} className="space-y-6">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-primary-600 to-accent-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
                 Vérifiez votre email
               </h3>
-              <p className="text-sm text-gray-800 dark:text-gray-200">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
                 Un code de vérification a été envoyé à<br />
-                <span className="font-semibold text-gray-900 dark:text-white">{userEmail}</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{userEmail}</span>
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 text-center">
+              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2 text-center">
                 Code de vérification
               </label>
               <input
@@ -619,11 +619,11 @@ export default function SignUpPage() {
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="000000"
-                className="w-full px-4 py-3 text-center text-2xl font-bold tracking-widest border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                className="w-full px-4 py-3 text-center text-2xl font-bold tracking-widest border-2 border-slate-300 dark:border-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-primary-900/40 text-slate-900 dark:text-white"
                 required
                 autoFocus
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
                 Entrez le code à 6 chiffres reçu par email
               </p>
             </div>
@@ -653,12 +653,12 @@ export default function SignUpPage() {
               Vérifier et finaliser l'inscription
             </Button>
 
-            <p className="text-center text-sm text-gray-800 dark:text-gray-200">
+            <p className="text-center text-sm text-slate-600 dark:text-slate-300">
               Vous n'avez pas reçu le code ?{' '}
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                className="font-semibold text-primary-700 hover:text-primary-800 dark:text-accent-300"
               >
                 Retour
               </button>
@@ -667,11 +667,11 @@ export default function SignUpPage() {
         )}
 
         {step !== 3 && (
-          <p className="mt-6 text-center text-sm text-gray-800 dark:text-gray-200">
+          <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
             Vous avez déjà un compte ?{' '}
             <Link
               href="/auth/signin"
-              className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+              className="font-semibold text-primary-700 hover:text-primary-800 dark:text-accent-300"
             >
               Se connecter
             </Link>

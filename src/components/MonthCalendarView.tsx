@@ -106,7 +106,7 @@ export default function MonthCalendarView({
           {dayNames.map((name) => (
             <div
               key={name}
-              className="text-center text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide py-2"
+              className="text-center text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide py-2"
             >
               {name}
             </div>
@@ -129,14 +129,14 @@ export default function MonthCalendarView({
                 className={`
                   relative min-h-[70px] sm:min-h-[90px] p-1.5 sm:p-2 rounded-xl border-2 transition-all duration-200 flex flex-col items-start
                   ${!inCurrentMonth
-                    ? 'opacity-30 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900'
+                    ? 'opacity-30 border-slate-200 dark:border-primary-700/60 bg-slate-50 dark:bg-primary-900/40'
                     : today
-                    ? 'border-blue-400 dark:border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 shadow-md'
+                    ? 'border-primary-500 dark:border-primary-400 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 shadow-md'
                     : !isValid && !hasReservations
-                    ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 opacity-50'
+                    ? 'border-slate-200 dark:border-primary-700/60 bg-slate-50 dark:bg-primary-900/40 opacity-50'
                     : hasReservations
-                    ? 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg'
-                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md'
+                    ? 'border-slate-300 dark:border-primary-700/60 bg-white dark:bg-primary-800/40 hover:border-primary-500 dark:hover:border-primary-400 hover:shadow-lg'
+                    : 'border-slate-200 dark:border-primary-700/60 bg-white dark:bg-primary-800/40 hover:border-primary-500 dark:hover:border-primary-400 hover:shadow-md'
                   }
                 `}
               >
@@ -144,10 +144,10 @@ export default function MonthCalendarView({
                 <span
                   className={`text-sm sm:text-base font-bold leading-none ${
                     today
-                      ? 'text-blue-600 dark:text-blue-400'
+                      ? 'text-primary-700 dark:text-accent-300'
                       : inCurrentMonth
-                      ? 'text-gray-900 dark:text-white'
-                      : 'text-gray-400 dark:text-gray-600'
+                      ? 'text-slate-900 dark:text-white'
+                      : 'text-slate-400 dark:text-slate-600'
                   }`}
                 >
                   {format(day, 'd')}
@@ -172,11 +172,11 @@ export default function MonthCalendarView({
                             className={`
                               rounded px-1 py-0.5 text-[9px] sm:text-[10px] leading-tight truncate w-full font-medium
                               ${isYearly
-                                ? 'bg-green-700 text-white'
+                                ? 'bg-primary-700 text-white'
                                 : isApproved
-                                ? 'bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200'
+                                ? 'bg-accent-100 dark:bg-accent-800 text-accent-800 dark:text-accent-200'
                                 : isPending
-                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                ? 'bg-slate-200 dark:bg-primary-700 text-slate-700 dark:text-slate-300'
                                 : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
                               }
                             `}
@@ -188,7 +188,7 @@ export default function MonthCalendarView({
                         );
                       })}
                     {getDayReservations(day).length > 3 && (
-                      <span className="text-[9px] text-gray-500 dark:text-gray-400 font-medium">
+                      <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
                         +{getDayReservations(day).length - 3}
                       </span>
                     )}
@@ -198,7 +198,7 @@ export default function MonthCalendarView({
                 {/* Valid range indicator for empty days */}
                 {!hasReservations && isValid && inCurrentMonth && (
                   <div className="mt-auto">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 dark:bg-green-500"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-accent-400 dark:bg-accent-500"></div>
                   </div>
                 )}
               </button>
@@ -211,23 +211,23 @@ export default function MonthCalendarView({
       <div className="px-4 sm:px-6 pb-4 sm:pb-6">
         <div className="flex flex-wrap gap-3 sm:gap-4 text-xs justify-center">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-green-100 dark:bg-green-800 border border-green-300 dark:border-green-600"></div>
-            <span className="text-gray-600 dark:text-gray-400">Validée</span>
+            <div className="w-3 h-3 rounded bg-accent-100 dark:bg-accent-800 border border-accent-300 dark:border-accent-600"></div>
+            <span className="text-slate-600 dark:text-slate-400">Validée</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-green-700 border border-green-900"></div>
-            <span className="text-gray-600 dark:text-gray-400">Annuelle</span>
+            <div className="w-3 h-3 rounded bg-primary-700 border border-primary-900"></div>
+            <span className="text-slate-600 dark:text-slate-400">Annuelle</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-gray-200 dark:bg-gray-700 border border-gray-400 dark:border-gray-500"></div>
-            <span className="text-gray-600 dark:text-gray-400">En attente</span>
+            <div className="w-3 h-3 rounded bg-slate-200 dark:bg-primary-700 border border-slate-400 dark:border-primary-500"></div>
+            <span className="text-slate-600 dark:text-slate-400">En attente</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
-            <span className="text-gray-600 dark:text-gray-400">Disponible</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-accent-400"></div>
+            <span className="text-slate-600 dark:text-slate-400">Disponible</span>
           </div>
         </div>
-        <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-3">
+        <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-3">
           Cliquez sur un jour pour voir les créneaux disponibles et réserver
         </p>
       </div>

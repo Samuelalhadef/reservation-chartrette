@@ -179,14 +179,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Apply 30-day rule only for non-admin users
+    // Apply 10-day rule only for non-admin users (Art. 5 du règlement)
     if (session.user?.role !== 'admin') {
       const minDate = new Date(today);
-      minDate.setDate(minDate.getDate() + 30);
+      minDate.setDate(minDate.getDate() + 10);
 
       if (reservationDate < minDate) {
         return NextResponse.json(
-          { error: 'Vous devez réserver au minimum 30 jours à l\'avance pour permettre la validation par les administrateurs' },
+          { error: 'Vous devez réserver au minimum 10 jours à l\'avance pour permettre la validation par les administrateurs' },
           { status: 400 }
         );
       }

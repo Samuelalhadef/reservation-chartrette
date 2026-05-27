@@ -14,7 +14,8 @@ import {
   Phone,
   CheckCircle2
 } from 'lucide-react';
-import { generateConventionPDF } from '@/lib/generateConventionPDF';
+// generateConventionPDF (et jsPDF) sont importés dynamiquement à l'usage
+// pour éviter d'embarquer jsPDF dans le bundle de la page.
 
 interface Document {
   id: string;
@@ -76,7 +77,8 @@ export default function ProfilePage() {
 
       const data = await response.json();
 
-      // Générer le PDF avec la nouvelle fonction
+      // Générer le PDF (jsPDF chargé à la demande)
+      const { generateConventionPDF } = await import('@/lib/generateConventionPDF');
       const pdf = generateConventionPDF(data);
 
       // Sauvegarder le PDF
@@ -93,8 +95,8 @@ export default function ProfilePage() {
 
   if (status === 'loading' || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-slate-50 dark:bg-primary-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -104,11 +106,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-blue-900/20">
+    <div className="min-h-screen bg-slate-50 dark:bg-primary-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* En-tête de profil */}
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8">
+        <div className="bg-white dark:bg-primary-800/40 rounded-3xl shadow-xl overflow-hidden mb-8 border border-slate-200 dark:border-primary-700/60">
+          <div className="header-gradient p-8">
             <div className="flex items-center gap-6">
               <div className="bg-white/20 backdrop-blur-sm p-6 rounded-2xl">
                 <User className="w-16 h-16 text-white" />
@@ -134,14 +136,14 @@ export default function ProfilePage() {
           </div>
 
           {userData?.associationId && (
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
+            <div className="p-6 border-t border-slate-200 dark:border-primary-700/60 bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20">
               <div className="flex items-center gap-3">
-                <div className="bg-indigo-600 p-3 rounded-xl">
+                <div className="bg-primary-700 p-3 rounded-xl">
                   <Building2 className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Association</p>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">Association</p>
+                  <p className="text-lg font-semibold text-slate-900 dark:text-white">
                     {documents[0]?.associationName || 'Chargement...'}
                   </p>
                 </div>
@@ -151,16 +153,16 @@ export default function ProfilePage() {
         </div>
 
         {/* Documents signés */}
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8">
+        <div className="bg-white dark:bg-primary-800/40 rounded-3xl shadow-xl p-8 border border-slate-200 dark:border-primary-700/60">
           <div className="flex items-center gap-3 mb-6">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-xl">
+            <div className="bg-gradient-to-r from-primary-700 to-accent-600 p-3 rounded-xl">
               <FileText className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
                 Mes Documents
               </h2>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-slate-600 dark:text-slate-300">
                 Documents officiels signés
               </p>
             </div>
@@ -168,8 +170,8 @@ export default function ProfilePage() {
 
           {documents.length === 0 ? (
             <div className="text-center py-12">
-              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">
+              <FileText className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+              <p className="text-slate-600 dark:text-slate-300">
                 Aucun document signé pour le moment
               </p>
             </div>
@@ -178,18 +180,18 @@ export default function ProfilePage() {
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-2xl border-2 border-blue-200 dark:border-blue-800 hover:shadow-lg transition-all"
+                  className="bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20 p-6 rounded-2xl border-2 border-primary-200 dark:border-primary-700/60 hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-start gap-4 flex-1">
-                      <div className="bg-blue-600 p-3 rounded-xl">
+                      <div className="bg-primary-700 p-3 rounded-xl">
                         <FileText className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
                           {doc.title}
                         </h3>
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex flex-wrap gap-4 text-sm text-slate-600 dark:text-slate-300">
                           <div className="flex items-center gap-1">
                             <Building2 className="w-4 h-4" />
                             <span>{doc.associationName}</span>
@@ -200,7 +202,7 @@ export default function ProfilePage() {
                               Signé le {new Date(doc.signedAt).toLocaleDateString('fr-FR')}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <div className="flex items-center gap-1 text-accent-600 dark:text-accent-400">
                             <CheckCircle2 className="w-4 h-4" />
                             <span className="font-medium">Document officiel</span>
                           </div>
@@ -210,7 +212,7 @@ export default function ProfilePage() {
                     <button
                       onClick={() => generatePDF(doc.id)}
                       disabled={isGeneratingPdf === doc.id}
-                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-700 to-accent-600 text-white rounded-xl hover:from-primary-800 hover:to-accent-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isGeneratingPdf === doc.id ? (
                         <>

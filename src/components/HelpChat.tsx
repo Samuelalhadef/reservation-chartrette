@@ -68,7 +68,7 @@ export default function HelpChat() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 sm:p-4 shadow-lg transition-all duration-300 hover:scale-110 z-50"
+          className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-primary-700 hover:bg-primary-800 text-white rounded-full p-3 sm:p-4 shadow-lg transition-all duration-300 hover:scale-110 z-50"
           aria-label="Ouvrir le chat d'aide"
         >
           <svg
@@ -90,9 +90,9 @@ export default function HelpChat() {
 
       {/* Fenêtre de chat */}
       {isOpen && (
-        <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-6 sm:right-6 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-2xl z-50 border border-gray-200 dark:border-gray-700">
+        <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-6 sm:right-6 sm:w-96 bg-white dark:bg-primary-800/40 rounded-lg shadow-2xl z-50 border border-slate-200 dark:border-primary-700/60">
           {/* Header */}
-          <div className="bg-blue-600 text-white p-4 rounded-t-lg flex justify-between items-center">
+          <div className="bg-gradient-to-r from-primary-700 to-accent-700 text-white p-4 rounded-t-lg flex justify-between items-center">
             <div className="flex items-center gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -116,7 +116,7 @@ export default function HelpChat() {
                 setStatus('idle');
                 setStatusMessage('');
               }}
-              className="hover:bg-blue-700 rounded p-1 transition-colors"
+              className="hover:bg-primary-800 rounded p-1 transition-colors"
               aria-label="Fermer"
             >
               <svg
@@ -139,7 +139,7 @@ export default function HelpChat() {
           {/* Body */}
           <div className="p-4">
             {status === 'success' ? (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 p-4 rounded-lg text-center">
+              <div className="bg-accent-50 dark:bg-accent-500/10 border border-accent-200 dark:border-accent-800 text-accent-700 dark:text-accent-400 p-4 rounded-lg text-center">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-12 w-12 mx-auto mb-2"
@@ -158,7 +158,7 @@ export default function HelpChat() {
               </div>
             ) : (
               <>
-                <p className="text-sm text-gray-800 dark:text-gray-200 mb-4">
+                <p className="text-sm text-slate-900 dark:text-white mb-4">
                   Posez votre question et nous vous répondrons dans les plus brefs délais.
                 </p>
 
@@ -170,7 +170,7 @@ export default function HelpChat() {
 
                 <form onSubmit={handleSubmit} className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                       Nom
                     </label>
                     <input
@@ -179,13 +179,13 @@ export default function HelpChat() {
                       onChange={(e) => setName(e.target.value)}
                       required
                       disabled={!!session?.user}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-white text-sm disabled:bg-slate-100 dark:disabled:bg-primary-800/40 disabled:cursor-not-allowed"
                       placeholder="Votre nom"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                       Email
                     </label>
                     <input
@@ -194,13 +194,13 @@ export default function HelpChat() {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       disabled={!!session?.user}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-white text-sm disabled:bg-slate-100 dark:disabled:bg-primary-800/40 disabled:cursor-not-allowed"
                       placeholder="votre.email@example.com"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                       Message
                     </label>
                     <textarea
@@ -208,7 +208,7 @@ export default function HelpChat() {
                       onChange={(e) => setMessage(e.target.value)}
                       required
                       rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm resize-none"
+                      className="w-full px-3 py-2 border border-slate-300 dark:border-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-white text-sm resize-none"
                       placeholder="Décrivez votre question ou problème..."
                     />
                   </div>

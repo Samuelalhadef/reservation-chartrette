@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/Button';
 import Input from '@/components/Input';
+import AuthShell from '@/components/AuthShell';
 
 function SignInForm() {
   const router = useRouter();
@@ -50,17 +51,7 @@ function SignInForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-xl p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Connexion
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Accédez à votre compte Réservation Chartrettes
-          </p>
-        </div>
-
+    <AuthShell title="Connexion" subtitle="Accédez à votre compte Réservation Chartrettes">
         {error && (
           <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
             {error}
@@ -95,7 +86,7 @@ function SignInForm() {
             <div className="text-right mt-2">
               <Link
                 href="/auth/forgot-password"
-                className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                className="text-sm font-medium text-primary-700 hover:text-primary-800 dark:text-accent-300 dark:hover:text-accent-200"
               >
                 Mot de passe oublié ?
               </Link>
@@ -118,7 +109,7 @@ function SignInForm() {
               <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+              <span className="px-2 bg-white dark:bg-primary-800 text-slate-500 dark:text-slate-400">
                 Ou continuer avec
               </span>
             </div>
@@ -153,27 +144,26 @@ function SignInForm() {
           </Button>
         </div>
 
-        <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+        <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
           Pas encore de compte ?{' '}
           <Link
             href="/auth/signup"
-            className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            className="font-semibold text-primary-700 hover:text-primary-800 dark:text-accent-300"
           >
             S'inscrire
           </Link>
         </p>
-      </div>
-    </div>
+    </AuthShell>
   );
 }
 
 export default function SignInPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-700 to-accent-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+          <p className="mt-4 text-white/80">Chargement...</p>
         </div>
       </div>
     }>

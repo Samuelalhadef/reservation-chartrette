@@ -26,10 +26,10 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-12 text-center">
-        <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary-800 dark:text-white mb-3">
           Choisissez un établissement
         </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-400">
+        <p className="text-lg text-slate-600 dark:text-slate-300">
           Sélectionnez un bâtiment pour voir les salles disponibles
         </p>
       </div>
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
               </div>
 
               {/* Badge "Cliquez pour voir" */}
-              <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm text-gray-800 px-4 py-2 rounded-full text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="absolute top-4 right-4 bg-accent-600 text-white px-4 py-2 rounded-full text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-lg">
                 Voir les salles →
               </div>
             </div>

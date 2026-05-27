@@ -1,17 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Calendar, Users, Building2, Clock, CheckCircle, TrendingUp, BarChart3 } from 'lucide-react';
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Pie } from 'react-chartjs-2';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+// Chart.js n'est chargé que côté client, à la demande (hors du bundle initial).
+const Pie = dynamic(() => import('@/components/charts/PieChart'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-64 items-center justify-center text-slate-400">
+      Chargement du graphique…
+    </div>
+  ),
+});
 
 interface Stats {
   summary: {
@@ -61,7 +63,7 @@ export default function AdminDashboard() {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center py-12">
-          <p className="text-gray-800 dark:text-gray-200">Chargement des statistiques...</p>
+          <p className="text-slate-600 dark:text-slate-300">Chargement des statistiques...</p>
         </div>
       </div>
     );
@@ -70,16 +72,16 @@ export default function AdminDashboard() {
   // Préparer les données pour le graphique camembert des salles
   const generateColors = (count: number) => {
     const colors = [
-      'rgba(59, 130, 246, 0.8)',
-      'rgba(16, 185, 129, 0.8)',
-      'rgba(245, 158, 11, 0.8)',
-      'rgba(239, 68, 68, 0.8)',
-      'rgba(139, 92, 246, 0.8)',
-      'rgba(236, 72, 153, 0.8)',
-      'rgba(14, 165, 233, 0.8)',
-      'rgba(34, 197, 94, 0.8)',
-      'rgba(251, 146, 60, 0.8)',
-      'rgba(168, 85, 247, 0.8)',
+      'rgba(30, 58, 95, 0.85)',
+      'rgba(5, 150, 105, 0.85)',
+      'rgba(245, 158, 11, 0.85)',
+      'rgba(239, 68, 68, 0.85)',
+      'rgba(30, 58, 95, 0.65)',
+      'rgba(5, 150, 105, 0.65)',
+      'rgba(30, 58, 95, 0.50)',
+      'rgba(5, 150, 105, 0.50)',
+      'rgba(245, 158, 11, 0.65)',
+      'rgba(239, 68, 68, 0.65)',
     ];
     return Array.from({ length: count }, (_, i) => colors[i % colors.length]);
   };
@@ -143,10 +145,10 @@ export default function AdminDashboard() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-primary-800 dark:text-white">
               Dashboard Administrateur
             </h1>
-            <p className="mt-2 text-gray-800 dark:text-gray-200">
+            <p className="mt-2 text-slate-600 dark:text-slate-300">
               Vue d'ensemble et statistiques du système
             </p>
           </div>
@@ -154,7 +156,7 @@ export default function AdminDashboard() {
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="px-4 py-2 border border-slate-200 dark:border-primary-700/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-800/40 text-slate-900 dark:text-white"
             >
               <option value="all">Toutes les périodes</option>
               <option value="week">Cette semaine</option>
@@ -199,63 +201,63 @@ export default function AdminDashboard() {
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-800 dark:text-gray-200">Réservations totales</p>
-            <Calendar className="h-8 w-8 text-blue-600 dark:text-blue-400 opacity-50" />
+            <p className="text-sm text-slate-600 dark:text-slate-300">Réservations totales</p>
+            <Calendar className="h-8 w-8 text-primary-700 dark:text-accent-300 opacity-50" />
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {stats.summary?.totalReservations || 0}
           </p>
           <Link
             href="/admin/reservations"
-            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 mt-2 inline-block"
+            className="text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300 mt-2 inline-block"
           >
             Gérer →
           </Link>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-800 dark:text-gray-200">Salles actives</p>
-            <Building2 className="h-8 w-8 text-green-600 dark:text-green-400 opacity-50" />
+            <p className="text-sm text-slate-600 dark:text-slate-300">Salles actives</p>
+            <Building2 className="h-8 w-8 text-accent-600 dark:text-accent-400 opacity-50" />
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {stats.summary?.totalRooms || 0}
           </p>
           <Link
             href="/admin/rooms"
-            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 mt-2 inline-block"
+            className="text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300 mt-2 inline-block"
           >
             Gérer →
           </Link>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-800 dark:text-gray-200">Utilisateurs</p>
-            <Users className="h-8 w-8 text-purple-600 dark:text-purple-400 opacity-50" />
+            <p className="text-sm text-slate-600 dark:text-slate-300">Utilisateurs</p>
+            <Users className="h-8 w-8 text-primary-600 dark:text-primary-300 opacity-50" />
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {stats.summary?.totalUsers || 0}
           </p>
           <Link
             href="/admin/users"
-            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 mt-2 inline-block"
+            className="text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300 mt-2 inline-block"
           >
             Gérer →
           </Link>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-800 dark:text-gray-200">Taux d'acceptation</p>
-            <CheckCircle className="h-8 w-8 text-emerald-600 dark:text-emerald-400 opacity-50" />
+            <p className="text-sm text-slate-600 dark:text-slate-300">Taux d'acceptation</p>
+            <CheckCircle className="h-8 w-8 text-accent-600 dark:text-accent-400 opacity-50" />
           </div>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">
             {stats.summary?.acceptanceRate || 0}%
           </p>
-          <p className="text-sm text-gray-800 dark:text-gray-200 mt-2">
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
             Demandes approuvées
           </p>
         </div>
@@ -264,16 +266,16 @@ export default function AdminDashboard() {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Top Rooms */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60">
+          <div className="p-6 border-b border-slate-200 dark:border-primary-700/60">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
                 <BarChart3 className="h-5 w-5 mr-2" />
                 Salles les plus réservées
               </h2>
               <Link
                 href="/admin/room-stats"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-700 to-primary-800 hover:from-primary-800 hover:to-primary-900 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
               >
                 <BarChart3 className="h-4 w-4" />
                 Voir statistiques détaillées
@@ -286,7 +288,7 @@ export default function AdminDashboard() {
                 <Pie data={roomsChartData} options={chartOptions} />
               </div>
             ) : (
-              <p className="text-gray-800 dark:text-gray-200 text-center py-4">
+              <p className="text-slate-600 dark:text-slate-300 text-center py-4">
                 Aucune donnée disponible
               </p>
             )}
@@ -294,9 +296,9 @@ export default function AdminDashboard() {
         </div>
 
         {/* Top Associations */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60">
+          <div className="p-6 border-b border-slate-200 dark:border-primary-700/60">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
               <TrendingUp className="h-5 w-5 mr-2" />
               Associations les plus actives
             </h2>
@@ -307,7 +309,7 @@ export default function AdminDashboard() {
                 <Pie data={associationsChartData} options={chartOptions} />
               </div>
             ) : (
-              <p className="text-gray-800 dark:text-gray-200 text-center py-4">
+              <p className="text-slate-600 dark:text-slate-300 text-center py-4">
                 Aucune donnée disponible
               </p>
             )}
@@ -316,9 +318,9 @@ export default function AdminDashboard() {
       </div>
 
       {/* Status Breakdown */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+      <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60">
+        <div className="p-6 border-b border-slate-200 dark:border-primary-700/60">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
             Répartition des réservations par statut
           </h2>
         </div>
@@ -327,12 +329,12 @@ export default function AdminDashboard() {
             {stats.statusBreakdown.map((status) => (
               <div
                 key={status._id}
-                className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-center"
+                className="bg-slate-50 dark:bg-primary-800/30 rounded-lg p-4 text-center"
               >
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">
                   {status.count}
                 </p>
-                <p className="text-sm text-gray-800 dark:text-gray-200 mt-1 capitalize">
+                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 capitalize">
                   {status._id === 'pending'
                     ? 'En attente'
                     : status._id === 'approved'

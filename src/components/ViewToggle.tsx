@@ -11,14 +11,14 @@ interface ViewToggleProps {
 
 export default function ViewToggle({ currentView, onViewChange }: ViewToggleProps) {
   return (
-    <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1">
+    <div className="inline-flex rounded-lg border border-slate-200 dark:border-primary-700/60 bg-white dark:bg-primary-800/40 p-1">
       <button
         onClick={() => onViewChange('list')}
         className={`
           flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
           ${currentView === 'list'
-            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm'
-            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            ? 'bg-primary-700 text-white shadow-sm'
+            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-primary-900/40'
           }
         `}
       >
@@ -31,8 +31,8 @@ export default function ViewToggle({ currentView, onViewChange }: ViewToggleProp
         className={`
           flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
           ${currentView === 'calendar'
-            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm'
-            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            ? 'bg-primary-700 text-white shadow-sm'
+            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-primary-900/40'
           }
         `}
       >

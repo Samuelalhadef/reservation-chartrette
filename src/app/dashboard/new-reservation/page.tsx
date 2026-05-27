@@ -176,13 +176,13 @@ export default function NewReservationPage() {
       return;
     }
 
-    // Apply 30-day rule only for non-admin users
+    // Apply 10-day rule only for non-admin users (Art. 5 du règlement)
     if (!isAdmin) {
       const minDate = new Date(today);
-      minDate.setDate(minDate.getDate() + 30);
+      minDate.setDate(minDate.getDate() + 10);
 
       if (reservationDate < minDate) {
-        setError('Vous devez réserver au minimum 30 jours à l\'avance pour permettre la validation par les administrateurs');
+        setError('Vous devez réserver au minimum 10 jours à l\'avance pour permettre la validation par les administrateurs');
         return;
       }
     }
@@ -227,9 +227,9 @@ export default function NewReservationPage() {
   const today = new Date();
   const minDate = new Date(today);
 
-  // Only non-admin users need 30 days advance
+  // Only non-admin users need 10 days advance (Art. 5 du règlement)
   if (!isAdmin) {
-    minDate.setDate(minDate.getDate() + 30);
+    minDate.setDate(minDate.getDate() + 10);
   } else {
     // Admin can book from today
     minDate.setDate(minDate.getDate() + 1);
@@ -240,10 +240,10 @@ export default function NewReservationPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
           Nouvelle réservation
         </h1>
-        <p className="mt-2 text-gray-800 dark:text-gray-200">
+        <p className="mt-2 text-slate-600 dark:text-slate-300">
           Réservez une salle pour votre association
         </p>
       </div>
@@ -256,8 +256,8 @@ export default function NewReservationPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Room Selection */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow p-6 border border-slate-200 dark:border-primary-700/60">
+          <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">
             <div className="flex items-center mb-2">
               <Users className="h-5 w-5 mr-2" />
               Sélectionnez une salle
@@ -270,7 +270,7 @@ export default function NewReservationPage() {
               setFormData({ ...formData, roomId: e.target.value });
               setSelectedTimeSlots([]);
             }}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            className="w-full px-3 py-2 border border-slate-300 dark:border-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-slate-100"
           >
             <option value="">-- Choisir une salle --</option>
             {rooms.map((room) => (
@@ -281,14 +281,14 @@ export default function NewReservationPage() {
           </select>
 
           {selectedRoom && (
-            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="mt-4 p-4 bg-primary-50 dark:bg-accent-500/10 rounded-lg">
+              <h3 className="font-semibold text-slate-900 dark:text-white mb-2">
                 {selectedRoom.name}
               </h3>
-              <p className="text-sm text-gray-800 dark:text-gray-200 mb-3">
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
                 {selectedRoom.description}
               </p>
-              <div className="text-sm text-gray-800 dark:text-gray-200">
+              <div className="text-sm text-slate-600 dark:text-slate-300">
                 <p><strong>Capacité:</strong> {selectedRoom.capacity} personnes</p>
                 {selectedRoom.equipment.length > 0 && (
                   <p className="mt-1">
@@ -302,8 +302,8 @@ export default function NewReservationPage() {
 
         {/* Association Selection (Admin only) */}
         {isAdmin && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow p-6 border border-slate-200 dark:border-primary-700/60">
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">
               <div className="flex items-center mb-2">
                 <Users className="h-5 w-5 mr-2" />
                 Réserver pour une association (optionnel)
@@ -312,7 +312,7 @@ export default function NewReservationPage() {
             <select
               value={selectedAssociationId}
               onChange={(e) => setSelectedAssociationId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-slate-100"
             >
               <option value="">-- Réserver pour la Mairie --</option>
               {associations.map((assoc) => (
@@ -321,7 +321,7 @@ export default function NewReservationPage() {
                 </option>
               ))}
             </select>
-            <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               En tant qu'administrateur, vous pouvez créer une réservation pour n'importe quelle association.
               Si aucune association n'est sélectionnée, la réservation sera pour la Mairie de Chartrettes.
             </p>
@@ -329,7 +329,7 @@ export default function NewReservationPage() {
         )}
 
         {/* Date Selection */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow p-6 border border-slate-200 dark:border-primary-700/60">
           <Input
             label="Date de réservation"
             type="date"
@@ -341,18 +341,18 @@ export default function NewReservationPage() {
               setSelectedTimeSlots([]);
             }}
           />
-          <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
             {isAdmin
               ? 'En tant qu\'administrateur, vous pouvez réserver pour n\'importe quelle date future'
-              : 'Vous devez réserver au minimum 30 jours à l\'avance pour permettre la validation par les administrateurs'
+              : 'Vous devez réserver au minimum 10 jours à l\'avance pour permettre la validation par les administrateurs'
             }
           </p>
         </div>
 
         {/* Time Slots Selection */}
         {formData.roomId && formData.date && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+          <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow p-6 border border-slate-200 dark:border-primary-700/60">
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-4">
               <div className="flex items-center">
                 <Clock className="h-5 w-5 mr-2" />
                 Sélectionnez les créneaux horaires
@@ -374,10 +374,10 @@ export default function NewReservationPage() {
                     className={`
                       px-3 py-2 rounded-lg text-sm font-medium transition-all
                       ${reserved
-                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed line-through'
+                        ? 'bg-slate-200 dark:bg-primary-900/60 text-slate-400 cursor-not-allowed line-through'
                         : selected
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? 'bg-primary-700 text-white hover:bg-primary-800'
+                        : 'bg-slate-100 dark:bg-primary-900/40 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-primary-800/60'
                       }
                     `}
                     title={reserved ? 'Déjà réservé' : `${slot} - ${nextHour}`}
@@ -389,8 +389,8 @@ export default function NewReservationPage() {
             </div>
 
             {selectedTimeSlots.length > 0 && (
-              <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-sm font-medium text-green-800 dark:text-green-400">
+              <div className="mt-4 p-4 bg-accent-50 dark:bg-accent-900/20 rounded-lg">
+                <p className="text-sm font-medium text-accent-800 dark:text-accent-400">
                   {selectedTimeSlots.length} créneau(x) sélectionné(s)
                 </p>
               </div>
@@ -399,9 +399,9 @@ export default function NewReservationPage() {
         )}
 
         {/* Reservation Details */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow p-6 space-y-4 border border-slate-200 dark:border-primary-700/60">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">
               <div className="flex items-center">
                 <FileText className="h-5 w-5 mr-2" />
                 Motif de la réservation
@@ -412,7 +412,7 @@ export default function NewReservationPage() {
               value={formData.reason}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-slate-100"
               placeholder="Décrivez brièvement l'événement ou l'activité..."
             />
           </div>
