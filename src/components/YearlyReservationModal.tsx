@@ -1,11 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Users as UsersIcon, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Calendar, Clock, Users as UsersIcon, FileText, AlertCircle, CheckCircle, CalendarOff, Sparkles } from 'lucide-react';
 import { format, addDays, eachDayOfInterval, isSameDay, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
 import YearlyConventionModal from './YearlyConventionModal';
+import {
+  isHolidayOrSchoolBreak,
+  getPublicHolidayLabel,
+  getSchoolBreakLabel,
+} from '@/lib/frenchHolidays';
 
 interface Association {
   id: string;
@@ -659,30 +664,95 @@ export default function YearlyReservationModal({
 
               {/* Exclusion de dates spécifiques */}
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-3">
-                  Exclure des dates spécifiques
-                </h4>
-                <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
-                  Cliquez sur les dates que vous souhaitez exclure de la réservation
-                </p>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-white">
+                      Exclure des dates spécifiques
+                    </h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                      Cliquez sur les dates à exclure ou utilisez le bouton ci-dessous
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bouton bulk-exclude vacances + jours fériés */}
+                {(() => {
+                  const affected = getAffectedDates();
+                  const matching = affected.filter(d => isHolidayOrSchoolBreak(d));
+                  const matchingNotAlreadyExcluded = matching.filter(
+                    d => !excludedDates.some(ex => isSameDay(ex, d))
+                  );
+                  const allAlreadyExcluded = matching.length > 0 && matchingNotAlreadyExcluded.length === 0;
+
+                  return (
+                    <div className="bg-gradient-to-r from-accent-50 to-primary-50 dark:from-accent-900/20 dark:to-primary-900/20 border-2 border-accent-200 dark:border-accent-700 rounded-xl p-4 mb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-full bg-accent-600 flex items-center justify-center flex-shrink-0">
+                            <CalendarOff className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-slate-900 dark:text-white text-sm">
+                              Vacances scolaires & jours fériés
+                            </p>
+                            <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                              {matching.length === 0
+                                ? 'Aucun jour concerné détecté dans la période'
+                                : allAlreadyExcluded
+                                ? `${matching.length} jour(s) déjà exclus`
+                                : `${matchingNotAlreadyExcluded.length} jour(s) à exclure en un clic`}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={matching.length === 0 || allAlreadyExcluded}
+                          onClick={() => {
+                            const merged = [...excludedDates];
+                            for (const d of matching) {
+                              if (!merged.some(ex => isSameDay(ex, d))) merged.push(d);
+                            }
+                            setExcludedDates(merged);
+                          }}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-accent-600 hover:bg-accent-700 text-white rounded-lg font-semibold text-sm shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          {allAlreadyExcluded ? 'Déjà exclus' : 'Tout exclure'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Aperçu des dates concernées */}
                 <div className="bg-slate-50 dark:bg-primary-900/40 rounded-xl p-3 sm:p-4 max-h-[60vh] sm:max-h-96 overflow-y-auto">
                   <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                     {getAffectedDates().slice(0, 50).map((date, index) => {
                       const isExcluded = excludedDates.some(d => isSameDay(d, date));
+                      const publicLabel = getPublicHolidayLabel(date);
+                      const schoolLabel = getSchoolBreakLabel(date);
+                      const isSpecial = publicLabel || schoolLabel;
+                      const tooltip = publicLabel || schoolLabel || '';
                       return (
                         <button
                           key={index}
                           type="button"
                           onClick={() => toggleDateExclusion(date)}
-                          className={`p-3 sm:p-2 rounded-lg border-2 transition-all text-sm sm:text-xs font-medium min-h-[48px] sm:min-h-0 ${
+                          title={tooltip}
+                          className={`p-3 sm:p-2 rounded-lg border-2 transition-all text-sm sm:text-xs font-medium min-h-[48px] sm:min-h-0 relative ${
                             isExcluded
                               ? 'border-red-500 bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 line-through'
+                              : isSpecial
+                              ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/30 hover:border-amber-500 text-amber-900 dark:text-amber-100'
                               : 'border-primary-200 dark:border-primary-700/60 hover:border-primary-500 active:border-primary-600 text-slate-900 dark:text-white'
                           }`}
                         >
                           {format(date, 'EEE d MMM', { locale: fr })}
+                          {isSpecial && !isExcluded && (
+                            <span className="block text-[10px] mt-0.5 opacity-80 truncate">
+                              {publicLabel ? '🇫🇷 férié' : '🎒 vacances'}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
