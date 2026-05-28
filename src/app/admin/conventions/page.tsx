@@ -10,6 +10,10 @@ import {
   Filter,
   X,
   Download,
+  Settings as SettingsIcon,
+  Save,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -40,6 +44,16 @@ interface ConventionItem {
 
 type TypeFilter = 'all' | ConventionType;
 
+const SETTINGS_FIELDS: Array<{ key: string; label: string; hint?: string }> = [
+  { key: 'mayorName', label: 'Nom du maire', hint: 'Ex: Pascal Gros' },
+  { key: 'mayorTitle', label: 'Titre', hint: 'Le Maire / La Maire' },
+  { key: 'mairieName', label: 'Nom officiel de la mairie', hint: 'LA MAIRIE DE CHARTRETTES' },
+  { key: 'mairieAddressLine1', label: 'Adresse (ligne 1)', hint: '37 rue Georges Clemenceau' },
+  { key: 'mairieAddressLine2', label: 'Adresse (ligne 2)', hint: '77590 CHARTRETTES' },
+  { key: 'mairiePhone', label: 'Téléphone', hint: '01.60.69.65.01' },
+  { key: 'conventionYear', label: 'Année / saison', hint: '2025-2026' },
+];
+
 export default function AdminConventionsPage() {
   const [items, setItems] = useState<ConventionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,9 +66,46 @@ export default function AdminConventionsPage() {
 
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
 
+  // Paramètres de la convention (maire, mairie, année)
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSavedAt, setSettingsSavedAt] = useState<Date | null>(null);
+
   useEffect(() => {
     fetchConventions();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/convention-settings');
+      if (!res.ok) return;
+      const data = await res.json();
+      setSettings(data.settings || {});
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const saveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const res = await fetch('/api/admin/convention-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) throw new Error('Erreur lors de l\'enregistrement');
+      const data = await res.json();
+      setSettings(data.settings);
+      setSettingsSavedAt(new Date());
+    } catch (err: any) {
+      alert(err.message || 'Erreur');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const fetchConventions = async () => {
     setLoading(true);
@@ -171,6 +222,7 @@ export default function AdminConventionsPage() {
         },
         signature: item.signature,
         signedAt: item.signedAt || new Date(),
+        settings,
       });
       const safeName = item.signerName.replace(/\s+/g, '_');
       const dateStr = item.reservationDate
@@ -207,6 +259,75 @@ export default function AdminConventionsPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Panneau paramètres convention */}
+      <div className="card mb-6 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(o => !o)}
+          className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center">
+              <SettingsIcon className="h-5 w-5 text-slate-600" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-slate-900">Paramètres de la convention</p>
+              <p className="text-xs text-slate-500">
+                Maire, mairie, année — apparaissent dans le PDF et le modal de signature
+              </p>
+            </div>
+          </div>
+          {settingsOpen ? (
+            <ChevronUp className="h-5 w-5 text-slate-400" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-slate-400" />
+          )}
+        </button>
+        {settingsOpen && (
+          <div className="border-t border-slate-200 p-4 bg-slate-50/50">
+            <div className="grid sm:grid-cols-2 gap-3">
+              {SETTINGS_FIELDS.map(f => (
+                <div key={f.key}>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    {f.label}
+                  </label>
+                  <input
+                    type="text"
+                    value={settings[f.key] || ''}
+                    onChange={e => setSettings(s => ({ ...s, [f.key]: e.target.value }))}
+                    placeholder={f.hint}
+                    className="input text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-xs text-slate-500">
+                {settingsSavedAt && (
+                  <span className="text-accent-600">
+                    ✓ Enregistré à {settingsSavedAt.toLocaleTimeString('fr-FR')}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={saveSettings}
+                disabled={savingSettings}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                {savingSettings ? 'Enregistrement…' : 'Enregistrer les paramètres'}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-3">
+              Les nouveaux paramètres apparaîtront sur les futurs PDF générés et dans le
+              prochain modal de signature. Les conventions déjà signées conservent leur
+              affichage d'origine.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Stats */}

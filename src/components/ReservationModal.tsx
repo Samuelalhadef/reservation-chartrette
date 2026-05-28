@@ -5,7 +5,7 @@ import { X, Calendar, Clock, Users as UsersIcon, FileText, User, Euro, PenTool, 
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
-import ConventionModal, { ConventionSignerData } from './ConventionModal';
+import ConventionModal, { ConventionSignerData, MairieSettings } from './ConventionModal';
 import { formatPrice, getDurationTypeLabel, getUserTypeLabel } from '@/lib/pricing';
 import type { PricingResult } from '@/lib/pricing';
 
@@ -49,6 +49,7 @@ export default function ReservationModal({
   const [responsibleName, setResponsibleName] = useState(userName);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [signerData, setSignerData] = useState<ConventionSignerData | null>(null);
+  const [mairieSettings, setMairieSettings] = useState<Partial<MairieSettings>>({});
   const [showConvention, setShowConvention] = useState(false);
   // Signature capturée localement, envoyée dans le POST de la réservation
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -74,10 +75,23 @@ export default function ReservationModal({
       setShowMultiRoomSelection(false);
       loadPricing();
       loadSignerData();
+      loadMairieSettings();
       if (isAdmin) fetchAssociations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, roomId, isAdmin]);
+
+  const loadMairieSettings = async () => {
+    try {
+      const res = await fetch('/api/convention-settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.settings) setMairieSettings(data.settings);
+      }
+    } catch {
+      /* fallback to defaults */
+    }
+  };
 
   // Charge les infos du signataire (asso ou user) pour pré-remplir le modal de convention
   const loadSignerData = async () => {
@@ -220,6 +234,7 @@ export default function ReservationModal({
         }}
         signerData={signerData}
         reservationContext={{ roomName, date, startHour, endHour }}
+        mairie={mairieSettings}
       />
     );
   }

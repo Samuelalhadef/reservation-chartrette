@@ -32,7 +32,29 @@ export interface ConventionPdfData {
   // Signature en base64 (data:image/png;base64,...)
   signature: string;
   signedAt: Date | string;
+  // Paramètres personnalisables (maire, mairie, année). Si absent → defaults Chartrettes.
+  settings?: Partial<ConventionPdfSettings>;
 }
+
+export interface ConventionPdfSettings {
+  mayorName: string;
+  mayorTitle: string;
+  mairieName: string;
+  mairieAddressLine1: string;
+  mairieAddressLine2: string;
+  mairiePhone: string;
+  conventionYear: string;
+}
+
+const DEFAULT_PDF_SETTINGS: ConventionPdfSettings = {
+  mayorName: 'Pascal Gros',
+  mayorTitle: 'Le Maire',
+  mairieName: 'LA MAIRIE DE CHARTRETTES',
+  mairieAddressLine1: '37 rue Georges Clemenceau',
+  mairieAddressLine2: '77590 CHARTRETTES',
+  mairiePhone: '01.60.69.65.01',
+  conventionYear: '2025-2026',
+};
 
 const PAGE_W = 210;
 const PAGE_H = 297;
@@ -72,6 +94,7 @@ function fmtTimeRange(slots: Array<{ start: string; end: string }>): string {
 export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   let y = MARGIN;
+  const cfg: ConventionPdfSettings = { ...DEFAULT_PDF_SETTINGS, ...(data.settings || {}) };
 
   const ensureSpace = (needed: number) => {
     if (y + needed > PAGE_H - MARGIN) {
@@ -94,7 +117,7 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   pdf.setFontSize(10);
   pdf.text("Salle municipale — Commune de Chartrettes", MARGIN, 23);
   pdf.setFontSize(8);
-  pdf.text("Réservation ponctuelle", MARGIN, 29);
+  pdf.text(`Réservation ponctuelle — Saison ${cfg.conventionYear}`, MARGIN, 29);
 
   y = 44;
 
@@ -123,15 +146,15 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   pdf.setTextColor(...PRIMARY);
   pdf.text('ENTRE :', MARGIN + 3, y + 5);
   pdf.setTextColor(...SLATE_900);
-  pdf.text('LA MAIRIE DE CHARTRETTES', MARGIN + 3, y + 11);
+  pdf.text(cfg.mairieName, MARGIN + 3, y + 11);
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
   pdf.setTextColor(...SLATE_600);
-  pdf.text('37 rue Georges Clemenceau', MARGIN + 3, y + 16);
-  pdf.text('77590 CHARTRETTES', MARGIN + 3, y + 20);
-  pdf.text('01.60.69.65.01', MARGIN + 3, y + 24);
-  pdf.text('Représentée par son Maire,', MARGIN + 3, y + 30);
-  pdf.text('Monsieur Pascal Gros', MARGIN + 3, y + 34);
+  pdf.text(cfg.mairieAddressLine1, MARGIN + 3, y + 16);
+  pdf.text(cfg.mairieAddressLine2, MARGIN + 3, y + 20);
+  pdf.text(cfg.mairiePhone, MARGIN + 3, y + 24);
+  pdf.text(`Représentée par ${cfg.mayorTitle.toLowerCase()},`, MARGIN + 3, y + 30);
+  pdf.text(cfg.mayorName, MARGIN + 3, y + 34);
 
   // Occupant (droite)
   const rightX = MARGIN + halfW + 5;
@@ -371,8 +394,8 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
   pdf.setTextColor(...SLATE_600);
-  pdf.text('Le Maire', MARGIN + 3, y + 11);
-  pdf.text('Pascal Gros', MARGIN + 3, y + 16);
+  pdf.text(cfg.mayorTitle, MARGIN + 3, y + 11);
+  pdf.text(cfg.mayorName, MARGIN + 3, y + 16);
   pdf.setFontSize(7);
   pdf.setTextColor(...SLATE_300);
   pdf.text('— Signature manuelle —', MARGIN + sigBoxW / 2, y + sigBoxH - 4, { align: 'center' });
@@ -424,7 +447,7 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7);
     pdf.setTextColor(...SLATE_600);
-    pdf.text('Mairie de Chartrettes — Convention de mise à disposition de salle', MARGIN, PAGE_H - 8);
+    pdf.text(`${cfg.mairieName} — Convention de mise à disposition (saison ${cfg.conventionYear})`, MARGIN, PAGE_H - 8);
     pdf.text(`Page ${i} / ${totalPages}`, PAGE_W - MARGIN, PAGE_H - 8, { align: 'right' });
   }
 

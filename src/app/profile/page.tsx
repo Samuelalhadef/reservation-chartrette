@@ -53,12 +53,17 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
+  const [mairieSettings, setMairieSettings] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/signin');
     } else if (status === 'authenticated') {
       fetchDocuments();
+      fetch('/api/convention-settings')
+        .then((r) => r.json())
+        .then((d) => d.settings && setMairieSettings(d.settings))
+        .catch(() => {});
     }
   }, [status, router]);
 
@@ -115,6 +120,7 @@ export default function ProfilePage() {
         },
         signature: doc.signatureUrl,
         signedAt: doc.signedAt,
+        settings: mairieSettings,
       });
       const safeName = (doc.roomName || 'salle').replace(/\s+/g, '_');
       const dateStr = doc.reservationDate

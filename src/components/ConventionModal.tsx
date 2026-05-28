@@ -24,6 +24,26 @@ export interface ReservationContext {
   endHour: number;
 }
 
+export interface MairieSettings {
+  mayorName: string;
+  mayorTitle: string;
+  mairieName: string;
+  mairieAddressLine1: string;
+  mairieAddressLine2: string;
+  mairiePhone: string;
+  conventionYear: string;
+}
+
+const DEFAULT_MAIRIE: MairieSettings = {
+  mayorName: 'Pascal Gros',
+  mayorTitle: 'Le Maire',
+  mairieName: 'LA MAIRIE DE CHARTRETTES',
+  mairieAddressLine1: '37 rue Georges Clemenceau',
+  mairieAddressLine2: '77590 CHARTRETTES',
+  mairiePhone: '01.60.69.65.01',
+  conventionYear: '2025-2026',
+};
+
 interface ConventionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,6 +52,8 @@ interface ConventionModalProps {
   signerData: ConventionSignerData;
   /** Contexte de la réservation ponctuelle (facultatif pour lecture seule) */
   reservationContext?: ReservationContext;
+  /** Paramètres mairie (maire, adresse, année) — fallback sur les defaults Chartrettes */
+  mairie?: Partial<MairieSettings>;
 }
 
 export default function ConventionModal({
@@ -40,7 +62,9 @@ export default function ConventionModal({
   onSigned,
   signerData,
   reservationContext,
+  mairie,
 }: ConventionModalProps) {
+  const cfg: MairieSettings = { ...DEFAULT_MAIRIE, ...(mairie || {}) };
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -135,7 +159,7 @@ export default function ConventionModal({
               </h2>
             </div>
             <p className="text-primary-100 text-sm sm:text-base md:text-lg">
-              Réservation ponctuelle — à signer avant chaque demande
+              Réservation ponctuelle — saison {cfg.conventionYear}
             </p>
             <div className="mt-3 sm:mt-4 inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/20 backdrop-blur-sm rounded-full">
               <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
@@ -188,11 +212,11 @@ export default function ConventionModal({
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-300">
                 <p className="font-bold text-primary-700 mb-2">ENTRE :</p>
-                <p className="font-bold text-sm">LA MAIRIE DE CHARTRETTES</p>
-                <p className="text-xs">37 rue Georges Clemenceau</p>
-                <p className="text-xs">77590 CHARTRETTES</p>
-                <p className="text-xs">01.60.69.65.01</p>
-                <p className="text-xs mt-2">Représentée par son Maire, Monsieur Pascal Gros</p>
+                <p className="font-bold text-sm">{cfg.mairieName}</p>
+                <p className="text-xs">{cfg.mairieAddressLine1}</p>
+                <p className="text-xs">{cfg.mairieAddressLine2}</p>
+                <p className="text-xs">{cfg.mairiePhone}</p>
+                <p className="text-xs mt-2">Représentée par {cfg.mayorTitle.toLowerCase()}, {cfg.mayorName}</p>
                 <p className="text-xs italic mt-2">D&apos;une part,</p>
               </div>
               <div className="bg-primary-50 p-4 rounded-xl border border-primary-300">

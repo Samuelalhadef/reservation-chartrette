@@ -110,6 +110,20 @@ export const reservations = sqliteTable('reservations', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
+// Convention settings (singleton row) — paramètres modifiables par les admins
+// pour personnaliser le PDF et le modal de signature (maire, mairie, année…).
+export const conventionSettings = sqliteTable('convention_settings', {
+  id: text('id').primaryKey(), // toujours 'singleton'
+  mayorName: text('mayor_name').notNull().default('Pascal Gros'),
+  mayorTitle: text('mayor_title').notNull().default('Le Maire'),
+  mairieName: text('mairie_name').notNull().default('LA MAIRIE DE CHARTRETTES'),
+  mairieAddressLine1: text('mairie_address_line1').notNull().default('37 rue Georges Clemenceau'),
+  mairieAddressLine2: text('mairie_address_line2').notNull().default('77590 CHARTRETTES'),
+  mairiePhone: text('mairie_phone').notNull().default('01.60.69.65.01'),
+  conventionYear: text('convention_year').notNull().default('2025-2026'),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
 // Type exports for use in the application
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -125,3 +139,5 @@ export type NewRoom = typeof rooms.$inferInsert;
 
 export type Reservation = typeof reservations.$inferSelect;
 export type NewReservation = typeof reservations.$inferInsert;
+
+export type ConventionSettings = typeof conventionSettings.$inferSelect;
