@@ -7,8 +7,9 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 # Installe les dépendances en se basant sur le lockfile s'il est présent.
+# --legacy-peer-deps : nodemailer@6 vs next-auth (qui veut nodemailer@7 en peer optionnel).
 COPY package.json package-lock.json* ./
-RUN npm ci || npm install
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
 # Copie le code et construit l'application Next.js.
 COPY . .
@@ -22,7 +23,7 @@ RUN npm run build
 FROM node:20-slim AS deps-prod
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev || npm install --omit=dev
+RUN npm ci --omit=dev --legacy-peer-deps || npm install --omit=dev --legacy-peer-deps
 
 # =============================================================
 #  Étape 3 — Image finale d'exécution
