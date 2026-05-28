@@ -157,6 +157,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Convention obligatoire pour toute réservation ponctuelle créée par un non-admin
+    if (session.user?.role !== 'admin') {
+      if (!data.signature || typeof data.signature !== 'string' || !data.signature.startsWith('data:image/')) {
+        return NextResponse.json(
+          { error: 'Signature de convention requise pour finaliser la réservation' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Determine the target user ID
     // If admin provides a userId, use that; otherwise use the session user's ID
     let targetUserId = session.user.id;
@@ -352,6 +362,11 @@ export async function POST(req: NextRequest) {
         depositAmount: pricingResult.depositAmount,
         durationType: pricingResult.durationType,
         paymentStatus: 'pending',
+        // Convention signée pour cette réservation (non-admin uniquement)
+        ...(data.signature && {
+          conventionSignature: data.signature,
+          conventionSignedAt: new Date(),
+        }),
         // For admin, set review info immediately
         ...(session.user?.role === 'admin' && {
           reviewedBy: session.user.id,

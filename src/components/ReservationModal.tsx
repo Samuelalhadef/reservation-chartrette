@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Users as UsersIcon, FileText, User, Euro } from 'lucide-react';
+import { X, Calendar, Clock, Users as UsersIcon, FileText, User, Euro, PenTool, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
-import ConventionModal from './ConventionModal';
+import ConventionModal, { ConventionSignerData } from './ConventionModal';
 import { formatPrice, getDurationTypeLabel, getUserTypeLabel } from '@/lib/pricing';
 import type { PricingResult } from '@/lib/pricing';
 
@@ -48,9 +48,10 @@ export default function ReservationModal({
   const [reason, setReason] = useState('');
   const [responsibleName, setResponsibleName] = useState(userName);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signerData, setSignerData] = useState<ConventionSignerData | null>(null);
   const [showConvention, setShowConvention] = useState(false);
-  const [isCheckingConvention, setIsCheckingConvention] = useState(false);
-  const [associationData, setAssociationData] = useState<any>(null);
+  // Signature capturée localement, envoyée dans le POST de la réservation
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [showMultiRoomSelection, setShowMultiRoomSelection] = useState(false);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([roomId]);
@@ -66,15 +67,57 @@ export default function ReservationModal({
 
   useEffect(() => {
     if (isOpen) {
-      checkConventionStatus();
-      setSelectedRoomIds([roomId]); // Réinitialiser la sélection
+      // Reset state à chaque ouverture
+      setSignatureDataUrl(null);
+      setShowConvention(false);
+      setSelectedRoomIds([roomId]);
       setShowMultiRoomSelection(false);
-      loadPricing(); // Charger le prix au chargement
-      if (isAdmin) {
-        fetchAssociations(); // Charger les associations pour les admins
+      loadPricing();
+      loadSignerData();
+      if (isAdmin) fetchAssociations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, roomId, isAdmin]);
+
+  // Charge les infos du signataire (asso ou user) pour pré-remplir le modal de convention
+  const loadSignerData = async () => {
+    try {
+      const res = await fetch('/api/user/profile');
+      if (!res.ok) return;
+      const data = await res.json();
+      const user = data.user || data;
+      const assoc = data.association;
+
+      if (assoc) {
+        setSignerData({
+          signerType: 'association',
+          displayName: assoc.name,
+          signerName: assoc.contactName || user.name,
+          signerEmail: assoc.contactEmail || user.email,
+          signerPhone: assoc.contactPhone || '',
+          signerAddress: assoc.address || assoc.description || '',
+        });
+      } else {
+        setSignerData({
+          signerType: user.role === 'admin' ? 'mairie' : 'particulier',
+          displayName: user.name,
+          signerName: user.name,
+          signerEmail: user.email,
+          signerAddress: user.address || '',
+        });
+      }
+    } catch (err) {
+      // Fallback minimal — la signature reste possible avec juste le nom session
+      if (session?.user) {
+        setSignerData({
+          signerType: 'particulier',
+          displayName: session.user.name || 'Utilisateur',
+          signerName: session.user.name || 'Utilisateur',
+          signerEmail: session.user.email || '',
+        });
       }
     }
-  }, [isOpen, roomId, isAdmin]);
+  };
 
   const fetchAssociations = async () => {
     try {
@@ -86,47 +129,31 @@ export default function ReservationModal({
     }
   };
 
-  // Recharger le prix quand les créneaux ou salles changent
   useEffect(() => {
-    if (isOpen && selectedRoomIds.length > 0) {
-      loadPricing();
-    }
+    if (isOpen && selectedRoomIds.length > 0) loadPricing();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoomIds, startHour, endHour]);
 
   const loadPricing = async () => {
     setIsLoadingPrice(true);
     try {
-      // Calculer les time slots
       const timeSlots: { start: string; end: string }[] = [];
       for (let hour = startHour; hour <= endHour; hour++) {
-        timeSlots.push({
-          start: `${hour}:00`,
-          end: `${hour + 1}:00`,
-        });
+        timeSlots.push({ start: `${hour}:00`, end: `${hour + 1}:00` });
       }
 
-      // Calculer le prix total pour toutes les salles sélectionnées
       const pricingPromises = selectedRoomIds.map(async (roomIdToPrice) => {
         const response = await fetch('/api/reservations/calculate-price', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            roomId: roomIdToPrice,
-            timeSlots,
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomId: roomIdToPrice, timeSlots }),
         });
-
-        if (response.ok) {
-          return await response.json();
-        }
+        if (response.ok) return await response.json();
         return null;
       });
 
       const allPricing = await Promise.all(pricingPromises);
 
-      // Additionner les prix de toutes les salles
       const totalPricing = allPricing.reduce((acc, p) => {
         if (!p || !p.pricing) return acc;
         return {
@@ -146,16 +173,13 @@ export default function ReservationModal({
     }
   };
 
-  // Charger les salles du bâtiment
   const loadBuildingRooms = async () => {
     if (!buildingId) return;
-
     setIsLoadingRooms(true);
     try {
       const response = await fetch(`/api/rooms?activeOnly=true`);
       if (response.ok) {
         const data = await response.json();
-        // Filtrer les salles du même bâtiment
         const buildingRooms = data.rooms.filter((room: any) => room.buildingId === buildingId);
         setAvailableRooms(buildingRooms);
       }
@@ -167,16 +191,13 @@ export default function ReservationModal({
   };
 
   const toggleMultiRoomSelection = () => {
-    if (!showMultiRoomSelection) {
-      loadBuildingRooms();
-    }
+    if (!showMultiRoomSelection) loadBuildingRooms();
     setShowMultiRoomSelection(!showMultiRoomSelection);
   };
 
   const toggleRoomSelection = (selectedRoomId: string) => {
     setSelectedRoomIds(prev => {
       if (prev.includes(selectedRoomId)) {
-        // Ne pas permettre de désélectionner toutes les salles
         if (prev.length === 1) return prev;
         return prev.filter(id => id !== selectedRoomId);
       } else {
@@ -185,77 +206,36 @@ export default function ReservationModal({
     });
   };
 
-  const checkConventionStatus = async () => {
-    setIsCheckingConvention(true);
-    try {
-      const response = await fetch('/api/associations/check-convention');
-      if (response.ok) {
-        const data = await response.json();
-        setAssociationData(data.association);
-
-        // Si la convention n'a pas été signée, afficher le modal de convention
-        if (!data.hasSigned) {
-          setShowConvention(true);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors de la vérification de la convention:', error);
-    } finally {
-      setIsCheckingConvention(false);
-    }
-  };
-
-  const handleConventionSigned = () => {
-    setShowConvention(false);
-    // Rafraîchir le statut après signature
-    checkConventionStatus();
-  };
-
-  const handleConventionClose = () => {
-    setShowConvention(false);
-    onClose(); // Fermer aussi le modal de réservation
-  };
-
   if (!isOpen) return null;
 
-  // Afficher le modal de convention si nécessaire
-  if (showConvention && associationData) {
+  // Affichage du modal de convention par-dessus
+  if (showConvention && signerData) {
     return (
       <ConventionModal
         isOpen={showConvention}
-        onClose={handleConventionClose}
-        onSigned={handleConventionSigned}
-        associationData={{
-          name: associationData.name,
-          contactName: associationData.contactName || '',
-          contactEmail: associationData.contactEmail || '',
-          contactPhone: associationData.contactPhone || '',
-          address: associationData.description || '',
+        onClose={() => setShowConvention(false)}
+        onSigned={(sig) => {
+          setSignatureDataUrl(sig);
+          setShowConvention(false);
         }}
+        signerData={signerData}
+        reservationContext={{ roomName, date, startHour, endHour }}
       />
-    );
-  }
-
-  // Afficher un loader pendant la vérification
-  if (isCheckingConvention) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <div className="bg-white dark:bg-primary-800 rounded-2xl shadow-2xl p-8">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-700"></div>
-            <p className="text-slate-600 dark:text-slate-300">Vérification en cours...</p>
-          </div>
-        </div>
-      </div>
     );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Les admins ne signent pas (ils créent au nom de la collectivité ou d'une asso)
+    if (!isAdmin && !signatureDataUrl) {
+      alert('Vous devez signer la convention avant de valider la réservation.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Valider la date de réservation
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const reservationDate = new Date(date);
@@ -267,11 +247,9 @@ export default function ReservationModal({
         return;
       }
 
-      // Règle d'avance uniquement pour les non-admins
       if (!isAdmin) {
         const minDate = new Date(today);
         minDate.setDate(minDate.getDate() + 7);
-
         if (reservationDate < minDate) {
           alert('Réservation 7 jours à l\'avance minimum');
           setIsSubmitting(false);
@@ -279,16 +257,11 @@ export default function ReservationModal({
         }
       }
 
-      // Créer les time slots
       const timeSlots: { start: string; end: string }[] = [];
       for (let hour = startHour; hour <= endHour; hour++) {
-        timeSlots.push({
-          start: `${hour}:00`,
-          end: `${hour + 1}:00`,
-        });
+        timeSlots.push({ start: `${hour}:00`, end: `${hour + 1}:00` });
       }
 
-      // Créer les réservations pour toutes les salles sélectionnées
       const reservationPromises = selectedRoomIds.map(async (roomIdToReserve) => {
         const requestBody: any = {
           roomId: roomIdToReserve,
@@ -299,16 +272,18 @@ export default function ReservationModal({
           requiredEquipment: [],
         };
 
-        // Si admin et associationId sélectionnée, l'ajouter à la requête
+        // Signature de convention (obligatoire pour non-admin)
+        if (signatureDataUrl) {
+          requestBody.signature = signatureDataUrl;
+        }
+
         if (isAdmin && selectedAssociationId) {
           requestBody.associationId = selectedAssociationId;
         }
 
         const response = await fetch('/api/reservations', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
 
@@ -321,17 +296,13 @@ export default function ReservationModal({
         return data;
       });
 
-      // Attendre que toutes les réservations soient créées
       await Promise.all(reservationPromises);
 
-      // Succès : appeler le callback et fermer la modale
       if (selectedRoomIds.length > 1) {
         alert(`${selectedRoomIds.length} salles réservées avec succès !`);
       }
 
-      if (onSuccess) {
-        onSuccess();
-      }
+      if (onSuccess) onSuccess();
       onClose();
     } catch (error: any) {
       console.error('Erreur de réservation:', error);
@@ -344,9 +315,7 @@ export default function ReservationModal({
   const numberOfSlots = endHour - startHour + 1;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
   return (
@@ -354,8 +323,7 @@ export default function ReservationModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-primary-800 rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
-        {/* En-tête */}
+      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
         <div className="header-gradient p-4 sm:p-6 relative flex-shrink-0">
           <button
             onClick={onClose}
@@ -363,381 +331,288 @@ export default function ReservationModal({
           >
             <X className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </button>
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">
-            Nouvelle réservation
-          </h2>
-          <p className="text-sm sm:text-base text-primary-100">
-            {roomName}
-          </p>
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">Nouvelle réservation</h2>
+          <p className="text-sm sm:text-base text-primary-100">{roomName}</p>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-        {/* Informations du créneau */}
-        <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-primary-700/60">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-primary-50 dark:bg-accent-500/10 rounded-xl">
-              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-primary-700 dark:text-accent-300 flex-shrink-0" />
-              <div>
-                <p className="text-xs text-slate-900 dark:text-white">Date</p>
-                <p className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
-                  {format(date, 'EEEE d MMMM yyyy', { locale: fr })}
-                </p>
+          {/* Créneau */}
+          <div className="p-4 sm:p-6 border-b border-slate-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-primary-50 rounded-xl">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-primary-700 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-slate-900">Date</p>
+                  <p className="font-bold text-sm sm:text-base text-slate-900">
+                    {format(date, 'EEEE d MMMM yyyy', { locale: fr })}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-primary-50 dark:bg-accent-500/10 rounded-xl">
-              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-primary-700 dark:text-accent-300 flex-shrink-0" />
-              <div>
-                <p className="text-xs text-slate-900 dark:text-white">Horaire</p>
-                <p className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
-                  {startHour}:00 - {endHour + 1}:00
-                </p>
-                <p className="text-xs text-primary-700 dark:text-accent-300 mt-1">
-                  {numberOfSlots} heure{numberOfSlots > 1 ? 's' : ''}
-                </p>
+              <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-primary-50 rounded-xl">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-primary-700 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-slate-900">Horaire</p>
+                  <p className="font-bold text-sm sm:text-base text-slate-900">{startHour}:00 - {endHour + 1}:00</p>
+                  <p className="text-xs text-primary-700 mt-1">{numberOfSlots} heure{numberOfSlots > 1 ? 's' : ''}</p>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Affichage du prix */}
-          {pricing && pricing.totalPrice > 0 && (
-            <div className="bg-gradient-to-br from-accent-50 to-accent-100/50 dark:from-accent-900/20 dark:to-accent-900/20 border-2 border-accent-200 dark:border-accent-700 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-accent-600 flex items-center justify-center flex-shrink-0">
-                  <Euro className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-slate-900 dark:text-white mb-2">Tarification</h3>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-300">Type:</span>
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {getDurationTypeLabel(pricing.durationType)}
-                      </span>
+          <form id="reservation-form" onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+            {/* Multi-salles */}
+            {buildingId && (
+              <div className="bg-gradient-to-r from-primary-50 to-accent-50 p-4 rounded-xl border-2 border-primary-200">
+                <button type="button" onClick={toggleMultiRoomSelection} className="w-full flex items-center justify-between text-left">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-lg">+</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600 dark:text-slate-300">Catégorie:</span>
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {getUserTypeLabel(pricing.userType)}
-                      </span>
+                    <div>
+                      <p className="font-bold text-slate-900 text-sm">Réserver plusieurs salles</p>
+                      <p className="text-xs text-slate-600">
+                        {selectedRoomIds.length > 1 ? `${selectedRoomIds.length} salles sélectionnées` : 'Même horaire, plusieurs salles'}
+                      </p>
                     </div>
-                    {selectedRoomIds.length > 1 && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-slate-600 dark:text-slate-300">Salles:</span>
-                        <span className="font-semibold text-slate-900 dark:text-white">
-                          {selectedRoomIds.length} salle{selectedRoomIds.length > 1 ? 's' : ''}
-                        </span>
+                  </div>
+                  <span className={`text-primary-700 transition-transform ${showMultiRoomSelection ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+                {showMultiRoomSelection && (
+                  <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
+                    {isLoadingRooms ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-700 mx-auto" />
                       </div>
-                    )}
-                    <div className="pt-2 mt-2 border-t-2 border-accent-200 dark:border-accent-700">
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-900 dark:text-white">Prix total:</span>
-                        <span className="text-xl font-bold text-accent-600 dark:text-accent-400">
-                          {formatPrice(pricing.totalPrice)}
-                        </span>
-                      </div>
-                      {pricing.depositAmount > 0 && (
-                        <div className="flex justify-between items-center mt-1">
-                          <span className="text-xs text-slate-600 dark:text-slate-300">Caution:</span>
-                          <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">
-                            {formatPrice(pricing.depositAmount)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Formulaire */}
-        <form id="reservation-form" onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-          {/* Bouton pour réserver plusieurs salles */}
-          {buildingId && (
-            <div className="bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/30 dark:to-accent-900/20 p-4 rounded-xl border-2 border-primary-200 dark:border-primary-700/60">
-              <button
-                type="button"
-                onClick={toggleMultiRoomSelection}
-                className="w-full flex items-center justify-between text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-lg">+</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 dark:text-white text-sm">
-                      Réserver plusieurs salles
-                    </p>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">
-                      {selectedRoomIds.length > 1
-                        ? `${selectedRoomIds.length} salles sélectionnées`
-                        : 'Même horaire, plusieurs salles'}
-                    </p>
-                  </div>
-                </div>
-                <span className={`text-primary-700 dark:text-accent-300 transition-transform ${showMultiRoomSelection ? 'rotate-180' : ''}`}>
-                  ▼
-                </span>
-              </button>
-
-              {/* Liste des salles */}
-              {showMultiRoomSelection && (
-                <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
-                  {isLoadingRooms ? (
-                    <div className="text-center py-4">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-700 mx-auto"></div>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Chargement...</p>
-                    </div>
-                  ) : availableRooms.length === 0 ? (
-                    <p className="text-xs text-slate-600 dark:text-slate-300 text-center py-4">
-                      Aucune autre salle disponible
-                    </p>
-                  ) : (
-                    availableRooms.map((room) => (
-                      <button
-                        key={room.id}
-                        type="button"
-                        onClick={() => toggleRoomSelection(room.id)}
-                        className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
-                          selectedRoomIds.includes(room.id)
-                            ? 'border-primary-600 bg-primary-100 dark:bg-primary-900/40'
-                            : 'border-slate-200 dark:border-primary-700/60 hover:border-primary-400 dark:hover:border-primary-500'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                    ) : availableRooms.length === 0 ? (
+                      <p className="text-xs text-slate-600 text-center py-4">Aucune autre salle disponible</p>
+                    ) : (
+                      availableRooms.map((room) => (
+                        <button key={room.id} type="button" onClick={() => toggleRoomSelection(room.id)}
+                          className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
                             selectedRoomIds.includes(room.id)
-                              ? 'border-primary-600 bg-primary-600'
-                              : 'border-slate-300 dark:border-primary-700'
+                              ? 'border-primary-600 bg-primary-100'
+                              : 'border-slate-200 hover:border-primary-400'
                           }`}>
-                            {selectedRoomIds.includes(room.id) && (
-                              <span className="text-white text-xs">✓</span>
-                            )}
+                          <div className="flex items-center gap-2">
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                              selectedRoomIds.includes(room.id) ? 'border-primary-600 bg-primary-600' : 'border-slate-300'
+                            }`}>
+                              {selectedRoomIds.includes(room.id) && <span className="text-white text-xs">✓</span>}
+                            </div>
+                            <div className="text-left">
+                              <p className="font-semibold text-sm text-slate-900">{room.name}</p>
+                              <p className="text-xs text-slate-600">Capacité : {room.capacity} personnes</p>
+                            </div>
                           </div>
-                          <div className="text-left">
-                            <p className="font-semibold text-sm text-slate-900 dark:text-white">
-                              {room.name}
-                            </p>
-                            <p className="text-xs text-slate-600 dark:text-slate-300">
-                              Capacité: {room.capacity} personnes
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
-          {/* Nombre de personnes */}
-          <div>
-            <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">
-              <UsersIcon className="w-4 h-4 text-primary-700 dark:text-accent-300" />
-              Nombre de personnes *
-            </label>
-            <input
-              type="number"
-              min="1"
-              max={roomCapacity}
-              value={numberOfPeople}
-              onChange={(e) => setNumberOfPeople(parseInt(e.target.value) || 1)}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-slate-300 dark:border-primary-700 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:bg-primary-900/40 dark:text-white transition-colors"
-              required
-            />
-            <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-              Capacité maximale : {roomCapacity} personnes
-            </p>
-          </div>
-
-          {/* Raison */}
-          <div>
-            <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">
-              <FileText className="w-4 h-4 text-primary-700 dark:text-accent-300" />
-              Raison de la réservation *
-            </label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={4}
-              placeholder="Ex: Réunion d'association, cours de danse, conférence..."
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-slate-300 dark:border-primary-700 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:bg-primary-900/40 dark:text-white transition-colors resize-none"
-              required
-            />
-          </div>
-
-          {/* Association selection (Admin only) */}
-          {isAdmin ? (
+            {/* Nombre de personnes */}
             <div>
-              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">
-                <UsersIcon className="w-4 h-4 text-primary-700 dark:text-accent-300" />
-                Réserver pour une association (optionnel)
-              </label>
-              <select
-                value={selectedAssociationId}
-                onChange={(e) => setSelectedAssociationId(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-slate-300 dark:border-primary-700 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-white transition-colors"
-              >
-                <option value="">-- Réserver pour la Mairie --</option>
-                {associations.map((assoc) => (
-                  <option key={assoc.id} value={assoc.id}>
-                    {assoc.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                En tant qu'administrateur, vous pouvez créer une réservation pour n'importe quelle association.
-              </p>
-            </div>
-          ) : (
-            <div>
-              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">
-                <User className="w-4 h-4 text-primary-700 dark:text-accent-300" />
-                Nom du responsable *
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 mb-2">
+                <UsersIcon className="w-4 h-4 text-primary-700" />
+                Nombre de personnes *
               </label>
               <input
-                type="text"
-                value={responsibleName}
-                onChange={(e) => setResponsibleName(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-slate-300 dark:border-primary-700 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:bg-primary-900/40 dark:text-white transition-colors"
+                type="number" min="1" max={roomCapacity} value={numberOfPeople}
+                onChange={(e) => setNumberOfPeople(parseInt(e.target.value) || 1)}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-slate-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-colors"
+                required
+              />
+              <p className="text-xs text-slate-600 mt-1">Capacité maximale : {roomCapacity} personnes</p>
+            </div>
+
+            {/* Raison */}
+            <div>
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 mb-2">
+                <FileText className="w-4 h-4 text-primary-700" />
+                Raison de la réservation *
+              </label>
+              <textarea
+                value={reason} onChange={(e) => setReason(e.target.value)} rows={4}
+                placeholder="Ex: Réunion d'association, cours de danse, conférence..."
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-slate-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-colors resize-none"
                 required
               />
             </div>
-          )}
 
-          {/* Affichage du prix */}
-          {pricing && (
-            <div className="bg-gradient-to-r from-accent-50 to-accent-100/50 dark:from-accent-900/20 dark:to-accent-900/20 p-4 sm:p-5 rounded-xl border-2 border-accent-200 dark:border-accent-700">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-accent-600 flex items-center justify-center flex-shrink-0">
-                  <Euro className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base mb-3">
-                    Tarification
-                  </h3>
+            {/* Association (admin) ou Responsable */}
+            {isAdmin ? (
+              <div>
+                <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 mb-2">
+                  <UsersIcon className="w-4 h-4 text-primary-700" />
+                  Réserver pour une association (optionnel)
+                </label>
+                <select
+                  value={selectedAssociationId} onChange={(e) => setSelectedAssociationId(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-slate-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 bg-white text-slate-900 transition-colors"
+                >
+                  <option value="">-- Réserver pour la Mairie --</option>
+                  {associations.map((assoc) => (
+                    <option key={assoc.id} value={assoc.id}>{assoc.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-600 mt-1">En tant qu'administrateur, vous n'avez pas à signer de convention.</p>
+              </div>
+            ) : (
+              <div>
+                <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 mb-2">
+                  <User className="w-4 h-4 text-primary-700" />
+                  Nom du responsable *
+                </label>
+                <input
+                  type="text" value={responsibleName} onChange={(e) => setResponsibleName(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-slate-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-colors"
+                  required
+                />
+              </div>
+            )}
 
-                  <div className="space-y-2">
-                    {/* Type de tarif */}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-300">
-                        Type de réservation
-                      </span>
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {getDurationTypeLabel(pricing.durationType)}
-                      </span>
-                    </div>
-
-                    {/* Catégorie d'utilisateur */}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-300">
-                        Catégorie
-                      </span>
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {getUserTypeLabel(pricing.userType)}
-                      </span>
-                    </div>
-
-                    {/* Durée */}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-300">
-                        Durée
-                      </span>
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {pricing.hourCount} heure{pricing.hourCount > 1 ? 's' : ''}
-                      </span>
-                    </div>
-
-                    {/* Séparateur */}
-                    <div className="border-t border-accent-200 dark:border-accent-700 my-2"></div>
-
-                    {/* Prix de location */}
-                    <div className="flex justify-between text-base">
-                      <span className="text-slate-600 dark:text-slate-300 font-medium">
-                        Prix de location
-                      </span>
-                      <span className="font-bold text-accent-600 dark:text-accent-400 text-lg">
-                        {formatPrice(pricing.totalPrice)}
-                      </span>
-                    </div>
-
-                    {/* Caution */}
-                    {pricing.depositAmount > 0 && (
-                      <div className="flex justify-between text-base">
-                        <span className="text-slate-600 dark:text-slate-300 font-medium">
-                          Caution
-                        </span>
-                        <span className="font-bold text-orange-700 dark:text-orange-400 text-lg">
-                          {formatPrice(pricing.depositAmount)}
-                        </span>
+            {/* Bloc convention (uniquement pour non-admin) */}
+            {!isAdmin && (
+              <div className={`p-4 rounded-xl border-2 ${
+                signatureDataUrl
+                  ? 'bg-accent-50 border-accent-300'
+                  : 'bg-amber-50 border-amber-300'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    signatureDataUrl ? 'bg-accent-600' : 'bg-amber-500'
+                  }`}>
+                    {signatureDataUrl ? (
+                      <CheckCircle2 className="w-5 h-5 text-white" />
+                    ) : (
+                      <PenTool className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                      {signatureDataUrl ? 'Convention signée ✓' : 'Convention à signer'}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-600 mt-1">
+                      {signatureDataUrl
+                        ? 'Votre signature est prête. Vous pouvez valider la réservation.'
+                        : 'Chaque réservation ponctuelle nécessite la signature de la convention de mise à disposition.'}
+                    </p>
+                    {signatureDataUrl && (
+                      <div className="mt-3 p-2 bg-white border border-accent-200 rounded-lg">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={signatureDataUrl} alt="Signature" className="max-h-20 mx-auto" />
                       </div>
                     )}
-
-                    {/* Total */}
-                    <div className="border-t-2 border-accent-300 dark:border-accent-600 pt-2 mt-2">
-                      <div className="flex justify-between">
-                        <span className="text-slate-900 dark:text-white font-bold text-base sm:text-lg">
-                          Total à prévoir
-                        </span>
-                        <span className="font-bold text-accent-600 dark:text-accent-400 text-xl sm:text-2xl">
-                          {formatPrice(pricing.totalPrice + pricing.depositAmount)}
-                        </span>
-                      </div>
-                      {pricing.depositAmount > 0 && (
-                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">
-                          La caution sera restituée après validation de l'état des lieux
-                        </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowConvention(true)}
+                        disabled={!signerData}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all disabled:opacity-50"
+                      >
+                        <FileText className="w-4 h-4" />
+                        {signatureDataUrl ? 'Re-signer la convention' : 'Lire et signer la convention'}
+                      </button>
+                      {signatureDataUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setSignatureDataUrl(null)}
+                          className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-medium text-xs sm:text-sm transition-all"
+                        >
+                          <X className="w-4 h-4" />
+                          Effacer
+                        </button>
                       )}
                     </div>
                   </div>
-
-                  {/* Salles multiples */}
-                  {selectedRoomIds.length > 1 && (
-                    <div className="mt-3 pt-3 border-t border-accent-200 dark:border-accent-700">
-                      <p className="text-xs text-accent-600 dark:text-accent-400 font-medium">
-                        Prix total pour {selectedRoomIds.length} salles
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Loader du prix */}
-          {isLoadingPrice && !pricing && (
-            <div className="bg-slate-50 dark:bg-primary-900/40 p-4 rounded-xl border-2 border-slate-200 dark:border-primary-700/60">
-              <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-700"></div>
-                <span className="text-sm text-slate-600 dark:text-slate-300">
-                  Calcul du prix...
-                </span>
+            {/* Tarification */}
+            {pricing && (
+              <div className="bg-gradient-to-r from-accent-50 to-accent-100/50 p-4 sm:p-5 rounded-xl border-2 border-accent-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent-600 flex items-center justify-center flex-shrink-0">
+                    <Euro className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-slate-900 text-sm sm:text-base mb-3">Tarification</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Type de réservation</span>
+                        <span className="font-semibold text-slate-900">{getDurationTypeLabel(pricing.durationType)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Catégorie</span>
+                        <span className="font-semibold text-slate-900">{getUserTypeLabel(pricing.userType)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Durée</span>
+                        <span className="font-semibold text-slate-900">{pricing.hourCount} heure{pricing.hourCount > 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="border-t border-accent-200 my-2" />
+                      <div className="flex justify-between text-base">
+                        <span className="text-slate-600 font-medium">Prix de location</span>
+                        <span className="font-bold text-accent-600 text-lg">{formatPrice(pricing.totalPrice)}</span>
+                      </div>
+                      {pricing.depositAmount > 0 && (
+                        <div className="flex justify-between text-base">
+                          <span className="text-slate-600 font-medium">Caution</span>
+                          <span className="font-bold text-orange-700 text-lg">{formatPrice(pricing.depositAmount)}</span>
+                        </div>
+                      )}
+                      <div className="border-t-2 border-accent-300 pt-2 mt-2">
+                        <div className="flex justify-between">
+                          <span className="text-slate-900 font-bold text-base sm:text-lg">Total à prévoir</span>
+                          <span className="font-bold text-accent-600 text-xl sm:text-2xl">{formatPrice(pricing.totalPrice + pricing.depositAmount)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {selectedRoomIds.length > 1 && (
+                      <div className="mt-3 pt-3 border-t border-accent-200">
+                        <p className="text-xs text-accent-600 font-medium">Prix total pour {selectedRoomIds.length} salles</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-        </form>
+            )}
+
+            {isLoadingPrice && !pricing && (
+              <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-700" />
+                  <span className="text-sm text-slate-600">Calcul du prix...</span>
+                </div>
+              </div>
+            )}
+          </form>
         </div>
 
-          {/* Boutons */}
-          <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2 sm:gap-3 p-4 sm:p-6 border-t border-slate-200 dark:border-primary-700/60 bg-slate-50 dark:bg-primary-900/40">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full sm:flex-1 px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-slate-300 dark:border-primary-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-primary-800 transition-colors font-semibold"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              form="reservation-form"
-              disabled={isSubmitting}
-              className="w-full sm:flex-1 px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base bg-primary-700 hover:bg-primary-800 text-white rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Réservation...' : 'Réserver'}
-            </button>
-          </div>
+        <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2 sm:gap-3 p-4 sm:p-6 border-t border-slate-200 bg-slate-50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full sm:flex-1 px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base border-2 border-slate-300 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors font-semibold"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            form="reservation-form"
+            disabled={isSubmitting || (!isAdmin && !signatureDataUrl)}
+            className="w-full sm:flex-1 px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base bg-primary-700 hover:bg-primary-800 text-white rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting
+              ? 'Réservation...'
+              : (!isAdmin && !signatureDataUrl)
+              ? 'Signez la convention'
+              : 'Réserver'}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -32,7 +32,6 @@ export async function POST(req: NextRequest) {
         contactName: 'Mairie de Chartrettes',
         contactEmail: 'mairie@chartrettes.fr',
         contactPhone: null,
-        conventionSignedAt: new Date(), // Convention considérée comme signée automatiquement
       })
       .returning();
 

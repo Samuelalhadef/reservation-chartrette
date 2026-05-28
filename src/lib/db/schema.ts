@@ -33,8 +33,7 @@ export const associations = sqliteTable('associations', {
   contactName: text('contact_name'),
   contactEmail: text('contact_email'),
   contactPhone: text('contact_phone'),
-  conventionSignedAt: integer('convention_signed_at', { mode: 'timestamp' }),
-  conventionSignature: text('convention_signature'),
+  // Convention annuelle (signée 1 fois pour les réservations à l'année)
   yearlyConventionSignedAt: integer('yearly_convention_signed_at', { mode: 'timestamp' }),
   yearlyConventionSignature: text('yearly_convention_signature'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
@@ -104,6 +103,9 @@ export const reservations = sqliteTable('reservations', {
   paymentValidatedBy: text('payment_validated_by').references(() => users.id),
   paymentValidatedAt: integer('payment_validated_at', { mode: 'timestamp' }),
   paymentNotes: text('payment_notes'), // Notes sur le paiement
+  // Convention signée pour cette réservation ponctuelle (PNG base64 + horodatage)
+  conventionSignature: text('convention_signature'),
+  conventionSignedAt: integer('convention_signed_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });

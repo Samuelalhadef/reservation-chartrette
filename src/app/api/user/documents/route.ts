@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
 
     const documents = [];
 
-    // Check if user has association
+    // Convention annuelle (asso uniquement). Les conventions ponctuelles signées par
+    // réservation sont visibles directement dans la liste des réservations de l'utilisateur.
     if (user.associationId) {
       const [association] = await db
         .select()
@@ -37,18 +38,6 @@ export async function GET(req: NextRequest) {
         .where(eq(associations.id, user.associationId))
         .limit(1);
 
-      if (association && association.conventionSignedAt) {
-        documents.push({
-          id: association.id,
-          type: 'convention',
-          title: 'Convention de mise à disposition 2025-2026',
-          signedAt: association.conventionSignedAt,
-          associationName: association.name,
-          signatureUrl: association.conventionSignature,
-        });
-      }
-
-      // Ajouter la convention annuelle si elle existe
       if (association && association.yearlyConventionSignedAt) {
         documents.push({
           id: association.id + '-yearly',

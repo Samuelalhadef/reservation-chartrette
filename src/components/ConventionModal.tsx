@@ -1,32 +1,49 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, PenTool, FileText, Building2, Calendar, Shield, Users } from 'lucide-react';
+import { X, PenTool, FileText, Building2, Shield, Calendar, Clock, MapPin } from 'lucide-react';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+
+export interface ConventionSignerData {
+  /** Nom de l'association (si réservation pour une asso) ou nom du signataire (particulier) */
+  displayName: string;
+  /** Type de signataire — change le wording du modal */
+  signerType: 'association' | 'particulier' | 'mairie';
+  /** Nom de la personne qui signe (pour l'asso = président, pour particulier = lui-même) */
+  signerName: string;
+  signerEmail?: string;
+  signerPhone?: string;
+  signerAddress?: string;
+}
+
+export interface ReservationContext {
+  roomName: string;
+  date: Date;
+  startHour: number;
+  endHour: number;
+}
 
 interface ConventionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSigned: () => void;
-  associationData: {
-    name: string;
-    contactName: string;
-    contactEmail: string;
-    contactPhone: string;
-    address?: string;
-  };
+  /** Appelé avec la signature en base64 PNG ; le parent décide quoi en faire */
+  onSigned: (signatureDataUrl: string) => void;
+  signerData: ConventionSignerData;
+  /** Contexte de la réservation ponctuelle (facultatif pour lecture seule) */
+  reservationContext?: ReservationContext;
 }
 
 export default function ConventionModal({
   isOpen,
   onClose,
   onSigned,
-  associationData,
+  signerData,
+  reservationContext,
 }: ConventionModalProps) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
 
   useEffect(() => {
@@ -47,14 +64,10 @@ export default function ConventionModal({
   const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
-
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
     return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height),
     };
   };
 
@@ -62,7 +75,6 @@ export default function ConventionModal({
     if (!context) return;
     const coords = getCanvasCoordinates(e);
     if (!coords) return;
-
     setIsDrawing(true);
     context.beginPath();
     context.moveTo(coords.x, coords.y);
@@ -72,16 +84,13 @@ export default function ConventionModal({
     if (!isDrawing || !context) return;
     const coords = getCanvasCoordinates(e);
     if (!coords) return;
-
     context.lineTo(coords.x, coords.y);
     context.stroke();
     setHasSignature(true);
   };
 
   const stopDrawing = () => {
-    if (context) {
-      context.closePath();
-    }
+    if (context) context.closePath();
     setIsDrawing(false);
   };
 
@@ -92,48 +101,26 @@ export default function ConventionModal({
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!hasSignature) {
       alert('Veuillez signer la convention avant de continuer');
       return;
     }
-
-    setIsSubmitting(true);
-
-    try {
-      // Convertir le canvas en image base64
-      const signatureDataUrl = canvasRef.current?.toDataURL('image/png');
-
-      // Envoyer la signature au serveur
-      const response = await fetch('/api/associations/sign-convention', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          signature: signatureDataUrl,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la sauvegarde de la signature');
-      }
-
-      onSigned();
-    } catch (error: any) {
-      console.error('Erreur:', error);
-      alert(error.message || 'Erreur lors de la sauvegarde de la signature');
-    } finally {
-      setIsSubmitting(false);
+    const signatureDataUrl = canvasRef.current?.toDataURL('image/png');
+    if (!signatureDataUrl) {
+      alert('Impossible de capturer la signature, réessayez');
+      return;
     }
+    onSigned(signatureDataUrl);
   };
 
   const currentDate = new Date().toLocaleDateString('fr-FR');
+  const isAssoc = signerData.signerType === 'association';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-primary-800 rounded-2xl sm:rounded-3xl shadow-2xl max-w-5xl w-full my-2 sm:my-8 border border-slate-200 dark:border-primary-700/60">
-        {/* En-tête élégant */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-5xl w-full my-2 sm:my-8 border border-slate-200">
+        {/* En-tête */}
         <div className="header-gradient p-4 sm:p-6 md:p-8 relative rounded-t-2xl sm:rounded-t-3xl">
           <div className="absolute top-0 left-0 w-full h-full opacity-10">
             <div className="absolute top-4 left-4">
@@ -148,7 +135,7 @@ export default function ConventionModal({
               </h2>
             </div>
             <p className="text-primary-100 text-sm sm:text-base md:text-lg">
-              Équipements sportifs municipaux - Année 2025-2026
+              Réservation ponctuelle — à signer avant chaque demande
             </p>
             <div className="mt-3 sm:mt-4 inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/20 backdrop-blur-sm rounded-full">
               <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
@@ -157,266 +144,193 @@ export default function ConventionModal({
           </div>
         </div>
 
-        {/* Contenu de la convention */}
-        <div
-          ref={scrollContainerRef}
-          className="p-4 sm:p-6 md:p-8 max-h-[50vh] sm:max-h-[60vh] overflow-y-auto relative"
-        >
+        {/* Contenu */}
+        <div className="p-4 sm:p-6 md:p-8 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto">
           <div className="space-y-4 sm:space-y-6 text-xs sm:text-sm">
-            {/* Introduction */}
-            <div className="bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/30 dark:to-accent-900/20 p-4 rounded-xl border border-primary-200 dark:border-primary-700/60">
-              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                Cette convention a pour objectif de définir les modalités de mise à disposition des locaux du complexe sportif François COMBORIEU.
-              </p>
-              <p className="text-slate-500 dark:text-slate-300 text-xs mt-2 leading-relaxed">
-                Selon le type d'utilisateur (associations non Chartrettoise, comités et fédérations, sociétés privées, particuliers, clubs professionnels…) et la nature des activités (sports, loisirs, autres), les créneaux mis à disposition pourront être facturés en référence à la grille de tarifs en vigueur prise par délibération.
-              </p>
-            </div>
+            {/* Détails de la réservation (si fournis) */}
+            {reservationContext && (
+              <div className="bg-gradient-to-r from-accent-50 to-primary-50 p-4 rounded-xl border-2 border-accent-200">
+                <h4 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-accent-600" />
+                  Réservation concernée
+                </h4>
+                <div className="grid sm:grid-cols-3 gap-3 text-xs sm:text-sm">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-primary-700 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-slate-500">Salle</p>
+                      <p className="font-semibold text-slate-900">{reservationContext.roomName}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Calendar className="w-4 h-4 text-primary-700 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-slate-500">Date</p>
+                      <p className="font-semibold text-slate-900">
+                        {format(reservationContext.date, 'EEEE d MMMM yyyy', { locale: fr })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 text-primary-700 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-slate-500">Créneau</p>
+                      <p className="font-semibold text-slate-900">
+                        {reservationContext.startHour}:00 → {reservationContext.endHour + 1}:00
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Parties contractantes */}
             <div className="grid md:grid-cols-2 gap-4">
-              {/* Mairie */}
-              <div className="bg-slate-50 dark:bg-primary-900/40 p-4 rounded-xl border border-slate-300 dark:border-primary-700/60">
-                <p className="font-bold text-primary-700 dark:text-accent-300 mb-2">ENTRE :</p>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-300">
+                <p className="font-bold text-primary-700 mb-2">ENTRE :</p>
                 <p className="font-bold text-sm">LA MAIRIE DE CHARTRETTES</p>
                 <p className="text-xs">37 rue Georges Clemenceau</p>
                 <p className="text-xs">77590 CHARTRETTES</p>
                 <p className="text-xs">01.60.69.65.01</p>
                 <p className="text-xs mt-2">Représentée par son Maire, Monsieur Pascal Gros</p>
-                <p className="text-xs italic mt-2">D'une part,</p>
+                <p className="text-xs italic mt-2">D&apos;une part,</p>
               </div>
-
-              {/* Association */}
-              <div className="bg-primary-50 dark:bg-primary-900/30 p-4 rounded-xl border border-primary-300 dark:border-primary-700/60">
-                <p className="font-bold text-primary-700 dark:text-accent-300 mb-2">ET :</p>
-                <p className="font-bold text-sm">L'association : {associationData.name}</p>
-                {associationData.address && (
-                  <p className="text-xs">Ayant son siège social à : {associationData.address}</p>
+              <div className="bg-primary-50 p-4 rounded-xl border border-primary-300">
+                <p className="font-bold text-primary-700 mb-2">ET :</p>
+                {isAssoc ? (
+                  <>
+                    <p className="font-bold text-sm">L&apos;association : {signerData.displayName}</p>
+                    {signerData.signerAddress && (
+                      <p className="text-xs">Siège social : {signerData.signerAddress}</p>
+                    )}
+                    <p className="text-xs">Représentée par : {signerData.signerName}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-bold text-sm">{signerData.displayName}</p>
+                    {signerData.signerAddress && (
+                      <p className="text-xs">Adresse : {signerData.signerAddress}</p>
+                    )}
+                  </>
                 )}
-                <p className="text-xs">Représentée par son Président : {associationData.contactName}</p>
-                <p className="text-xs">Téléphone : {associationData.contactPhone}</p>
-                <p className="text-xs">Mail : {associationData.contactEmail}</p>
-                <p className="text-xs italic mt-2">Désigné ci-après « l'occupant »</p>
-                <p className="text-xs italic">D'autre part.</p>
+                {signerData.signerPhone && <p className="text-xs">Téléphone : {signerData.signerPhone}</p>}
+                {signerData.signerEmail && <p className="text-xs">Mail : {signerData.signerEmail}</p>}
+                <p className="text-xs italic mt-2">Désigné ci-après « l&apos;occupant »</p>
+                <p className="text-xs italic">D&apos;autre part.</p>
               </div>
             </div>
 
-            <p className="text-slate-600 dark:text-slate-300 text-sm">
-              Par la présente convention, à travers laquelle, il a été convenu et arrêté ce qui suit :
+            <p className="text-slate-600 text-sm">
+              Par la présente, les parties conviennent de ce qui suit :
             </p>
 
             {/* Objet */}
-            <div className="bg-white dark:bg-primary-900/40 p-4 rounded-xl border border-slate-200 dark:border-primary-700/60">
-              <h4 className="font-bold text-slate-900 dark:text-white mb-2">Objet de la convention</h4>
-              <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                La présente convention a pour objet la mise à disposition d'installations sportives et des matériels décrits en annexe et définies dans les conditions énoncées ci-après.
+            <div className="bg-white p-4 rounded-xl border border-slate-200">
+              <h4 className="font-bold text-slate-900 mb-2">Objet de la convention</h4>
+              <p className="text-slate-600 text-xs leading-relaxed">
+                La présente convention a pour objet la mise à disposition ponctuelle d&apos;une salle
+                municipale et de son matériel, dans les conditions énoncées ci-après.
               </p>
             </div>
 
             {/* TITRE 1 */}
             <div className="bg-primary-700 text-white p-3 rounded-xl">
-              <h3 className="font-bold">TITRE 1 – LES ENGAGEMENTS DE LA VILLE DE CHARTRETTES</h3>
+              <h3 className="font-bold">TITRE 1 – ENGAGEMENTS DE LA VILLE</h3>
             </div>
-
             <div className="space-y-3">
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 1 – Durée</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  La présente convention, et ses annexes, est conclue et acceptée pour la période, du <strong>8 septembre 2025 au 10 juillet 2026 inclus</strong>, selon les créneaux attribués en annexe 1 de la convention.
+                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 1 – Mise à disposition</h4>
+                <p className="text-slate-600 text-xs leading-relaxed">
+                  La mise à disposition est consentie à titre précaire, révocable et gracieux
+                  (article L.2125-1 du Code Général de la Propriété des Personnes Publiques)
+                  pour le créneau précisé ci-dessus uniquement.
                 </p>
               </div>
-
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 2 – Conditions de mise à disposition – redevance</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed mb-2">
-                  La mise à disposition est effectuée à titre précaire, révocable et gracieux, conformément à l'article L. 2125-1 du Code Général de la Propriété des Personnes Publiques.
-                </p>
-                <div className="bg-amber-50 dark:from-amber-900/20 border-l-4 border-amber-500 p-3 rounded-r-xl">
-                  <p className="font-bold text-amber-900 dark:text-amber-200 text-xs mb-1">⚠️ IMPORTANT</p>
-                  <ul className="space-y-1 text-amber-800 dark:text-amber-300 text-xs">
-                    <li>• En absence de signature de la convention, l'occupation des lieux est INTERDITE.</li>
-                    <li>• L'occupation est également INTERDITE en dehors des jours et créneaux alloués.</li>
-                  </ul>
-                </div>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed mt-2">
-                  Par le terme « équipements sportifs municipaux » il faut entendre les terrains et salles dédiées à la pratique sportive, mais également les installations liées : vestiaires, sanitaires, stockage, espaces de réception, salle de réunion, bureaux, infirmerie.
-                </p>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed mt-2">
-                  Toute demande de créneau ponctuel complémentaire devra faire l'objet d'une demande VIA LE LOGICIEL DE RESERVATION DES SALLES MUNICIPALES, au minimum 1 mois.
+                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 2 – Équipements</h4>
+                <p className="text-slate-600 text-xs leading-relaxed">
+                  Les équipements présents (mobilier, sanitaires, vestiaires, matériel sportif)
+                  sont mis à disposition en l&apos;état et doivent être restitués propres et intacts.
                 </p>
               </div>
             </div>
 
             {/* TITRE 2 */}
             <div className="bg-primary-700 text-white p-3 rounded-xl">
-              <h3 className="font-bold">TITRE 2 – LES ENGAGEMENTS DE L'OCCUPANT</h3>
+              <h3 className="font-bold">TITRE 2 – ENGAGEMENTS DE L&apos;OCCUPANT</h3>
             </div>
-
             <div className="space-y-3">
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 1 – Nature des activités autorisées</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  Les activités sont de nature sportive ou liées à l'organisation des dites activités, compatibles avec la nature des locaux et des équipements sportifs mis à disposition. Les activités doivent se dérouler en la présence et sous la surveillance effective d'un responsable désigné, agissant pour le compte de l'occupant.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 2 – Obligation de l'occupant</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs mb-1">L'occupant s'engage à :</p>
-                <ul className="space-y-1 text-slate-600 dark:text-slate-300 text-xs pl-4">
-                  <li>• Signer la convention</li>
-                  <li>• Se conformer au règlement d'utilisation des équipements sportifs municipaux</li>
-                  <li>• Utiliser les équipements au profit de ses adhérents et conformément à son objet</li>
-                  <li>• Assumer la responsabilité des équipements et du matériel mis à disposition</li>
-                  <li>• Ne pas concéder l'usage des équipements à un tiers</li>
-                  <li>• Vérifier la fermeture des accès et l'extinction des lumières</li>
-                  <li>• Laisser les locaux en bon état de propreté</li>
+                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 1 – Obligations</h4>
+                <p className="text-slate-600 text-xs mb-1">L&apos;occupant s&apos;engage à :</p>
+                <ul className="space-y-1 text-slate-600 text-xs pl-4">
+                  <li>• Respecter le règlement intérieur de la salle</li>
+                  <li>• Utiliser la salle uniquement pour l&apos;activité déclarée</li>
+                  <li>• Assurer la surveillance des participants pendant toute la durée du créneau</li>
+                  <li>• Ne pas concéder l&apos;usage de la salle à un tiers</li>
+                  <li>• Vérifier la fermeture des accès et l&apos;extinction des lumières en partant</li>
+                  <li>• Laisser les locaux propres et signaler tout dégât</li>
                 </ul>
               </div>
-
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 3 – Sécurité et accès au public</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  L'occupant déclare disposer de toutes les autorisations administratives nécessaires et s'engage à exercer ses activités dans le respect des lois en vigueur.
+                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 2 – Assurance</h4>
+                <p className="text-slate-600 text-xs leading-relaxed">
+                  L&apos;occupant déclare disposer d&apos;une assurance responsabilité civile couvrant
+                  l&apos;activité organisée dans la salle.
                 </p>
               </div>
-
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 4 – ASSURANCE</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  L'occupant reconnaît avoir souscrit une police d'assurance en dommages aux biens et une assurance en responsabilité civile. Un double de l'attestation d'assurance sera remis chaque année.
+                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 3 – Responsabilité</h4>
+                <p className="text-slate-600 text-xs leading-relaxed">
+                  L&apos;occupant assume la responsabilité des dommages causés aux locaux et au
+                  matériel pendant la durée de la mise à disposition.
                 </p>
               </div>
-
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 5 – L'ACCES AUX SALLES</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  L'accès aux salles est régi par un dispositif de clés programmables. Une caution de 52,50€ par clé sera demandée.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 6 – CONTRAT D'ENGAGEMENT REPUBLICAIN</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  Conformément au décret N°2021-1947 du 31 décembre 2021, l'association reconnait souscrire au contrat d'engagement républicain et en accepter les modalités (annexe n°2).
+                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 4 – Engagement républicain</h4>
+                <p className="text-slate-600 text-xs leading-relaxed">
+                  Conformément au décret n°2021-1947, l&apos;occupant s&apos;engage à respecter les
+                  principes de la République : laïcité, liberté de conscience, égalité,
+                  non-discrimination, dignité humaine.
                 </p>
               </div>
             </div>
 
-            {/* TITRE 3 */}
-            <div className="bg-primary-700 text-white p-3 rounded-xl">
-              <h3 className="font-bold">TITRE 3 – DISPOSITIONS DIVERSES</h3>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 1 – Modification</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  La présente convention pourra être modifiée en cours d'exécution par voie d'avenant avec l'accord des deux parties.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 2 – Résiliation</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  La convention est résiliable à tout moment par la ville de CHARTRETTES. La résiliation se fera par courrier recommandé avec accusé de réception.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 3 – Contrôle de la collectivité</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  Le contrôle de la bonne utilisation des installations sera assuré par un représentant de la ville de CHARTRETTES.
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-900 dark:text-white mb-1 text-sm">Article 4 – Règlement des litiges</h4>
-                <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
-                  Les parties s'engagent à rechercher toute voie amiable de règlement. Tout litige relève de la compétence du tribunal administratif de Melun.
-                </p>
-              </div>
-            </div>
-
-            {/* ANNEXE 2 - Engagement républicain (extrait) */}
-            <div className="bg-primary-700 text-white p-3 rounded-xl">
-              <h3 className="font-bold text-sm">ANNEXE 2 : CONTRAT D'ENGAGEMENT RÉPUBLICAIN</h3>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-slate-600 dark:text-slate-300 text-xs italic">
-                Ce contrat est conforme aux dispositions du décret n°2021-1947 du 31 décembre 2021.
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl">
+              <p className="font-bold text-amber-900 text-xs mb-1">⚠️ IMPORTANT</p>
+              <p className="text-amber-800 text-xs">
+                En l&apos;absence de signature de la présente convention, la réservation ne peut être
+                validée. La mise à disposition est strictement limitée au créneau réservé.
               </p>
-
-              <div className="space-y-2">
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white text-xs">ENGAGEMENT N° 1 : RESPECT DES LOIS DE LA RÉPUBLIQUE</h5>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs">L'association s'engage à ne pas se prévaloir de convictions pour s'affranchir des règles communes et à ne pas remettre en cause le caractère laïque de la République.</p>
-                </div>
-
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white text-xs">ENGAGEMENT N° 2 : LIBERTÉ DE CONSCIENCE</h5>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs">L'association s'engage à respecter et protéger la liberté de conscience de ses membres.</p>
-                </div>
-
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white text-xs">ENGAGEMENT N° 3 : LIBERTÉ DES MEMBRES</h5>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs">L'association s'engage à respecter la liberté de ses membres de s'en retirer.</p>
-                </div>
-
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white text-xs">ENGAGEMENT N° 4 : ÉGALITÉ ET NON-DISCRIMINATION</h5>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs">L'association s'engage à respecter l'égalité de tous devant la loi et à lutter contre toute forme de violence à caractère sexuel ou sexiste.</p>
-                </div>
-
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white text-xs">ENGAGEMENT N° 5 : FRATERNITÉ ET PRÉVENTION DE LA VIOLENCE</h5>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs">L'association s'engage à agir dans un esprit de fraternité et à rejeter toutes formes de racisme et d'antisémitisme.</p>
-                </div>
-
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white text-xs">ENGAGEMENT N° 6 : RESPECT DE LA DIGNITÉ HUMAINE</h5>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs">L'association s'engage à respecter les lois protégeant la santé et l'intégrité physique et psychique.</p>
-                </div>
-
-                <div>
-                  <h5 className="font-bold text-slate-900 dark:text-white text-xs">ENGAGEMENT N° 7 : RESPECT DES SYMBOLES DE LA RÉPUBLIQUE</h5>
-                  <p className="text-slate-600 dark:text-slate-300 text-xs">L'association s'engage à respecter le drapeau tricolore, l'hymne national, et la devise de la République.</p>
-                </div>
-              </div>
             </div>
 
-            {/* Date et lieu */}
-            <div className="bg-slate-100 dark:bg-primary-800 p-4 rounded-xl text-center border border-slate-300 dark:border-primary-700/60">
-              <p className="text-slate-600 dark:text-slate-300 font-medium text-sm">
+            <div className="bg-slate-100 p-4 rounded-xl text-center border border-slate-300">
+              <p className="text-slate-600 font-medium text-sm">
                 Fait à <strong>Chartrettes</strong>, le <strong>{currentDate}</strong>
               </p>
             </div>
 
-            {/* Zone de signature intégrée */}
-            <div className="p-4 sm:p-6 bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-900/30 dark:to-accent-900/20 rounded-xl border-2 border-primary-300 dark:border-primary-700/60">
+            {/* Zone signature */}
+            <div className="p-4 sm:p-6 bg-gradient-to-br from-primary-50 to-accent-50 rounded-xl border-2 border-primary-300">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
                 <div className="bg-primary-700 p-2 sm:p-3 rounded-xl">
                   <PenTool className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                    Signature électronique
-                  </h3>
-                  <p className="text-xs sm:text-sm text-primary-700 dark:text-accent-300 font-medium">
-                    Pour finaliser la convention, veuillez apposer votre signature ci-dessous
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900">Signature électronique</h3>
+                  <p className="text-xs sm:text-sm text-primary-700 font-medium">
+                    Signez ci-dessous pour valider la convention et la réservation
                   </p>
                 </div>
               </div>
-
-              <div className="bg-white dark:bg-primary-800 p-3 sm:p-4 rounded-xl shadow-lg border-2 border-primary-300 dark:border-primary-700/60">
-                <p className="text-xs text-slate-500 dark:text-slate-300 mb-3 flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 bg-primary-700 rounded-full"></span>
-                  <span className="hidden sm:inline">Signez avec votre souris ou votre trackpad dans le cadre ci-dessous</span>
-                  <span className="sm:hidden">Signez avec votre doigt ci-dessous</span>
+              <div className="bg-white p-3 sm:p-4 rounded-xl shadow-lg border-2 border-primary-300">
+                <p className="text-xs text-slate-500 mb-3 flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 bg-primary-700 rounded-full" />
+                  <span className="hidden sm:inline">Signez avec votre souris ou trackpad</span>
+                  <span className="sm:hidden">Signez avec votre doigt</span>
                 </p>
-                <div className="relative group">
-                  <div className={`border-3 ${hasSignature ? 'border-accent-500' : 'border-dashed border-slate-400 dark:border-primary-600'} rounded-xl overflow-hidden bg-white shadow-inner transition-all`}>
+                <div className="relative">
+                  <div className={`border-3 ${hasSignature ? 'border-accent-500' : 'border-dashed border-slate-400'} rounded-xl overflow-hidden bg-white shadow-inner transition-all`}>
                     <canvas
                       ref={canvasRef}
                       width={800}
@@ -429,33 +343,22 @@ export default function ConventionModal({
                       onTouchStart={(e) => {
                         e.preventDefault();
                         const touch = e.touches[0];
-                        const mouseEvent = new MouseEvent('mousedown', {
-                          clientX: touch.clientX,
-                          clientY: touch.clientY
-                        });
-                        canvasRef.current?.dispatchEvent(mouseEvent);
+                        canvasRef.current?.dispatchEvent(new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY }));
                       }}
                       onTouchMove={(e) => {
                         e.preventDefault();
                         const touch = e.touches[0];
-                        const mouseEvent = new MouseEvent('mousemove', {
-                          clientX: touch.clientX,
-                          clientY: touch.clientY
-                        });
-                        canvasRef.current?.dispatchEvent(mouseEvent);
+                        canvasRef.current?.dispatchEvent(new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY }));
                       }}
                       onTouchEnd={(e) => {
                         e.preventDefault();
-                        const mouseEvent = new MouseEvent('mouseup', {});
-                        canvasRef.current?.dispatchEvent(mouseEvent);
+                        canvasRef.current?.dispatchEvent(new MouseEvent('mouseup', {}));
                       }}
                     />
                   </div>
                   {!hasSignature && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <p className="text-xs sm:text-sm font-medium text-slate-400 dark:text-primary-500">
-                        ✍️ Signez ici
-                      </p>
+                      <p className="text-xs sm:text-sm font-medium text-slate-400">✍️ Signez ici</p>
                     </div>
                   )}
                 </div>
@@ -464,14 +367,14 @@ export default function ConventionModal({
                     type="button"
                     onClick={clearSignature}
                     disabled={!hasSignature}
-                    className="text-xs sm:text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                    className="text-xs sm:text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     <X className="w-3 h-3 sm:w-4 sm:h-4" />
                     Effacer la signature
                   </button>
                   {hasSignature && (
-                    <span className="text-xs text-accent-600 dark:text-accent-400 font-medium flex items-center gap-1">
-                      <span className="inline-block w-2 h-2 bg-accent-500 rounded-full animate-pulse"></span>
+                    <span className="text-xs text-accent-600 font-medium flex items-center gap-1">
+                      <span className="inline-block w-2 h-2 bg-accent-500 rounded-full animate-pulse" />
                       Signature enregistrée
                     </span>
                   )}
@@ -481,29 +384,23 @@ export default function ConventionModal({
           </div>
         </div>
 
-        {/* Boutons d'action fixes en bas */}
-        <div className="p-4 sm:p-6 bg-slate-50 dark:bg-primary-900/40 border-t-2 border-slate-200 dark:border-primary-700/60">
+        {/* Boutons */}
+        <div className="p-4 sm:p-6 bg-slate-50 border-t-2 border-slate-200 rounded-b-2xl sm:rounded-b-3xl">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:flex-1 px-4 sm:px-6 py-3 sm:py-4 border-2 border-slate-300 dark:border-primary-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-white dark:hover:bg-primary-800 transition-all font-semibold shadow-sm hover:shadow-md text-sm sm:text-base"
+              className="w-full sm:flex-1 px-4 sm:px-6 py-3 sm:py-4 border-2 border-slate-300 text-slate-600 rounded-xl hover:bg-white transition-all font-semibold shadow-sm hover:shadow-md text-sm sm:text-base"
             >
               Annuler
             </button>
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!hasSignature || isSubmitting}
-              className="w-full sm:flex-1 px-4 sm:px-6 py-3 sm:py-4 bg-primary-700 hover:bg-primary-800 text-white rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base"
+              disabled={!hasSignature}
+              className="w-full sm:flex-1 px-4 sm:px-6 py-3 sm:py-4 bg-primary-700 hover:bg-primary-800 text-white rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white"></div>
-                  <span className="hidden sm:inline">Enregistrement...</span>
-                  <span className="sm:hidden">...</span>
-                </>
-              ) : !hasSignature ? (
+              {!hasSignature ? (
                 <>
                   <span className="hidden sm:inline">✍️ Signez pour continuer</span>
                   <span className="sm:hidden">✍️ Signez</span>
@@ -511,8 +408,7 @@ export default function ConventionModal({
               ) : (
                 <>
                   <PenTool className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden sm:inline">Valider la signature</span>
-                  <span className="sm:hidden">Valider</span>
+                  <span>Valider la signature</span>
                 </>
               )}
             </button>

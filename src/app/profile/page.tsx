@@ -65,32 +65,11 @@ export default function ProfilePage() {
     }
   };
 
-  const generatePDF = async (documentId: string) => {
-    setIsGeneratingPdf(documentId);
-
-    try {
-      // Récupérer les données de la convention avec les réservations
-      const response = await fetch('/api/user/convention-pdf');
-      if (!response.ok) {
-        throw new Error('Erreur lors de la récupération des données');
-      }
-
-      const data = await response.json();
-
-      // Générer le PDF (jsPDF chargé à la demande)
-      const { generateConventionPDF } = await import('@/lib/generateConventionPDF');
-      const pdf = generateConventionPDF(data);
-
-      // Sauvegarder le PDF
-      const signedDate = new Date(data.association.conventionSignedAt).toLocaleDateString('fr-FR');
-      const fileName = `Convention_${data.association.name.replace(/\s+/g, '_')}_${signedDate.replace(/\//g, '-')}.pdf`;
-      pdf.save(fileName);
-    } catch (error: any) {
-      console.error('Erreur lors de la génération du PDF:', error);
-      alert(error.message || 'Erreur lors de la génération du PDF');
-    } finally {
-      setIsGeneratingPdf(null);
-    }
+  const generatePDF = async (_documentId: string) => {
+    // La génération de PDF de convention est retirée (la convention annuelle
+    // n'a pas de PDF dédié pour l'instant, et la convention ponctuelle est
+    // stockée comme image de signature attachée à chaque réservation).
+    alert('Téléchargement de la convention indisponible pour le moment.');
   };
 
   if (status === 'loading' || isLoading) {
