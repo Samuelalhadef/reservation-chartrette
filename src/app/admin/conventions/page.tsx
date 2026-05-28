@@ -23,14 +23,18 @@ interface ConventionItem {
   signature: string | null;
   signerName: string;
   signerEmail: string;
+  signerAddress?: string;
   associationId: string | null;
   associationName: string;
+  associationAddress?: string;
+  associationPresident?: string;
   // Ponctuelle only
   reservationId?: string;
   roomName?: string;
   reservationDate?: string | Date;
   timeSlots?: Array<{ start: string; end: string }>;
   reason?: string;
+  estimatedParticipants?: number;
   reservationStatus?: string;
 }
 
@@ -135,6 +139,48 @@ export default function AdminConventionsPage() {
     a.href = item.signature;
     a.download = `signature-${item.type}-${item.signerName.replace(/\s+/g, '_')}-${item.id}.png`;
     a.click();
+  };
+
+  const downloadPDF = async (item: ConventionItem) => {
+    if (item.type !== 'ponctuelle' || !item.signature) return;
+    try {
+      const { generateReservationConventionPDF } = await import(
+        '@/lib/generateReservationConventionPDF'
+      );
+      const isAssoc = item.associationName && item.associationName !== 'Particulier';
+      const pdf = generateReservationConventionPDF({
+        signer: {
+          name: item.signerName,
+          email: item.signerEmail,
+          address: item.signerAddress,
+          type: isAssoc ? 'association' : 'particulier',
+        },
+        association: isAssoc
+          ? {
+              name: item.associationName,
+              address: item.associationAddress,
+              presidentName: item.associationPresident,
+            }
+          : undefined,
+        reservation: {
+          roomName: item.roomName || 'Salle',
+          date: item.reservationDate || new Date(),
+          timeSlots: item.timeSlots || [],
+          reason: item.reason,
+          estimatedParticipants: item.estimatedParticipants,
+        },
+        signature: item.signature,
+        signedAt: item.signedAt || new Date(),
+      });
+      const safeName = item.signerName.replace(/\s+/g, '_');
+      const dateStr = item.reservationDate
+        ? new Date(item.reservationDate).toISOString().slice(0, 10)
+        : 'sansdate';
+      pdf.save(`convention_${safeName}_${dateStr}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert('Erreur lors de la génération du PDF');
+    }
   };
 
   const stats = useMemo(
@@ -352,10 +398,20 @@ export default function AdminConventionsPage() {
                             type="button"
                             onClick={() => downloadSignature(item)}
                             className="text-slate-400 hover:text-primary-700 transition-colors"
-                            title="Télécharger"
+                            title="Télécharger la signature (PNG)"
                           >
                             <Download className="h-4 w-4" />
                           </button>
+                          {item.type === 'ponctuelle' && (
+                            <button
+                              type="button"
+                              onClick={() => downloadPDF(item)}
+                              className="text-slate-400 hover:text-primary-700 transition-colors"
+                              title="Télécharger la convention PDF"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       ) : '—'}
                     </td>
@@ -400,23 +456,35 @@ export default function AdminConventionsPage() {
                   )}
                 </div>
                 {item.signature && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setPreviewSignature(item.signature)}
-                      className="flex-1 border border-slate-200 rounded-md p-2 hover:border-primary-400 transition-colors text-left"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.signature} alt="signature" className="h-12 mx-auto" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => downloadSignature(item)}
-                      className="p-2 text-slate-400 hover:text-primary-700"
-                      title="Télécharger"
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
+                  <div className="space-y-2 mt-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewSignature(item.signature)}
+                        className="flex-1 border border-slate-200 rounded-md p-2 hover:border-primary-400 transition-colors text-left"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.signature} alt="signature" className="h-12 mx-auto" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadSignature(item)}
+                        className="p-2 text-slate-400 hover:text-primary-700"
+                        title="Signature (PNG)"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {item.type === 'ponctuelle' && (
+                      <button
+                        type="button"
+                        onClick={() => downloadPDF(item)}
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-xs font-semibold"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Convention PDF
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

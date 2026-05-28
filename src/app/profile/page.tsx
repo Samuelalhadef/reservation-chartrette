@@ -24,12 +24,15 @@ interface Document {
   title: string;
   signedAt: string;
   associationName: string;
+  associationAddress?: string;
+  associationPresident?: string;
   signatureUrl: string;
   // Ponctuelle only
   roomName?: string;
   reservationDate?: string;
   timeSlots?: Array<{ start: string; end: string }>;
   reason?: string;
+  estimatedParticipants?: number;
   reservationStatus?: string;
   reservationId?: string;
 }
@@ -39,6 +42,7 @@ interface UserData {
   name: string;
   email: string;
   role: string;
+  address?: string;
   associationId: string | null;
 }
 
@@ -79,6 +83,48 @@ export default function ProfilePage() {
     a.href = doc.signatureUrl;
     a.download = `signature-${doc.type}-${doc.id.replace(':', '-')}.png`;
     a.click();
+  };
+
+  const downloadPDF = async (doc: Document) => {
+    if (doc.type !== 'ponctuelle' || !doc.signatureUrl || !userData) return;
+    try {
+      const { generateReservationConventionPDF } = await import(
+        '@/lib/generateReservationConventionPDF'
+      );
+      const isAssoc = !!userData.associationId && doc.associationName && doc.associationName !== 'Particulier';
+      const pdf = generateReservationConventionPDF({
+        signer: {
+          name: userData.name,
+          email: userData.email,
+          address: userData.address,
+          type: isAssoc ? 'association' : (userData.role === 'admin' ? 'mairie' : 'particulier'),
+        },
+        association: isAssoc
+          ? {
+              name: doc.associationName,
+              address: doc.associationAddress,
+              presidentName: doc.associationPresident,
+            }
+          : undefined,
+        reservation: {
+          roomName: doc.roomName || 'Salle',
+          date: doc.reservationDate || new Date(),
+          timeSlots: doc.timeSlots || [],
+          reason: doc.reason,
+          estimatedParticipants: doc.estimatedParticipants,
+        },
+        signature: doc.signatureUrl,
+        signedAt: doc.signedAt,
+      });
+      const safeName = (doc.roomName || 'salle').replace(/\s+/g, '_');
+      const dateStr = doc.reservationDate
+        ? new Date(doc.reservationDate).toISOString().slice(0, 10)
+        : 'sansdate';
+      pdf.save(`convention_${safeName}_${dateStr}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert('Erreur lors de la génération du PDF');
+    }
   };
 
   const { ponctuelles, annuelles, associationName } = useMemo(() => {
@@ -229,25 +275,35 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    {/* Signature preview */}
+                    {/* Signature preview + actions */}
                     {doc.signatureUrl && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewSignature(doc.signatureUrl)}
+                            className="border border-slate-200 rounded-md p-1.5 hover:border-primary-400 transition-colors bg-white"
+                            title="Voir la signature"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={doc.signatureUrl} alt="signature" className="h-12 w-auto max-w-[120px]" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadSignature(doc)}
+                            className="p-2 text-slate-400 hover:text-primary-700 transition-colors"
+                            title="Télécharger la signature seule (PNG)"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => setPreviewSignature(doc.signatureUrl)}
-                          className="border border-slate-200 rounded-md p-1.5 hover:border-primary-400 transition-colors bg-white"
-                          title="Voir la signature"
+                          onClick={() => downloadPDF(doc)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={doc.signatureUrl} alt="signature" className="h-12 w-auto max-w-[120px]" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => downloadSignature(doc)}
-                          className="p-2 text-slate-400 hover:text-primary-700 transition-colors"
-                          title="Télécharger"
-                        >
-                          <Download className="w-4 h-4" />
+                          <FileText className="w-3.5 h-3.5" />
+                          Convention PDF
                         </button>
                       </div>
                     )}

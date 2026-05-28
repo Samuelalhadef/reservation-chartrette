@@ -42,9 +42,12 @@ export async function GET() {
         reservationDate: reservations.date,
         timeSlots: reservations.timeSlots,
         reason: reservations.reason,
+        estimatedParticipants: reservations.estimatedParticipants,
         status: reservations.status,
         roomName: rooms.name,
         associationName: associations.name,
+        associationAddress: associations.address,
+        associationPresident: associations.contactName,
       })
       .from(reservations)
       .leftJoin(rooms, eq(reservations.roomId, rooms.id))
@@ -65,11 +68,14 @@ export async function GET() {
         title: `Convention ponctuelle — ${r.roomName || 'Salle'}`,
         signedAt: r.signedAt,
         associationName: r.associationName || 'Particulier',
+        associationAddress: r.associationAddress,
+        associationPresident: r.associationPresident,
         signatureUrl: r.signature,
         roomName: r.roomName,
         reservationDate: r.reservationDate,
         timeSlots: r.timeSlots,
         reason: r.reason,
+        estimatedParticipants: r.estimatedParticipants,
         reservationStatus: r.status,
         reservationId: r.id,
       });
@@ -109,6 +115,7 @@ export async function GET() {
         name: user.name,
         email: user.email,
         role: user.role,
+        address: user.address,
         associationId: user.associationId,
       },
     });
