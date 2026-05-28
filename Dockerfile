@@ -39,7 +39,7 @@ COPY --from=deps-prod --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder  --chown=node:node /app/.next            ./.next
 COPY --from=builder  --chown=node:node /app/public           ./public
 COPY --from=builder  --chown=node:node /app/server.js        ./server.js
-COPY --from=builder  --chown=node:node /app/next.config.ts   ./next.config.ts
+COPY --from=builder  --chown=node:node /app/next.config.js   ./next.config.js
 COPY --from=builder  --chown=node:node /app/package.json     ./package.json
 # Fichiers nécessaires à l'init du schéma (drizzle-kit push) au 1er démarrage.
 COPY --from=builder  --chown=node:node /app/drizzle.config.ts ./drizzle.config.ts
