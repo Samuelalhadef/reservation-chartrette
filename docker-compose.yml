@@ -1,44 +1,56 @@
-# Stack Portainer pour "Réservation Chartrettes"
-# -------------------------------------------------
-# Deux façons de l'utiliser dans Portainer (voir DEPLOY_PORTAINER.md) :
-#   1. Build par Portainer  : laissez la section "build" ci-dessous.
-#   2. Image pré-construite  : commentez "build" et décommentez "image".
-#
-# Les variables ${...} sont à renseigner dans l'onglet
-# "Environment variables" de la stack Portainer.
+# Stack Portainer "reservation-chartrettes"
+# ------------------------------------------
+# - Base SQLite (libSQL) auto-hébergée sur TrueNAS, dans /mnt/tank/reservation-chartrettes/db
+# - Port 8080 exposé sur l'hôte (accès LAN + Tailscale)
+# - Cloudflare Tunnel nommé : voir docker-compose.cloudflared.yml
+# - Variables ${...} : à renseigner dans l'onglet "Environment variables" de Portainer
 
 services:
   reservation-chartrettes:
     build:
       context: .
       dockerfile: Dockerfile
-    # image: reservation-chartrettes:latest   # si vous poussez l'image dans un registre
+    image: reservation-chartrettes:latest
     container_name: reservation-chartrettes
+    hostname: reservation-chartrettes
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-3000}:3000"
+      # Accès LAN/Tailscale : http://192.168.1.4:8080  |  http://100.93.215.104:8080
+      - "${APP_PORT:-8080}:3000"
+    volumes:
+      # Base SQLite persistante (dataset TrueNAS, snapshots ZFS)
+      - ${DB_HOST_PATH:-/mnt/tank/reservation-chartrettes/db}:/data
     environment:
       NODE_ENV: production
       PORT: "3000"
-      # --- Base de données Turso (libSQL) ---
-      TURSO_DATABASE_URL: ${TURSO_DATABASE_URL}
-      TURSO_AUTH_TOKEN: ${TURSO_AUTH_TOKEN}
+      # --- Base de données SQLite locale (libSQL en mode fichier) ---
+      TURSO_DATABASE_URL: ${TURSO_DATABASE_URL:-file:/data/app.db}
+      # TURSO_AUTH_TOKEN: non requis pour une base locale
       # --- NextAuth ---
-      # NEXTAUTH_URL = URL publique EXACTE de l'app (ex: https://reservation.mondomaine.fr)
-      NEXTAUTH_URL: ${NEXTAUTH_URL}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}            # ex: https://chartrettes-reservation.mousequetaire.com
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}      # openssl rand -base64 32
       # --- Google OAuth (optionnel) ---
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      # --- E-mail (NodeMailer) ---
-      EMAIL_SERVER_HOST: ${EMAIL_SERVER_HOST}
-      EMAIL_SERVER_PORT: ${EMAIL_SERVER_PORT}
-      EMAIL_SERVER_USER: ${EMAIL_SERVER_USER}
-      EMAIL_SERVER_PASSWORD: ${EMAIL_SERVER_PASSWORD}
-      EMAIL_FROM: ${EMAIL_FROM}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      # --- E-mail (NodeMailer, optionnel) ---
+      EMAIL_SERVER_HOST: ${EMAIL_SERVER_HOST:-}
+      EMAIL_SERVER_PORT: ${EMAIL_SERVER_PORT:-}
+      EMAIL_SERVER_USER: ${EMAIL_SERVER_USER:-}
+      EMAIL_SERVER_PASSWORD: ${EMAIL_SERVER_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+    networks:
+      - cloudflared-net
+      - default
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
+
+networks:
+  # Réseau partagé avec le container cloudflared (créé par la stack tunnel).
+  # Permet à cloudflared d'atteindre http://reservation-chartrettes:3000 par DNS Docker.
+  cloudflared-net:
+    external: true
+    name: cloudflared-net

@@ -1,2 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Shell scripts et entrypoints Docker : LF obligatoire (Linux refuse CRLF)
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+

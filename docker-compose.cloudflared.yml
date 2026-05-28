@@ -1,0 +1,34 @@
+# Stack Portainer "cloudflared-reservation"
+# ------------------------------------------
+# Tunnel Cloudflare nommé qui expose le site sur ton sous-domaine public.
+# Le tunnel est créé via le dashboard Cloudflare Zero Trust (mode "Remotely managed"),
+# qui te donne un TUNNEL_TOKEN à coller dans les variables d'env de la stack.
+#
+# Procédure :
+#  1. Cloudflare dashboard → Zero Trust → Networks → Tunnels → Create a tunnel
+#  2. Choisir "Cloudflared", nommer "chartrettes-reservation", copier le token.
+#  3. Onglet "Public Hostname" du tunnel :
+#       Subdomain : chartrettes-reservation
+#       Domain    : mousequetaire.com
+#       Service   : HTTP   |  URL : reservation-chartrettes:3000
+#     (cloudflared atteint l'app par DNS Docker via le réseau "cloudflared-net".)
+#  4. Déployer cette stack avec TUNNEL_TOKEN dans les variables d'env.
+
+services:
+  cloudflared-reservation:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-reservation
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    networks:
+      - cloudflared-net
+
+networks:
+  # Réseau Docker partagé avec la stack "reservation-chartrettes".
+  # IMPORTANT : à créer UNE FOIS sur le TrueNAS avant de déployer les stacks :
+  #   docker network create cloudflared-net
+  cloudflared-net:
+    external: true
+    name: cloudflared-net

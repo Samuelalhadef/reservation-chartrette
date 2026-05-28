@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Calendar } from 'lucide-react';
+import Image from 'next/image';
 import { ReactNode } from 'react';
 
 interface AuthShellProps {
@@ -21,8 +21,15 @@ export default function AuthShell({
       <div className={`w-full ${maxWidth} animate-scale-in`}>
         <div className="text-center mb-6">
           <Link href="/" className="inline-flex items-center gap-2">
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-sm">
-              <Calendar className="h-6 w-6" />
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white p-1.5 shadow-md ring-1 ring-white/30">
+              <Image
+                src="/image/logo.jpg"
+                alt="Blason de Chartrettes"
+                width={48}
+                height={48}
+                className="h-full w-full object-contain"
+                priority
+              />
             </span>
           </Link>
         </div>

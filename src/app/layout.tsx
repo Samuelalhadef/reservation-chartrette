@@ -16,29 +16,14 @@ export const metadata: Metadata = {
     "Application de gestion et réservation des salles pour les associations de Chartrettes",
 };
 
-// Évite le flash de thème (FOUC) : applique la classe `dark` avant le rendu.
-const themeScript = `
-(function () {
-  try {
-    var t = localStorage.getItem('theme');
-    var isDark = t === 'dark' || ((!t || t === 'system') &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.classList.toggle('dark', isDark);
-  } catch (e) {}
-})();
-`;
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={inter.variable} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
-      <body className="antialiased theme-transition">
+    <html lang="fr" className={inter.variable}>
+      <body className="antialiased">
         <SessionProvider>
           {children}
           <HelpChat />

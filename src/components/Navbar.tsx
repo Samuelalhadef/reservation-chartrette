@@ -2,10 +2,10 @@
 
 import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Calendar, Home, LogOut, User, Users, Menu, X, Shield } from 'lucide-react';
 import { useState } from 'react';
-import ThemeToggle from './ThemeToggle';
 
 const linkBase =
   'inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors';
@@ -50,10 +50,17 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary-700 to-accent-600 text-white shadow-sm">
-                <Calendar className="h-5 w-5" />
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white p-0.5 ring-1 ring-slate-200 shadow-sm">
+                <Image
+                  src="/image/logo.jpg"
+                  alt="Blason de Chartrettes"
+                  width={36}
+                  height={36}
+                  className="h-full w-full object-contain"
+                  priority
+                />
               </span>
-              <span className="text-base sm:text-lg font-bold text-primary-800 dark:text-white">
+              <span className="text-base sm:text-lg font-bold text-primary-800">
                 Chartrettes
               </span>
             </Link>
@@ -69,7 +76,6 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <ThemeToggle />
             <Link
               href="/profile"
               className={`hidden sm:inline-flex ${linkBase} ${

@@ -14,15 +14,6 @@
   --ring: 67 101 133; /* primary-500 en rgb pour les ombres de focus */
 }
 
-.dark {
-  --background: #0b1726;
-  --surface: #13243b;
-  --foreground: #e8eef5;
-  --muted: #93a4b8;
-  --border: #1e3a5f;
-  --ring: 110 231 183; /* accent-300 */
-}
-
 * {
   border-color: var(--border);
 }
@@ -37,13 +28,6 @@ body {
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-/* Transition douce lors du changement de thème */
-.theme-transition,
-.theme-transition * {
-  transition: background-color 0.25s ease, border-color 0.25s ease,
-    color 0.25s ease;
 }
 
 /* ============================================================
