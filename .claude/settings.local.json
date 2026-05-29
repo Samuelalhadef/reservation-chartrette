@@ -69,7 +69,12 @@
       "Bash(curl *)",
       "Bash(python3 *)",
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('jspdf in deps:', !!p.dependencies.jspdf\\); console.log\\('nodemailer in deps:', !!p.dependencies.nodemailer\\)\")",
-      "Bash(npm cache *)"
+      "Bash(npm cache *)",
+      "Bash(pdftotext -layout \"F:/dowl/REGL SALLES EMC VERGERS.pdf\" \"F:/dowl/regl_emc.txt\")",
+      "Bash(pdfinfo \"F:/dowl/REGL SALLES EMC VERGERS.pdf\")",
+      "Bash(pdftotext \"F:/dowl/REGL SALLES EMC VERGERS.pdf\" -)",
+      "Bash(rm -rf \"F:/dowl/emc_pages\" \"F:/dowl/emc_hd\")",
+      "Bash(rm -f \"F:/dowl/emc_chk_\"*.png \"F:/dowl/p15\"*.png \"F:/dowl/regl_emc.txt\")"
     ],
     "deny": [],
     "ask": []
