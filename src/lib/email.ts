@@ -14,14 +14,23 @@ const transporter = nodemailer.createTransport({
   socketTimeout: 10000,
 });
 
+interface EmailAttachment {
+  filename: string;
+  /** Contenu binaire (Buffer) ou base64 si encoding fourni */
+  content: Buffer | string;
+  contentType?: string;
+  encoding?: 'base64';
+}
+
 interface EmailOptions {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  attachments?: EmailAttachment[];
 }
 
-export async function sendEmail({ to, subject, html, text }: EmailOptions) {
+export async function sendEmail({ to, subject, html, text, attachments }: EmailOptions) {
   // En développement local, si l'email échoue, on log simplement
   const isDev = process.env.NODE_ENV === 'development';
 
@@ -32,6 +41,7 @@ export async function sendEmail({ to, subject, html, text }: EmailOptions) {
       subject,
       html,
       text,
+      attachments,
     });
 
     console.log('✅ Email envoyé avec succès:', info.messageId);
@@ -70,7 +80,7 @@ export const emailTemplates = {
     </div>
   `,
 
-  reservationApproved: (userName: string, roomName: string, date: string, timeSlots: string, adminComment?: string) => `
+  reservationApproved: (userName: string, roomName: string, date: string, timeSlots: string, adminComment?: string, hasConvention?: boolean) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #16a34a;">Réservation approuvée</h2>
       <p>Bonjour ${userName},</p>
@@ -81,6 +91,12 @@ export const emailTemplates = {
         <li><strong>Créneaux :</strong> ${timeSlots}</li>
       </ul>
       ${adminComment ? `<p><strong>Message de l'administrateur :</strong><br/>${adminComment}</p>` : ''}
+      ${hasConvention ? `
+      <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 16px; margin: 20px 0;">
+        <p style="margin: 0; color: #065f46;">
+          📄 <strong>Votre convention de mise à disposition</strong>, signée par vous et par la Mairie, est jointe à cet email au format PDF. Conservez-la précieusement.
+        </p>
+      </div>` : ''}
       <p>N'oubliez pas de respecter le règlement de la salle et de laisser les lieux propres après utilisation.</p>
       <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>

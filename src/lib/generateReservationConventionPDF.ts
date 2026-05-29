@@ -32,6 +32,14 @@ export interface ConventionPdfData {
   // Signature en base64 (data:image/png;base64,...)
   signature: string;
   signedAt: Date | string;
+  /**
+   * Signature du maire en base64 (data:image/png;base64,...).
+   * Présente uniquement quand la convention a été validée par l'administration :
+   * dans ce cas elle s'affiche dans la case « Pour la Mairie ».
+   */
+  mairieSignature?: string | null;
+  /** Date de validation par la mairie (affichée sous la signature du maire). */
+  mairieValidatedAt?: Date | string | null;
   // Paramètres personnalisables (maire, mairie, année). Si absent → defaults Chartrettes.
   settings?: Partial<ConventionPdfSettings>;
 }
@@ -396,9 +404,32 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   pdf.setTextColor(...SLATE_600);
   pdf.text(cfg.mayorTitle, MARGIN + 3, y + 11);
   pdf.text(cfg.mayorName, MARGIN + 3, y + 16);
-  pdf.setFontSize(7);
-  pdf.setTextColor(...SLATE_300);
-  pdf.text('— Signature manuelle —', MARGIN + sigBoxW / 2, y + sigBoxH - 4, { align: 'center' });
+
+  // Signature du maire (si la convention a été validée par la mairie)
+  let mairieSigned = false;
+  try {
+    if (data.mairieSignature && data.mairieSignature.startsWith('data:image/')) {
+      const imgW = sigBoxW - 12;
+      const imgH = 22;
+      const imgX = MARGIN + 6;
+      const imgY = y + sigBoxH - imgH - 5;
+      pdf.addImage(data.mairieSignature, 'PNG', imgX, imgY, imgW, imgH, undefined, 'FAST');
+      mairieSigned = true;
+    }
+  } catch (e) {
+    // image invalide → on retombe sur la mention manuelle
+  }
+
+  if (mairieSigned) {
+    pdf.setFontSize(7);
+    pdf.setTextColor(...PRIMARY);
+    const valDate = data.mairieValidatedAt ?? data.signedAt;
+    pdf.text(`Validée le ${fmtShortDate(valDate)}`, MARGIN + sigBoxW / 2, y + sigBoxH - 1, { align: 'center' });
+  } else {
+    pdf.setFontSize(7);
+    pdf.setTextColor(...SLATE_300);
+    pdf.text('— Signature manuelle —', MARGIN + sigBoxW / 2, y + sigBoxH - 4, { align: 'center' });
+  }
 
   // Occupant (droite) — signature électronique
   const rX = MARGIN + sigBoxW + 8;

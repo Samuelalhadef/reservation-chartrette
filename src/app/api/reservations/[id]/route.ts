@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
-import { reservations, users, rooms } from '@/lib/db/schema';
+import { reservations, users, rooms, associations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { sendEmail, emailTemplates } from '@/lib/email';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
+import { getConventionSettings } from '@/lib/conventionSettings';
+import { getMairieSignatureDataUrl } from '@/lib/mairieSignature';
+import { generateReservationConventionPDF } from '@/lib/generateReservationConventionPDF';
 
 export async function PATCH(
   req: NextRequest,
@@ -35,21 +38,30 @@ export async function PATCH(
       );
     }
 
-    // Get reservation with joined user and room data
+    // Get reservation with joined user, room and association data
     const reservationData = await db
       .select({
         reservation: reservations,
         user: {
           name: users.name,
           email: users.email,
+          role: users.role,
+          address: users.address,
+          associationId: users.associationId,
         },
         room: {
           name: rooms.name,
+        },
+        association: {
+          name: associations.name,
+          address: associations.address,
+          contactName: associations.contactName,
         },
       })
       .from(reservations)
       .leftJoin(users, eq(reservations.userId, users.id))
       .leftJoin(rooms, eq(reservations.roomId, rooms.id))
+      .leftJoin(associations, eq(reservations.associationId, associations.id))
       .where(eq(reservations.id, id))
       .limit(1);
 
@@ -60,7 +72,7 @@ export async function PATCH(
       );
     }
 
-    const { reservation, user, room } = reservationData[0];
+    const { reservation, user, room, association } = reservationData[0];
 
     if (!user || !room) {
       return NextResponse.json(
@@ -95,6 +107,73 @@ export async function PATCH(
       .join(', ');
 
     if (status === 'approved') {
+      // Génère le PDF de convention signé par les deux parties (occupant + maire)
+      // et le joint à l'email — uniquement si l'occupant a bien signé.
+      let attachments;
+      try {
+        if (
+          reservation.conventionSignature &&
+          reservation.conventionSignature.startsWith('data:image/')
+        ) {
+          const [settings, mairieSignature] = await Promise.all([
+            getConventionSettings(),
+            getMairieSignatureDataUrl(),
+          ]);
+
+          const isAssoc =
+            !!user.associationId &&
+            !!association?.name;
+          const signerType: 'association' | 'particulier' | 'mairie' = isAssoc
+            ? 'association'
+            : user.role === 'admin'
+              ? 'mairie'
+              : 'particulier';
+
+          const pdf = generateReservationConventionPDF({
+            signer: {
+              name: user.name,
+              email: user.email,
+              address: user.address || undefined,
+              type: signerType,
+            },
+            association: isAssoc
+              ? {
+                  name: association!.name,
+                  address: association!.address || undefined,
+                  presidentName: association!.contactName || undefined,
+                }
+              : undefined,
+            reservation: {
+              roomName: room.name,
+              date: reservation.date,
+              timeSlots: reservation.timeSlots as any,
+              reason: reservation.reason,
+              estimatedParticipants: reservation.estimatedParticipants,
+            },
+            signature: reservation.conventionSignature,
+            signedAt: reservation.conventionSignedAt || reservation.date,
+            mairieSignature,
+            mairieValidatedAt: new Date(),
+            settings,
+          });
+
+          const pdfBase64 = pdf.output('datauristring').split(',')[1];
+          const dateStr = new Date(reservation.date).toISOString().slice(0, 10);
+          const safeRoom = room.name.replace(/\s+/g, '_');
+          attachments = [
+            {
+              filename: `convention_${safeRoom}_${dateStr}.pdf`,
+              content: pdfBase64,
+              encoding: 'base64' as const,
+              contentType: 'application/pdf',
+            },
+          ];
+        }
+      } catch (pdfError) {
+        console.error('Génération PDF convention échouée:', pdfError);
+        // On envoie quand même l'email d'approbation, sans pièce jointe.
+      }
+
       await sendEmail({
         to: user.email,
         subject: 'Réservation approuvée',
@@ -103,8 +182,10 @@ export async function PATCH(
           room.name,
           formatDate(reservation.date),
           timeSlots,
-          adminComment
+          adminComment,
+          !!attachments
         ),
+        attachments,
       });
     } else {
       await sendEmail({

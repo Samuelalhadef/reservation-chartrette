@@ -198,8 +198,28 @@ export default function AdminConventionsPage() {
       const { generateReservationConventionPDF } = await import(
         '@/lib/generateReservationConventionPDF'
       );
+      // La signature du maire n'apparaît que si la réservation est approuvée.
+      let mairieSignature: string | null = null;
+      if (item.reservationStatus === 'approved') {
+        try {
+          const res = await fetch('/image/signature-maire.png');
+          if (res.ok) {
+            const blob = await res.blob();
+            mairieSignature = await new Promise<string | null>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+              reader.onerror = () => resolve(null);
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch {
+          mairieSignature = null;
+        }
+      }
       const isAssoc = item.associationName && item.associationName !== 'Particulier';
       const pdf = generateReservationConventionPDF({
+        mairieSignature,
+        mairieValidatedAt: item.signedAt || undefined,
         signer: {
           name: item.signerName,
           email: item.signerEmail,

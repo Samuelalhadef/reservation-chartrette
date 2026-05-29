@@ -82,6 +82,24 @@ export default function ProfilePage() {
     }
   };
 
+  // Charge la signature du maire (image publique) et la convertit en data URL
+  // pour l'injecter dans le PDF. Mise en cache via une variable de module.
+  const fetchSignatureDataUrl = async (): Promise<string | null> => {
+    try {
+      const res = await fetch('/image/signature-maire.png');
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const downloadSignature = (doc: Document) => {
     if (!doc.signatureUrl) return;
     const a = document.createElement('a');
@@ -96,8 +114,15 @@ export default function ProfilePage() {
       const { generateReservationConventionPDF } = await import(
         '@/lib/generateReservationConventionPDF'
       );
+      // La signature du maire n'apparaît que si la réservation est approuvée.
+      let mairieSignature: string | null = null;
+      if (doc.reservationStatus === 'approved') {
+        mairieSignature = await fetchSignatureDataUrl();
+      }
       const isAssoc = !!userData.associationId && doc.associationName && doc.associationName !== 'Particulier';
       const pdf = generateReservationConventionPDF({
+        mairieSignature,
+        mairieValidatedAt: doc.signedAt,
         signer: {
           name: userData.name,
           email: userData.email,
