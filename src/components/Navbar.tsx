@@ -4,7 +4,7 @@ import { signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Calendar, Home, LogOut, User, Users, Menu, X, Shield } from 'lucide-react';
+import { Calendar, Home, LogOut, User, Users, Menu, X, Shield, HelpCircle } from 'lucide-react';
 import { useState } from 'react';
 
 const linkBase =
@@ -32,6 +32,7 @@ export default function Navbar() {
       match: isActive('/dashboard/reservations'),
     },
     { href: '/reglement', label: 'Règlement', icon: Shield, match: isActive('/reglement') },
+    { href: '/aide', label: 'Aide', icon: HelpCircle, match: isActive('/aide') },
     ...(isAdmin
       ? [
           {
