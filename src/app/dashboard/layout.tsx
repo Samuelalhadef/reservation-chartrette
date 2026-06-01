@@ -16,7 +16,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       <div className="min-h-screen bg-slate-50 dark:bg-primary-950">
         <Navbar />
         <main className="py-6 animate-fade-in">{children}</main>

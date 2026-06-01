@@ -16,7 +16,7 @@ export default async function BuildingsLayout({
   }
 
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navbar />
         <main>{children}</main>

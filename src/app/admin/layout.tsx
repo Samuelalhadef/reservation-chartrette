@@ -21,7 +21,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       <div className="min-h-screen bg-slate-50 dark:bg-primary-950">
         <Navbar />
         <AdminMenu />
