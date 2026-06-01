@@ -18,14 +18,15 @@ export default async function BuildingRoomsPage({
     .from(buildings)
     .where(eq(buildings.id, buildingId));
 
-  if (!building) {
+  // Bâtiment inexistant ou désactivé → page introuvable
+  if (!building || !building.isActive) {
     notFound();
   }
 
   const buildingRooms = await db
     .select()
     .from(rooms)
-    .where(eq(rooms.buildingId, buildingId));
+    .where(and(eq(rooms.buildingId, buildingId), eq(rooms.isActive, true)));
 
   // Récupérer les réservations approuvées pour aujourd'hui ou dans le futur
   const today = new Date();

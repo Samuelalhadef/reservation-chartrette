@@ -1,10 +1,15 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { buildings } from '@/lib/db/schema';
 
 export default async function DashboardPage() {
-  const allBuildings = await db.select().from(buildings);
+  // Seuls les établissements actifs sont proposés à la réservation.
+  const allBuildings = await db
+    .select()
+    .from(buildings)
+    .where(eq(buildings.isActive, true));
 
   // Fonction pour obtenir l'image du bâtiment
   const getBuildingImage = (buildingName: string) => {
