@@ -60,10 +60,12 @@ export async function GET() {
       .select({
         associationId: associations.id,
         associationName: associations.name,
+        associationAddress: associations.address,
         contactName: associations.contactName,
         contactEmail: associations.contactEmail,
         signedAt: associations.yearlyConventionSignedAt,
         signature: associations.yearlyConventionSignature,
+        validatedAt: associations.yearlyConventionValidatedAt,
       })
       .from(associations)
       .where(
@@ -103,8 +105,12 @@ export async function GET() {
         signature: a.signature,
         signerName: a.contactName || '—',
         signerEmail: a.contactEmail || '',
+        signerAddress: undefined,
         associationId: a.associationId,
         associationName: a.associationName,
+        associationAddress: a.associationAddress,
+        associationPresident: a.contactName,
+        validatedAt: a.validatedAt,
       })),
     ];
 

@@ -35,6 +35,8 @@ interface Document {
   estimatedParticipants?: number;
   reservationStatus?: string;
   reservationId?: string;
+  // Annuelle
+  validatedAt?: string | null;
 }
 
 interface UserData {
@@ -154,6 +156,33 @@ export default function ProfilePage() {
       pdf.save(`convention_${safeName}_${dateStr}.pdf`);
     } catch (err) {
       console.error('PDF generation failed:', err);
+      alert('Erreur lors de la génération du PDF');
+    }
+  };
+
+  const downloadYearlyPDF = async (doc: Document) => {
+    if (doc.type !== 'yearly-convention' || !doc.signatureUrl) return;
+    try {
+      const { generateYearlyConventionPDF } = await import('@/lib/generateYearlyConventionPDF');
+      // La signature du maire n'apparaît que si la convention est validée.
+      const mairieSignature = doc.validatedAt ? await fetchSignatureDataUrl() : null;
+      const pdf = generateYearlyConventionPDF({
+        association: {
+          name: doc.associationName,
+          address: doc.associationAddress,
+          presidentName: doc.associationPresident,
+          email: userData?.email,
+        },
+        signature: doc.signatureUrl,
+        signedAt: doc.signedAt,
+        mairieSignature,
+        mairieValidatedAt: doc.validatedAt || undefined,
+        settings: mairieSettings,
+      });
+      const safeName = doc.associationName.replace(/\s+/g, '_');
+      pdf.save(`convention_annuelle_${safeName}.pdf`);
+    } catch (err) {
+      console.error('PDF annuel generation failed:', err);
       alert('Erreur lors de la génération du PDF');
     }
   };
@@ -384,24 +413,40 @@ export default function ProfilePage() {
                     </div>
 
                     {doc.signatureUrl && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewSignature(doc.signatureUrl)}
+                            className="border border-slate-200 rounded-md p-1.5 hover:border-accent-400 transition-colors bg-white"
+                            title="Voir la signature"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={doc.signatureUrl} alt="signature" className="h-12 w-auto max-w-[120px]" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadSignature(doc)}
+                            className="p-2 text-slate-400 hover:text-accent-700 transition-colors"
+                            title="Télécharger la signature seule (PNG)"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => setPreviewSignature(doc.signatureUrl)}
-                          className="border border-slate-200 rounded-md p-1.5 hover:border-accent-400 transition-colors bg-white"
-                          title="Voir la signature"
+                          onClick={() => downloadYearlyPDF(doc)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={doc.signatureUrl} alt="signature" className="h-12 w-auto max-w-[120px]" />
+                          <FileText className="w-3.5 h-3.5" />
+                          Convention PDF
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => downloadSignature(doc)}
-                          className="p-2 text-slate-400 hover:text-accent-700 transition-colors"
-                          title="Télécharger"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
+                        {doc.validatedAt && (
+                          <span className="inline-flex items-center gap-1 text-xs text-accent-700">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Validée par la mairie
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

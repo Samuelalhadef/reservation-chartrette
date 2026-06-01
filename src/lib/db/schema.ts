@@ -36,6 +36,9 @@ export const associations = sqliteTable('associations', {
   // Convention annuelle (signée 1 fois pour les réservations à l'année)
   yearlyConventionSignedAt: integer('yearly_convention_signed_at', { mode: 'timestamp' }),
   yearlyConventionSignature: text('yearly_convention_signature'),
+  // Validation par la mairie (ajout de la signature du maire + envoi du PDF par email)
+  yearlyConventionValidatedAt: integer('yearly_convention_validated_at', { mode: 'timestamp' }),
+  yearlyConventionValidatedBy: text('yearly_convention_validated_by'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });

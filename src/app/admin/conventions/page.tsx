@@ -40,6 +40,8 @@ interface ConventionItem {
   reason?: string;
   estimatedParticipants?: number;
   reservationStatus?: string;
+  // Annuelle only
+  validatedAt?: string | Date | null;
 }
 
 type TypeFilter = 'all' | ConventionType;
@@ -192,6 +194,76 @@ export default function AdminConventionsPage() {
     a.click();
   };
 
+  // Charge la signature du maire (image publique) en data URL pour le PDF.
+  const fetchMairieSignature = async (): Promise<string | null> => {
+    try {
+      const res = await fetch('/image/signature-maire.png');
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  // Validation d'une convention annuelle (équivalent approbation ponctuelle) :
+  // ajoute la signature du maire et envoie le PDF par email à l'association.
+  const [validatingId, setValidatingId] = useState<string | null>(null);
+  const validateYearly = async (item: ConventionItem) => {
+    if (item.type !== 'annuelle' || !item.associationId) return;
+    if (!confirm(`Valider la convention annuelle de « ${item.associationName} » ? La signature du maire sera ajoutée et le PDF envoyé par email à l'association.`)) {
+      return;
+    }
+    setValidatingId(item.id);
+    try {
+      const res = await fetch('/api/admin/conventions/validate-yearly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ associationId: item.associationId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur lors de la validation');
+      alert(data.emailSent ? 'Convention validée et envoyée par email ✓' : 'Convention validée ✓ (aucun email de contact pour cette association)');
+      fetchConventions();
+    } catch (err: any) {
+      alert(err.message || 'Erreur');
+    } finally {
+      setValidatingId(null);
+    }
+  };
+
+  const downloadYearlyPDF = async (item: ConventionItem) => {
+    if (item.type !== 'annuelle' || !item.signature) return;
+    try {
+      const { generateYearlyConventionPDF } = await import('@/lib/generateYearlyConventionPDF');
+      // Signature du maire uniquement si la convention est validée.
+      const mairieSignature = item.validatedAt ? await fetchMairieSignature() : null;
+      const pdf = generateYearlyConventionPDF({
+        association: {
+          name: item.associationName,
+          address: item.associationAddress,
+          presidentName: item.associationPresident,
+          email: item.signerEmail,
+        },
+        signature: item.signature,
+        signedAt: item.signedAt || new Date(),
+        mairieSignature,
+        mairieValidatedAt: item.validatedAt || undefined,
+        settings,
+      });
+      const safeName = item.associationName.replace(/\s+/g, '_');
+      pdf.save(`convention_annuelle_${safeName}.pdf`);
+    } catch (err) {
+      console.error('PDF annuel generation failed:', err);
+      alert('Erreur lors de la génération du PDF');
+    }
+  };
+
   const downloadPDF = async (item: ConventionItem) => {
     if (item.type !== 'ponctuelle' || !item.signature) return;
     try {
@@ -199,23 +271,9 @@ export default function AdminConventionsPage() {
         '@/lib/generateReservationConventionPDF'
       );
       // La signature du maire n'apparaît que si la réservation est approuvée.
-      let mairieSignature: string | null = null;
-      if (item.reservationStatus === 'approved') {
-        try {
-          const res = await fetch('/image/signature-maire.png');
-          if (res.ok) {
-            const blob = await res.blob();
-            mairieSignature = await new Promise<string | null>((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
-              reader.onerror = () => resolve(null);
-              reader.readAsDataURL(blob);
-            });
-          }
-        } catch {
-          mairieSignature = null;
-        }
-      }
+      const mairieSignature: string | null = item.reservationStatus === 'approved'
+        ? await fetchMairieSignature()
+        : null;
       const isAssoc = item.associationName && item.associationName !== 'Particulier';
       const pdf = generateReservationConventionPDF({
         mairieSignature,
@@ -475,6 +533,7 @@ export default function AdminConventionsPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Salle / Date réservation</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Signée le</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Signature</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider">Validation mairie</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -553,8 +612,36 @@ export default function AdminConventionsPage() {
                               <FileText className="h-4 w-4" />
                             </button>
                           )}
+                          {item.type === 'annuelle' && (
+                            <button
+                              type="button"
+                              onClick={() => downloadYearlyPDF(item)}
+                              className="text-slate-400 hover:text-primary-700 transition-colors"
+                              title="Télécharger la convention PDF"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       ) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {item.type === 'annuelle' ? (
+                        item.validatedAt ? (
+                          <span className="badge badge-success whitespace-nowrap">Validée</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => validateYearly(item)}
+                            disabled={validatingId === item.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                          >
+                            {validatingId === item.id ? '...' : 'Valider'}
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -625,6 +712,30 @@ export default function AdminConventionsPage() {
                         <FileText className="w-3.5 h-3.5" />
                         Convention PDF
                       </button>
+                    )}
+                    {item.type === 'annuelle' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => downloadYearlyPDF(item)}
+                          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-xs font-semibold"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          Convention PDF
+                        </button>
+                        {item.validatedAt ? (
+                          <span className="block text-center badge badge-success w-full">Validée par la mairie</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => validateYearly(item)}
+                            disabled={validatingId === item.id}
+                            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold"
+                          >
+                            {validatingId === item.id ? 'Validation…' : 'Valider la convention'}
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

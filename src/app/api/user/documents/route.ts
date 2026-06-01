@@ -96,7 +96,10 @@ export async function GET() {
           title: 'Convention de réservation à l\'année 2025-2026',
           signedAt: association.yearlyConventionSignedAt,
           associationName: association.name,
+          associationAddress: association.address,
+          associationPresident: association.contactName,
           signatureUrl: association.yearlyConventionSignature,
+          validatedAt: association.yearlyConventionValidatedAt,
         });
       }
     }
