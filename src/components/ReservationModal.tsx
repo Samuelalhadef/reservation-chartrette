@@ -395,7 +395,7 @@ export default function ReservationModal({
                 <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-primary-700 flex-shrink-0" />
                 <div>
                   <p className="text-xs text-slate-900">Horaire</p>
-                  <p className="font-bold text-sm sm:text-base text-slate-900">{startHour}:00 - {endHour + 1 === 24 ? '00' : endHour + 1}:00</p>
+                  <p className="font-bold text-sm sm:text-base text-slate-900">{startHour}:00 - {endHour + 1}:00</p>
                   <p className="text-xs text-primary-700 mt-1">{numberOfSlots} heure{numberOfSlots > 1 ? 's' : ''}</p>
                 </div>
               </div>

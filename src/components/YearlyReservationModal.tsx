@@ -69,7 +69,7 @@ export default function YearlyReservationModal({
   const [selectionStart, setSelectionStart] = useState<{ day: number; hour: number } | null>(null);
 
   const weekDays = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-  const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8h à minuit (dernier créneau 23h-00h)
+  const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8h → 23h, dernier créneau 23h-24h
 
   useEffect(() => {
     if (isOpen) {
@@ -669,7 +669,7 @@ export default function YearlyReservationModal({
                         className="flex items-center justify-between bg-white dark:bg-primary-800 p-2 sm:p-3 rounded-lg"
                       >
                         <span className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white">
-                          {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1 === 24 ? '00' : slot.endHour + 1}:00
+                          {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
                         </span>
                         <button
                           type="button"
@@ -871,7 +871,7 @@ export default function YearlyReservationModal({
                   <div className="space-y-1">
                     {timeSlots.map((slot, index) => (
                       <p key={index} className="text-sm text-slate-600 dark:text-slate-300">
-                        • {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1 === 24 ? '00' : slot.endHour + 1}:00
+                        • {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
                       </p>
                     ))}
                   </div>

@@ -200,7 +200,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
       case 'afternoon':
         return 'Après-midi (12h-18h)';
       case 'evening':
-        return 'Soir (18h-minuit)';
+        return 'Soir (18h-24h)';
     }
   };
 
@@ -481,7 +481,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
           <span className="text-sm text-slate-600 dark:text-slate-300">Libre</span>
         </div>
         <div className="text-xs text-slate-500 dark:text-slate-400 ml-4">
-          M = Matin (8h-12h) • A = Après-midi (12h-18h) • S = Soir (18h-minuit)
+          M = Matin (8h-12h) • A = Après-midi (12h-18h) • S = Soir (18h-24h)
         </div>
       </div>
     </div>

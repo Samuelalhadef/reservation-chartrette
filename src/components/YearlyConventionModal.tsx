@@ -272,7 +272,7 @@ export default function YearlyConventionModal({
                     <ul className="list-disc pl-6 space-y-1 mt-1">
                       {reservationDetails.timeSlots.map((slot: any, index: number) => (
                         <li key={index}>
-                          {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1 === 24 ? '00' : slot.endHour + 1}:00
+                          {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
                         </li>
                       ))}
                     </ul>
