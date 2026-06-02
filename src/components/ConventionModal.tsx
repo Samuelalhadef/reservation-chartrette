@@ -200,7 +200,7 @@ export default function ConventionModal({
                     <div>
                       <p className="text-slate-500">Créneau</p>
                       <p className="font-semibold text-slate-900">
-                        {reservationContext.startHour}:00 → {reservationContext.endHour + 1}:00
+                        {reservationContext.startHour}:00 → {reservationContext.endHour + 1 === 24 ? '00' : reservationContext.endHour + 1}:00
                       </p>
                     </div>
                   </div>

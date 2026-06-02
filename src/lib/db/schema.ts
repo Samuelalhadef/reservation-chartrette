@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, primaryKey } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // Users table
@@ -42,6 +42,19 @@ export const associations = sqliteTable('associations', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
+
+// User ↔ Associations (many-to-many)
+// Un même utilisateur peut représenter plusieurs associations et réserver pour
+// l'une ou l'autre. `users.associationId` reste l'association principale/par défaut ;
+// cette table contient l'ensemble des associations rattachées au compte (y compris
+// la principale). Pour les comptes hérités sans ligne ici, on retombe sur associationId.
+export const userAssociations = sqliteTable('user_associations', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  associationId: text('association_id').notNull().references(() => associations.id, { onDelete: 'cascade' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.associationId] }),
+}));
 
 // Buildings table
 export const buildings = sqliteTable('buildings', {
@@ -133,6 +146,9 @@ export type NewUser = typeof users.$inferInsert;
 
 export type Association = typeof associations.$inferSelect;
 export type NewAssociation = typeof associations.$inferInsert;
+
+export type UserAssociation = typeof userAssociations.$inferSelect;
+export type NewUserAssociation = typeof userAssociations.$inferInsert;
 
 export type Building = typeof buildings.$inferSelect;
 export type NewBuilding = typeof buildings.$inferInsert;

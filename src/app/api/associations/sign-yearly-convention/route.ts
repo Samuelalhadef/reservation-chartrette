@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { associations, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
+import { getUserAssociationIds } from '@/lib/userAssociations';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { signature } = body;
+    const { signature, associationId: requestedAssociationId } = body;
 
     if (!signature || !signature.trim()) {
       return NextResponse.json(
@@ -27,10 +28,24 @@ export async function POST(req: NextRequest) {
     const [user] = await db
       .select()
       .from(users)
-      .where(eq(users.id, session.user.id))
+      .where(eq(users.id, (session.user as any).id))
       .limit(1);
 
-    if (!user || !user.associationId) {
+    // Association cible : celle demandée (si rattachée au compte) sinon la principale
+    let targetAssociationId = user?.associationId ?? null;
+    if (requestedAssociationId) {
+      const userAssocIds = await getUserAssociationIds(user!.id, user?.associationId);
+      const allowed = user?.role === 'admin' || userAssocIds.includes(requestedAssociationId);
+      if (!allowed) {
+        return NextResponse.json(
+          { error: "Vous n'êtes pas rattaché à cette association" },
+          { status: 403 }
+        );
+      }
+      targetAssociationId = requestedAssociationId;
+    }
+
+    if (!user || !targetAssociationId) {
       return NextResponse.json(
         { error: 'Vous devez être associé à une association' },
         { status: 400 }
@@ -41,7 +56,7 @@ export async function POST(req: NextRequest) {
     const [association] = await db
       .select()
       .from(associations)
-      .where(eq(associations.id, user.associationId))
+      .where(eq(associations.id, targetAssociationId))
       .limit(1);
 
     if (!association) {

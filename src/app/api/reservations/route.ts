@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { sendEmail, emailTemplates } from '@/lib/email';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
 import { calculateReservationPrice } from '@/lib/pricing';
+import { getUserAssociationIds } from '@/lib/userAssociations';
 
 export async function GET(req: NextRequest) {
   try {
@@ -273,11 +274,30 @@ export async function POST(req: NextRequest) {
       }
 
       associationId = particuliersAssoc.id;
-    } else if (!user.associationId) {
-      return NextResponse.json(
-        { error: 'User must be associated with an association' },
-        { status: 400 }
-      );
+    } else {
+      // Membre d'association : il peut réserver pour l'une de SES associations.
+      const userAssocIds = await getUserAssociationIds(user.id, user.associationId);
+
+      if (userAssocIds.length === 0) {
+        return NextResponse.json(
+          { error: 'User must be associated with an association' },
+          { status: 400 }
+        );
+      }
+
+      if (data.associationId) {
+        // L'association choisie doit appartenir au compte
+        if (!userAssocIds.includes(data.associationId)) {
+          return NextResponse.json(
+            { error: "Vous n'êtes pas rattaché à cette association" },
+            { status: 403 }
+          );
+        }
+        associationId = data.associationId;
+      } else {
+        // Par défaut : association principale (ou la première rattachée)
+        associationId = user.associationId ?? userAssocIds[0];
+      }
     }
 
     // Check for conflicts

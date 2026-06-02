@@ -61,13 +61,15 @@ export default function YearlyReservationModal({
   const [conventionReadOnlyMode, setConventionReadOnlyMode] = useState(false);
   const [associations, setAssociations] = useState<Association[]>([]);
   const [selectedAssociationId, setSelectedAssociationId] = useState<string>('');
+  // Associations rattachées au compte du membre (non-admin)
+  const [userAssociations, setUserAssociations] = useState<Association[]>([]);
 
   // Sélection hebdomadaire
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectionStart, setSelectionStart] = useState<{ day: number; hour: number } | null>(null);
 
   const weekDays = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-  const hours = Array.from({ length: 14 }, (_, i) => i + 8); // 8h à 22h
+  const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8h à minuit (dernier créneau 23h-00h)
 
   useEffect(() => {
     if (isOpen) {
@@ -83,18 +85,45 @@ export default function YearlyReservationModal({
       setSelectedDay(null);
       setSelectionStart(null);
       setSelectedAssociationId('');
-      // Charger les données de l'association
-      loadAssociationData();
-      // Charger les associations pour les admins
+      setUserAssociations([]);
+      // Charger les associations pour les admins, ou celles du membre
       if (isAdmin) {
         fetchAssociations();
+        loadAssociationData();
+      } else {
+        loadUserAssociations();
       }
     }
   }, [isOpen, isAdmin]);
 
-  const loadAssociationData = async () => {
+  // Recharge l'état de la convention quand le membre change d'association
+  useEffect(() => {
+    if (!isOpen || isAdmin || !selectedAssociationId) return;
+    loadAssociationData(selectedAssociationId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAssociationId]);
+
+  const loadUserAssociations = async () => {
     try {
-      const response = await fetch('/api/associations/check-yearly-convention');
+      const res = await fetch('/api/user/profile');
+      if (!res.ok) return;
+      const data = await res.json();
+      const list: Association[] = data.associations || (data.association ? [data.association] : []);
+      setUserAssociations(list);
+      const defaultId = data.association?.id || list[0]?.id || '';
+      setSelectedAssociationId(defaultId);
+      // loadAssociationData sera déclenché par l'effet sur selectedAssociationId
+    } catch (error) {
+      console.error('Erreur lors du chargement des associations:', error);
+    }
+  };
+
+  const loadAssociationData = async (assocId?: string) => {
+    try {
+      const url = assocId
+        ? `/api/associations/check-yearly-convention?associationId=${assocId}`
+        : '/api/associations/check-yearly-convention';
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setAssociationData(data.association);
@@ -129,8 +158,8 @@ export default function YearlyReservationModal({
         excludedDates: excludedDates.map(d => d.toISOString()),
       };
 
-      // Si admin et associationId sélectionnée, l'ajouter à la requête
-      if (isAdmin && selectedAssociationId) {
+      // Association choisie (admin : optionnel = Mairie ; membre : association rattachée)
+      if (selectedAssociationId) {
         requestBody.associationId = selectedAssociationId;
       }
 
@@ -167,7 +196,10 @@ export default function YearlyReservationModal({
 
   const checkConventionStatus = async () => {
     try {
-      const response = await fetch('/api/associations/check-yearly-convention');
+      const url = selectedAssociationId
+        ? `/api/associations/check-yearly-convention?associationId=${selectedAssociationId}`
+        : '/api/associations/check-yearly-convention';
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setAssociationData(data.association);
@@ -229,6 +261,7 @@ export default function YearlyReservationModal({
         isOpen={showConvention}
         onClose={handleConventionClose}
         onSigned={handleConventionSigned}
+        associationId={selectedAssociationId || associationData.id || undefined}
         associationData={{
           name: associationData.name,
           contactName: associationData.contactName || '',
@@ -499,6 +532,30 @@ export default function YearlyReservationModal({
                   </p>
                 </div>
               )}
+
+              {/* Sélecteur d'association pour un membre rattaché à plusieurs associations */}
+              {!isAdmin && userAssociations.length > 1 && (
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300 mb-2">
+                    <UsersIcon className="w-4 h-4 text-primary-700 dark:text-accent-300" />
+                    Réserver au nom de *
+                  </label>
+                  <select
+                    value={selectedAssociationId}
+                    onChange={(e) => setSelectedAssociationId(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-slate-300 dark:border-primary-700 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-white transition-colors"
+                  >
+                    {userAssociations.map((assoc) => (
+                      <option key={assoc.id} value={assoc.id}>
+                        {assoc.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">
+                    La convention annuelle et les réservations seront établies au nom de l'association sélectionnée.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -612,7 +669,7 @@ export default function YearlyReservationModal({
                         className="flex items-center justify-between bg-white dark:bg-primary-800 p-2 sm:p-3 rounded-lg"
                       >
                         <span className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white">
-                          {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
+                          {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1 === 24 ? '00' : slot.endHour + 1}:00
                         </span>
                         <button
                           type="button"
@@ -814,7 +871,7 @@ export default function YearlyReservationModal({
                   <div className="space-y-1">
                     {timeSlots.map((slot, index) => (
                       <p key={index} className="text-sm text-slate-600 dark:text-slate-300">
-                        • {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
+                        • {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1 === 24 ? '00' : slot.endHour + 1}:00
                       </p>
                     ))}
                   </div>

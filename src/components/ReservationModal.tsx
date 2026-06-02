@@ -61,6 +61,10 @@ export default function ReservationModal({
   const [isLoadingPrice, setIsLoadingPrice] = useState(false);
   const [associations, setAssociations] = useState<Association[]>([]);
   const [selectedAssociationId, setSelectedAssociationId] = useState<string>('');
+  // Associations rattachées au compte du membre (non-admin) + association choisie
+  const [userAssociations, setUserAssociations] = useState<Association[]>([]);
+  const [userAssociationId, setUserAssociationId] = useState<string>('');
+  const [profileUser, setProfileUser] = useState<any>(null);
 
   useEffect(() => {
     setResponsibleName(userName);
@@ -93,6 +97,27 @@ export default function ReservationModal({
     }
   };
 
+  // Construit les données du signataire à partir d'une association (ou du user seul)
+  const buildSignerData = (user: any, assoc: any): ConventionSignerData => {
+    if (assoc) {
+      return {
+        signerType: 'association',
+        displayName: assoc.name,
+        signerName: assoc.contactName || user.name,
+        signerEmail: assoc.contactEmail || user.email,
+        signerPhone: assoc.contactPhone || '',
+        signerAddress: assoc.address || assoc.description || '',
+      };
+    }
+    return {
+      signerType: user.role === 'admin' ? 'mairie' : 'particulier',
+      displayName: user.name,
+      signerName: user.name,
+      signerEmail: user.email,
+      signerAddress: user.address || '',
+    };
+  };
+
   // Charge les infos du signataire (asso ou user) pour pré-remplir le modal de convention
   const loadSignerData = async () => {
     try {
@@ -100,26 +125,14 @@ export default function ReservationModal({
       if (!res.ok) return;
       const data = await res.json();
       const user = data.user || data;
-      const assoc = data.association;
+      const assocList: Association[] = data.associations || (data.association ? [data.association] : []);
 
-      if (assoc) {
-        setSignerData({
-          signerType: 'association',
-          displayName: assoc.name,
-          signerName: assoc.contactName || user.name,
-          signerEmail: assoc.contactEmail || user.email,
-          signerPhone: assoc.contactPhone || '',
-          signerAddress: assoc.address || assoc.description || '',
-        });
-      } else {
-        setSignerData({
-          signerType: user.role === 'admin' ? 'mairie' : 'particulier',
-          displayName: user.name,
-          signerName: user.name,
-          signerEmail: user.email,
-          signerAddress: user.address || '',
-        });
-      }
+      setProfileUser(user);
+      setUserAssociations(assocList);
+      // Association choisie par défaut : la principale (ou la première rattachée)
+      const defaultAssoc = data.association || assocList[0] || null;
+      setUserAssociationId(defaultAssoc?.id || '');
+      setSignerData(buildSignerData(user, defaultAssoc));
     } catch (err) {
       // Fallback minimal — la signature reste possible avec juste le nom session
       if (session?.user) {
@@ -147,6 +160,16 @@ export default function ReservationModal({
     if (isOpen && selectedRoomIds.length > 0) loadPricing();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoomIds, startHour, endHour]);
+
+  // Quand le membre change d'association, la convention doit refléter la nouvelle
+  // association : on régénère le signataire et on invalide la signature précédente.
+  useEffect(() => {
+    if (!profileUser || userAssociations.length === 0) return;
+    const assoc = userAssociations.find((a) => a.id === userAssociationId) || null;
+    setSignerData(buildSignerData(profileUser, assoc));
+    setSignatureDataUrl(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userAssociationId]);
 
   const loadPricing = async () => {
     setIsLoadingPrice(true);
@@ -296,6 +319,11 @@ export default function ReservationModal({
           requestBody.associationId = selectedAssociationId;
         }
 
+        // Membre rattaché à plusieurs associations : association choisie pour cette réservation
+        if (!isAdmin && userAssociationId) {
+          requestBody.associationId = userAssociationId;
+        }
+
         const response = await fetch('/api/reservations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -367,7 +395,7 @@ export default function ReservationModal({
                 <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-primary-700 flex-shrink-0" />
                 <div>
                   <p className="text-xs text-slate-900">Horaire</p>
-                  <p className="font-bold text-sm sm:text-base text-slate-900">{startHour}:00 - {endHour + 1}:00</p>
+                  <p className="font-bold text-sm sm:text-base text-slate-900">{startHour}:00 - {endHour + 1 === 24 ? '00' : endHour + 1}:00</p>
                   <p className="text-xs text-primary-700 mt-1">{numberOfSlots} heure{numberOfSlots > 1 ? 's' : ''}</p>
                 </div>
               </div>
@@ -455,6 +483,28 @@ export default function ReservationModal({
                 required
               />
             </div>
+
+            {/* Sélecteur d'association pour un membre rattaché à plusieurs associations */}
+            {!isAdmin && userAssociations.length > 1 && (
+              <div>
+                <label className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 mb-2">
+                  <UsersIcon className="w-4 h-4 text-primary-700" />
+                  Réserver au nom de *
+                </label>
+                <select
+                  value={userAssociationId}
+                  onChange={(e) => setUserAssociationId(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-slate-300 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-200 bg-white text-slate-900 transition-colors"
+                >
+                  {userAssociations.map((assoc) => (
+                    <option key={assoc.id} value={assoc.id}>{assoc.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-600 mt-1">
+                  La convention sera établie au nom de l'association sélectionnée.
+                </p>
+              </div>
+            )}
 
             {/* Association (admin) ou Responsable */}
             {isAdmin ? (

@@ -53,8 +53,8 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const goToNextWeek = () => setCurrentWeek(addWeeks(currentWeek, 1));
   const goToToday = () => setCurrentWeek(new Date());
 
-  // Générer les heures de 8h à 22h
-  const hours = Array.from({ length: 14 }, (_, i) => i + 8);
+  // Générer les heures de 8h à minuit (dernier créneau 23h-00h)
+  const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8h, dernier créneau 23h-00h (minuit)
 
   // Rafraîchir les réservations
   const refreshReservations = async () => {
@@ -713,7 +713,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                   {selectedSlots.endHour - selectedSlots.startHour + 1} créneau(x) sélectionné(s)
                 </p>
                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                  De {selectedSlots.startHour}:00 à {selectedSlots.endHour + 1}:00
+                  De {selectedSlots.startHour}:00 à {selectedSlots.endHour + 1 === 24 ? '00' : selectedSlots.endHour + 1}:00
                 </p>
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   {format(selectedSlots.date, 'EEEE d MMMM yyyy', { locale: fr })}

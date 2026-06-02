@@ -29,7 +29,7 @@ export default function SignUpPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    associationId: '',
+    associationIds: [] as string[],
     address: '', // Adresse pour les particuliers
     isChartrettesResident: false, // Indique si l'utilisateur habite à Chartrettes
     newAssociation: {
@@ -92,8 +92,8 @@ export default function SignUpPage() {
 
     // Validation pour les associations
     if (userType === 'association') {
-      if (!showNewAssociationForm && !formData.associationId) {
-        setError('Veuillez sélectionner une association');
+      if (!showNewAssociationForm && formData.associationIds.length === 0) {
+        setError('Veuillez sélectionner au moins une association');
         return;
       }
 
@@ -124,7 +124,7 @@ export default function SignUpPage() {
           email: formData.email,
           password: formData.password,
           userType: userType,
-          associationId: userType === 'association' && !showNewAssociationForm && formData.associationId ? formData.associationId : null,
+          associationIds: userType === 'association' && !showNewAssociationForm ? formData.associationIds : [],
           newAssociation: userType === 'association' && showNewAssociationForm ? formData.newAssociation : null,
           address: userType === 'particulier' && formData.address ? formData.address : null,
           isChartrettesResident: userType === 'particulier' ? formData.isChartrettesResident : false,
@@ -322,7 +322,7 @@ export default function SignUpPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-slate-600 dark:text-slate-300">
-                    Sélectionnez votre association
+                    Sélectionnez votre/vos association(s)
                   </label>
                   <button
                     type="button"
@@ -335,19 +335,61 @@ export default function SignUpPage() {
 
                 {!showNewAssociationForm ? (
                 <>
-                  <select
-                    value={formData.associationId}
-                    onChange={(e) => setFormData({ ...formData, associationId: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 dark:border-primary-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/40 text-slate-900 dark:text-slate-100"
-                    required={!showNewAssociationForm}
-                  >
-                    <option value="">-- Choisir une association --</option>
-                    {associations.map((assoc) => (
-                      <option key={assoc.id} value={assoc.id}>
-                        {assoc.name}
-                      </option>
-                    ))}
-                  </select>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                    Cochez toutes les associations que vous représentez. Vous pourrez choisir
+                    pour laquelle réserver au moment de chaque réservation.
+                  </p>
+                  <div className="max-h-60 overflow-y-auto space-y-2 border border-slate-200 dark:border-primary-700/60 rounded-lg p-2">
+                    {associations.length === 0 ? (
+                      <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-3">
+                        Aucune association disponible
+                      </p>
+                    ) : (
+                      associations.map((assoc) => {
+                        const checked = formData.associationIds.includes(assoc.id);
+                        return (
+                          <label
+                            key={assoc.id}
+                            className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              checked
+                                ? 'border-primary-500 bg-primary-50 dark:bg-accent-500/10'
+                                : 'border-slate-200 dark:border-primary-700/60 hover:border-primary-400'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  associationIds: e.target.checked
+                                    ? [...prev.associationIds, assoc.id]
+                                    : prev.associationIds.filter((id) => id !== assoc.id),
+                                }))
+                              }
+                              className="mt-0.5 w-5 h-5 text-primary-700 rounded focus:ring-2 focus:ring-primary-500"
+                            />
+                            <div className="flex-1">
+                              <div className="font-semibold text-slate-900 dark:text-white text-sm">
+                                {assoc.name}
+                              </div>
+                              {assoc.description && (
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                  {assoc.description}
+                                </p>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {formData.associationIds.length > 0 && (
+                    <p className="mt-2 text-xs font-medium text-primary-700 dark:text-accent-300">
+                      {formData.associationIds.length} association{formData.associationIds.length > 1 ? 's' : ''} sélectionnée{formData.associationIds.length > 1 ? 's' : ''}
+                    </p>
+                  )}
 
                   <button
                     type="button"

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { associations, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
+import { getUserAssociationIds } from '@/lib/userAssociations';
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,7 +21,23 @@ export async function GET(req: NextRequest) {
       .where(eq(users.id, session.user.id))
       .limit(1);
 
-    if (!user || !user.associationId) {
+    // Association cible : celle demandée (si rattachée au compte) sinon la principale
+    const requestedAssociationId = req.nextUrl.searchParams.get('associationId');
+    let targetAssociationId = user.associationId;
+
+    if (requestedAssociationId) {
+      const userAssocIds = await getUserAssociationIds(user.id, user.associationId);
+      const allowed = user.role === 'admin' || userAssocIds.includes(requestedAssociationId);
+      if (!allowed) {
+        return NextResponse.json(
+          { error: "Vous n'êtes pas rattaché à cette association" },
+          { status: 403 }
+        );
+      }
+      targetAssociationId = requestedAssociationId;
+    }
+
+    if (!targetAssociationId) {
       return NextResponse.json(
         { error: 'Vous devez être associé à une association' },
         { status: 400 }
@@ -31,7 +48,7 @@ export async function GET(req: NextRequest) {
     const [association] = await db
       .select()
       .from(associations)
-      .where(eq(associations.id, user.associationId))
+      .where(eq(associations.id, targetAssociationId))
       .limit(1);
 
     if (!association) {

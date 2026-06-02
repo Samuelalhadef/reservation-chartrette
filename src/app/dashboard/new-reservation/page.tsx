@@ -99,7 +99,7 @@ export default function NewReservationPage() {
   };
 
   const selectedRoom = rooms.find((r) => r.id === formData.roomId);
-  const availableTimeSlots = generateTimeSlots('08:00', '22:00');
+  const availableTimeSlots = generateTimeSlots('08:00', '24:00');
 
   const isSlotReserved = (slot: string): boolean => {
     const slotHour = parseInt(slot.split(':')[0]);

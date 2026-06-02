@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
-import { associations, users } from '@/lib/db/schema';
+import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
+import { getUserAssociations } from '@/lib/userAssociations';
 
 /**
  * GET /api/user/profile
@@ -29,25 +30,24 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    let association = null;
-    if (user.associationId) {
-      const [assoc] = await db
-        .select()
-        .from(associations)
-        .where(eq(associations.id, user.associationId))
-        .limit(1);
-      if (assoc) {
-        association = {
-          id: assoc.id,
-          name: assoc.name,
-          description: assoc.description,
-          address: assoc.address,
-          contactName: assoc.contactName,
-          contactEmail: assoc.contactEmail,
-          contactPhone: assoc.contactPhone,
-        };
-      }
-    }
+    // Toutes les associations rattachées au compte (principale + table de liaison)
+    const userAssocs = await getUserAssociations(user.id, user.associationId);
+    const mapAssoc = (assoc: typeof userAssocs[number]) => ({
+      id: assoc.id,
+      name: assoc.name,
+      description: assoc.description,
+      address: assoc.address,
+      contactName: assoc.contactName,
+      contactEmail: assoc.contactEmail,
+      contactPhone: assoc.contactPhone,
+    });
+
+    const associationsList = userAssocs.map(mapAssoc);
+    // `association` (singulier) = association principale, conservé pour compatibilité
+    const association =
+      associationsList.find((a) => a.id === user.associationId) ||
+      associationsList[0] ||
+      null;
 
     return NextResponse.json({
       user: {
@@ -59,6 +59,7 @@ export async function GET() {
         isChartrettesResident: user.isChartrettesResident,
       },
       association,
+      associations: associationsList,
     });
   } catch (error: any) {
     console.error('GET /api/user/profile error:', error);

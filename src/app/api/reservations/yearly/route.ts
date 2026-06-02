@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { reservations, rooms, associations, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
+import { getUserAssociationIds } from '@/lib/userAssociations';
 import { eachDayOfInterval, parseISO, getDay, isSameDay } from 'date-fns';
 
 // Périodes de vacances scolaires françaises (à personnaliser selon la zone)
@@ -87,6 +88,16 @@ export async function POST(req: NextRequest) {
 
     // Si c'est un admin et qu'une association personnalisée est fournie, l'utiliser
     if (session.user?.role === 'admin' && customAssociationId) {
+      targetAssociationId = customAssociationId;
+    } else if (session.user?.role !== 'admin' && customAssociationId) {
+      // Membre rattaché à plusieurs associations : l'association choisie doit lui appartenir
+      const userAssocIds = await getUserAssociationIds(user.id, user.associationId);
+      if (!userAssocIds.includes(customAssociationId)) {
+        return NextResponse.json(
+          { error: "Vous n'êtes pas rattaché à cette association" },
+          { status: 403 }
+        );
+      }
       targetAssociationId = customAssociationId;
     }
 

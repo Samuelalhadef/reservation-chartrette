@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
-import { users, associations } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { users, associations, userAssociations } from '@/lib/db/schema';
+import { eq, sql, inArray } from 'drizzle-orm';
 import { sendEmail, emailTemplates } from '@/lib/email';
 import { sanitizeValue } from '@/lib/db/utils';
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password, userType, associationId, newAssociation, address, isChartrettesResident } = await req.json();
+    const { name, email, password, userType, associationId, associationIds, newAssociation, address, isChartrettesResident } = await req.json();
+
+    // Le compte peut être rattaché à plusieurs associations existantes.
+    // On accepte `associationIds` (tableau) et on retombe sur `associationId` (legacy).
+    const selectedAssociationIds: string[] = Array.isArray(associationIds)
+      ? associationIds.map((id: any) => sanitizeValue(id)).filter(Boolean)
+      : sanitizeValue(associationId)
+        ? [sanitizeValue(associationId)]
+        : [];
 
     // Debug logging
     console.log('🔍 DEBUG - Received data:', JSON.stringify({
@@ -69,7 +77,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let finalAssociationId = sanitizedAssociationId;
+    // Liste finale des associations rattachées au compte (peut en contenir plusieurs)
+    let linkedAssociationIds: string[] = [];
+    let finalAssociationId: string | null = null;
     let userRole: 'user' | 'admin' | 'particulier' = 'user'; // Par défaut pour les associations
 
     // Handle particulier users
@@ -87,7 +97,7 @@ export async function POST(req: NextRequest) {
     } else {
       // Association users
       // If requesting new association
-      if (newAssociation && !sanitizedAssociationId) {
+      if (newAssociation && selectedAssociationIds.length === 0) {
         if (!newAssociation.name || !newAssociation.description) {
           return NextResponse.json(
             { error: 'Association name and description are required' },
@@ -111,33 +121,38 @@ export async function POST(req: NextRequest) {
           })
           .returning();
 
-        finalAssociationId = association.id;
-      } else if (sanitizedAssociationId) {
-        // Verify association exists and is active
-        const [association] = await db
+        linkedAssociationIds = [association.id];
+      } else if (selectedAssociationIds.length > 0) {
+        // Verify every selected association exists and is active
+        const found = await db
           .select()
           .from(associations)
-          .where(eq(associations.id, sanitizedAssociationId))
-          .limit(1);
+          .where(inArray(associations.id, selectedAssociationIds));
 
-        if (!association) {
+        if (found.length !== selectedAssociationIds.length) {
           return NextResponse.json(
             { error: 'Association not found' },
             { status: 404 }
           );
         }
-        if (association.status !== 'active') {
+        const inactive = found.find((a) => a.status !== 'active');
+        if (inactive) {
           return NextResponse.json(
-            { error: 'Association is not active' },
+            { error: `L'association "${inactive.name}" n'est pas active` },
             { status: 400 }
           );
         }
+
+        // Déduplique en conservant l'ordre de sélection (1ère = principale)
+        linkedAssociationIds = Array.from(new Set(selectedAssociationIds));
       } else {
         return NextResponse.json(
           { error: 'Association selection is required' },
           { status: 400 }
         );
       }
+
+      finalAssociationId = linkedAssociationIds[0] ?? null;
     }
 
     // Hash password
@@ -181,6 +196,13 @@ export async function POST(req: NextRequest) {
       .insert(users)
       .values(userValues)
       .returning();
+
+    // Rattache toutes les associations sélectionnées au compte (multi-association)
+    if (linkedAssociationIds.length > 0) {
+      await db
+        .insert(userAssociations)
+        .values(linkedAssociationIds.map((aid) => ({ userId: user.id, associationId: aid })));
+    }
 
     // Send verification email
     try {
