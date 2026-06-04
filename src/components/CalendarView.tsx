@@ -33,13 +33,19 @@ interface CalendarViewProps {
 }
 
 type TimeSlotPeriod = 'morning' | 'afternoon' | 'evening';
+type CalendarMode = 'week' | 'month';
 
 export default function CalendarView({ reservations, rooms, onApprove, onReject }: CalendarViewProps) {
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>('week');
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const now = new Date();
     const day = now.getDay();
     const diff = now.getDate() - day + (day === 0 ? -6 : 1);
     return new Date(now.setDate(diff));
+  });
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -83,24 +89,56 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
 
   const weekDays = getWeekDays();
 
-  // Navigate weeks
-  const goToPreviousWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() - 7);
-    setCurrentWeekStart(newDate);
+  // Generate month days (full weeks from Monday to Sunday)
+  const getMonthDays = () => {
+    const firstOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const start = new Date(firstOfMonth);
+    const startDay = start.getDay();
+    start.setDate(start.getDate() - (startDay === 0 ? 6 : startDay - 1));
+
+    const lastOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    const end = new Date(lastOfMonth);
+    const endDay = end.getDay();
+    end.setDate(end.getDate() + (endDay === 0 ? 0 : 7 - endDay));
+
+    const days = [];
+    const d = new Date(start);
+    while (d <= end) {
+      days.push(new Date(d));
+      d.setDate(d.getDate() + 1);
+    }
+    return days;
   };
 
-  const goToNextWeek = () => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() + 7);
-    setCurrentWeekStart(newDate);
+  const monthDays = getMonthDays();
+
+  // Navigate weeks / months
+  const goToPrevious = () => {
+    if (calendarMode === 'week') {
+      const newDate = new Date(currentWeekStart);
+      newDate.setDate(newDate.getDate() - 7);
+      setCurrentWeekStart(newDate);
+    } else {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    }
+  };
+
+  const goToNext = () => {
+    if (calendarMode === 'week') {
+      const newDate = new Date(currentWeekStart);
+      newDate.setDate(newDate.getDate() + 7);
+      setCurrentWeekStart(newDate);
+    } else {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    }
   };
 
   const goToToday = () => {
     const now = new Date();
     const day = now.getDay();
     const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    setCurrentWeekStart(new Date(now.setDate(diff)));
+    setCurrentWeekStart(new Date(new Date(now).setDate(diff)));
+    setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
   };
 
   // Determine time period from time slots
@@ -170,6 +208,24 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     return filtered;
   };
 
+  // Get all reservations for a specific day (month view)
+  const getReservationsForDay = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    return reservations.filter(res => {
+      if (res.status === 'rejected') return false;
+
+      const resDate = new Date(res.date);
+      const resYear = resDate.getFullYear();
+      const resMonth = String(resDate.getMonth() + 1).padStart(2, '0');
+      const resDay = String(resDate.getDate()).padStart(2, '0');
+      return `${resYear}-${resMonth}-${resDay}` === dateStr;
+    });
+  };
+
   // Status color mapping
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -187,6 +243,13 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     const end = weekDays[6];
     return `${start.getDate()} ${start.toLocaleDateString('fr-FR', { month: 'short' })} - ${end.getDate()} ${end.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}`;
   };
+
+  const formatMonthLabel = () => {
+    const label = currentMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  };
+
+  const isCurrentMonth = (date: Date) => date.getMonth() === currentMonth.getMonth();
 
   const isToday = (date: Date) => {
     const today = new Date();
@@ -239,19 +302,98 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     setHoveredCell(null);
   };
 
+  // Reservation details card (shared between week and month tooltips)
+  const renderReservationCard = (reservation: Reservation) => (
+    <div key={reservation.id} className="space-y-2 pb-3 border-b border-slate-200 dark:border-primary-700/60 last:border-0">
+      <div className="flex items-center justify-between">
+        <span className="font-semibold text-slate-900 dark:text-white text-sm">
+          {reservation.associationId.name}
+        </span>
+        <span
+          className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+            reservation.status === 'approved'
+              ? 'bg-accent-100 text-accent-800 dark:bg-accent-500/10 dark:text-accent-300'
+              : reservation.status === 'rejected'
+              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+          }`}
+        >
+          {reservation.status === 'approved' ? 'Approuvée' : reservation.status === 'rejected' ? 'Rejetée' : 'En attente'}
+        </span>
+      </div>
+
+      <div className="text-xs space-y-1 text-slate-600 dark:text-slate-300">
+        <div className="flex items-center gap-1">
+          <Users className="w-3 h-3" />
+          <span>{reservation.userId.name}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          <span>
+            {reservation.timeSlots.map(slot =>
+              formatTimeSlot(slot.start, slot.end)
+            ).join(', ')}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Users className="w-3 h-3" />
+          <span>{reservation.estimatedParticipants} participants</span>
+        </div>
+      </div>
+
+      <div className="text-xs text-slate-600 dark:text-slate-300">
+        <span className="font-medium">Motif:</span> {reservation.reason}
+      </div>
+
+      {reservation.adminComment && (
+        <div className="text-xs bg-slate-50 dark:bg-primary-900/40 p-2 rounded">
+          <span className="font-medium text-slate-600 dark:text-slate-300">Admin:</span>{' '}
+          <span className="text-slate-600 dark:text-slate-300">{reservation.adminComment}</span>
+        </div>
+      )}
+
+      {reservation.status === 'pending' && (
+        <div className="flex gap-2 pt-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onApprove(reservation.id);
+              setHoveredCell(null);
+            }}
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-accent-500 hover:bg-accent-600 text-white rounded text-xs font-medium transition-colors"
+          >
+            <CheckCircle className="w-3 h-3" />
+            Approuver
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onReject(reservation.id);
+              setHoveredCell(null);
+            }}
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-medium transition-colors"
+          >
+            <XCircle className="w-3 h-3" />
+            Refuser
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       {/* Navigation Header */}
-      <div className="flex items-center justify-between bg-white dark:bg-primary-800/40 p-4 rounded-lg shadow">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-primary-800/40 p-4 rounded-lg shadow">
         <div className="flex items-center gap-2">
           <button
-            onClick={goToPreviousWeek}
+            onClick={goToPrevious}
             className="p-2 hover:bg-slate-50 dark:hover:bg-primary-900/40 rounded-lg transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
-            onClick={goToNextWeek}
+            onClick={goToNext}
             className="p-2 hover:bg-slate-50 dark:hover:bg-primary-900/40 rounded-lg transition-colors"
           >
             <ChevronRight className="w-5 h-5" />
@@ -259,18 +401,38 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
         </div>
 
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-          {formatWeekRange()}
+          {calendarMode === 'week' ? formatWeekRange() : formatMonthLabel()}
         </h2>
 
-        <button
-          onClick={goToToday}
-          className="px-4 py-2 text-sm font-medium text-primary-700 dark:text-accent-300 hover:bg-primary-50 dark:hover:bg-accent-500/10 rounded-lg transition-colors"
-        >
-          Aujourd&apos;hui
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Week / Month toggle */}
+          <div className="flex rounded-lg border border-slate-200 dark:border-primary-700/60 overflow-hidden">
+            {(['week', 'month'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setCalendarMode(mode)}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  calendarMode === mode
+                    ? 'bg-primary-700 text-white'
+                    : 'bg-white dark:bg-primary-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-primary-900/40'
+                }`}
+              >
+                {mode === 'week' ? 'Semaine' : 'Mois'}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={goToToday}
+            className="px-4 py-2 text-sm font-medium text-primary-700 dark:text-accent-300 hover:bg-primary-50 dark:hover:bg-accent-500/10 rounded-lg transition-colors"
+          >
+            Aujourd&apos;hui
+          </button>
+        </div>
       </div>
 
-      {/* Calendar Grid */}
+      {/* Week Grid */}
+      {calendarMode === 'week' ? (
       <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[1400px]">
@@ -371,83 +533,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                                         {getPeriodLabel(period)}
                                       </div>
 
-                                      {cellReservations.map((reservation) => (
-                                        <div key={reservation.id} className="space-y-2 pb-3 border-b border-slate-200 dark:border-primary-700/60 last:border-0">
-                                          <div className="flex items-center justify-between">
-                                            <span className="font-semibold text-slate-900 dark:text-white text-sm">
-                                              {reservation.associationId.name}
-                                            </span>
-                                            <span
-                                              className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                                                reservation.status === 'approved'
-                                                  ? 'bg-accent-100 text-accent-800 dark:bg-accent-500/10 dark:text-accent-300'
-                                                  : reservation.status === 'rejected'
-                                                  ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                                                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                                              }`}
-                                            >
-                                              {reservation.status === 'approved' ? 'Approuvée' : reservation.status === 'rejected' ? 'Rejetée' : 'En attente'}
-                                            </span>
-                                          </div>
-
-                                          <div className="text-xs space-y-1 text-slate-600 dark:text-slate-300">
-                                            <div className="flex items-center gap-1">
-                                              <Users className="w-3 h-3" />
-                                              <span>{reservation.userId.name}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                              <Clock className="w-3 h-3" />
-                                              <span>
-                                                {reservation.timeSlots.map(slot =>
-                                                  formatTimeSlot(slot.start, slot.end)
-                                                ).join(', ')}
-                                              </span>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                              <Users className="w-3 h-3" />
-                                              <span>{reservation.estimatedParticipants} participants</span>
-                                            </div>
-                                          </div>
-
-                                          <div className="text-xs text-slate-600 dark:text-slate-300">
-                                            <span className="font-medium">Motif:</span> {reservation.reason}
-                                          </div>
-
-                                          {reservation.adminComment && (
-                                            <div className="text-xs bg-slate-50 dark:bg-primary-900/40 p-2 rounded">
-                                              <span className="font-medium text-slate-600 dark:text-slate-300">Admin:</span>{' '}
-                                              <span className="text-slate-600 dark:text-slate-300">{reservation.adminComment}</span>
-                                            </div>
-                                          )}
-
-                                          {reservation.status === 'pending' && (
-                                            <div className="flex gap-2 pt-2">
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  onApprove(reservation.id);
-                                                  setHoveredCell(null);
-                                                }}
-                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-accent-500 hover:bg-accent-600 text-white rounded text-xs font-medium transition-colors"
-                                              >
-                                                <CheckCircle className="w-3 h-3" />
-                                                Approuver
-                                              </button>
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  onReject(reservation.id);
-                                                  setHoveredCell(null);
-                                                }}
-                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-medium transition-colors"
-                                              >
-                                                <XCircle className="w-3 h-3" />
-                                                Refuser
-                                              </button>
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
+                                      {cellReservations.map(renderReservationCard)}
                                     </div>
                                   </div>
                                 )}
@@ -464,6 +550,101 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
           </table>
         </div>
       </div>
+      ) : (
+      /* Month Grid */
+      <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow overflow-hidden">
+        {/* Day-of-week headers */}
+        <div className="grid grid-cols-7 bg-slate-50 dark:bg-primary-900/40 border-b border-slate-200 dark:border-primary-700/60">
+          {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((dayName) => (
+            <div
+              key={dayName}
+              className="px-2 py-3 text-center text-xs font-semibold uppercase text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60 last:border-r-0"
+            >
+              {dayName}
+            </div>
+          ))}
+        </div>
+
+        {/* Day cells */}
+        <div className="grid grid-cols-7">
+          {monthDays.map((day, index) => {
+            const dayReservations = getReservationsForDay(day);
+            const maxVisible = 3;
+            const visibleReservations = dayReservations.slice(0, maxVisible);
+            const hiddenCount = dayReservations.length - visibleReservations.length;
+
+            return (
+              <div
+                key={index}
+                className={`min-h-[110px] p-1.5 border-r border-b border-slate-200 dark:border-primary-700/60 [&:nth-child(7n)]:border-r-0 ${
+                  isToday(day)
+                    ? 'bg-primary-50/30 dark:bg-accent-500/10'
+                    : !isCurrentMonth(day)
+                    ? 'bg-slate-50/60 dark:bg-primary-900/20'
+                    : ''
+                }`}
+              >
+                <div
+                  className={`text-xs font-semibold mb-1 ${
+                    isToday(day)
+                      ? 'text-primary-700 dark:text-accent-300'
+                      : isCurrentMonth(day)
+                      ? 'text-slate-900 dark:text-white'
+                      : 'text-slate-400 dark:text-slate-500'
+                  }`}
+                >
+                  {day.getDate()}
+                </div>
+
+                <div className="space-y-1">
+                  {visibleReservations.map((reservation) => {
+                    const cellId = `month-${reservation.id}-${day.toISOString()}`;
+                    return (
+                      <div
+                        key={reservation.id}
+                        className={`relative px-1.5 py-0.5 rounded text-[10px] text-white font-medium truncate cursor-pointer hover:opacity-90 shadow-sm ${getStatusColor(reservation.status)}`}
+                        onMouseEnter={(e) => handleMouseEnter(cellId, e)}
+                        onMouseLeave={handleMouseLeave}
+                        title={`${reservation.roomId.name} - ${reservation.associationId.name}`}
+                      >
+                        {reservation.roomId.name} · {reservation.associationId.name}
+
+                        {/* Tooltip */}
+                        {hoveredCell === cellId && (
+                          <div
+                            className="fixed z-50 w-80 bg-white dark:bg-primary-800/40 rounded-lg shadow-2xl border border-slate-200 dark:border-primary-700/60 p-4 cursor-default whitespace-normal"
+                            style={{
+                              left: `${tooltipPosition.x}px`,
+                              top: `${tooltipPosition.y - 10}px`,
+                              transform: 'translate(-50%, -100%)'
+                            }}
+                            onMouseEnter={handleTooltipMouseEnter}
+                            onMouseLeave={handleTooltipMouseLeave}
+                          >
+                            <div className="space-y-3 max-h-96 overflow-y-auto">
+                              <div className="font-semibold text-sm text-slate-900 dark:text-white border-b pb-2">
+                                {reservation.roomId.name} — {formatDate(day)}
+                              </div>
+                              {renderReservationCard(reservation)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {hiddenCount > 0 && (
+                    <div className="px-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                      +{hiddenCount} autre{hiddenCount > 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      )}
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-6 bg-white dark:bg-primary-800/40 p-4 rounded-lg shadow">
@@ -480,9 +661,11 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
           <div className="w-6 h-6 rounded bg-slate-100 dark:bg-primary-900/40 border border-slate-300 dark:border-primary-700/60"></div>
           <span className="text-sm text-slate-600 dark:text-slate-300">Libre</span>
         </div>
-        <div className="text-xs text-slate-500 dark:text-slate-400 ml-4">
-          M = Matin (8h-12h) • A = Après-midi (12h-18h) • S = Soir (18h-24h)
-        </div>
+        {calendarMode === 'week' && (
+          <div className="text-xs text-slate-500 dark:text-slate-400 ml-4">
+            M = Matin (8h-12h) • A = Après-midi (12h-18h) • S = Soir (18h-24h)
+          </div>
+        )}
       </div>
     </div>
   );
