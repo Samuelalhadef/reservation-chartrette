@@ -58,7 +58,7 @@ export default function YearlyConventionModal({
 
   if (!isOpen) return null;
 
-  const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getCanvasCoordinates = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
 
@@ -72,17 +72,19 @@ export default function YearlyConventionModal({
     };
   };
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!context) return;
     const coords = getCanvasCoordinates(e);
     if (!coords) return;
 
+    // Capture le pointeur pour suivre le doigt même s'il sort du cadre
+    e.currentTarget.setPointerCapture(e.pointerId);
     setIsDrawing(true);
     context.beginPath();
     context.moveTo(coords.x, coords.y);
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawing || !context) return;
     const coords = getCanvasCoordinates(e);
     if (!coords) return;
@@ -481,33 +483,11 @@ export default function YearlyConventionModal({
                         width={800}
                         height={200}
                         className="w-full cursor-crosshair touch-none"
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseLeave={stopDrawing}
-                        onTouchStart={(e) => {
-                          e.preventDefault();
-                          const touch = e.touches[0];
-                          const mouseEvent = new MouseEvent('mousedown', {
-                            clientX: touch.clientX,
-                            clientY: touch.clientY
-                          });
-                          canvasRef.current?.dispatchEvent(mouseEvent);
-                        }}
-                        onTouchMove={(e) => {
-                          e.preventDefault();
-                          const touch = e.touches[0];
-                          const mouseEvent = new MouseEvent('mousemove', {
-                            clientX: touch.clientX,
-                            clientY: touch.clientY
-                          });
-                          canvasRef.current?.dispatchEvent(mouseEvent);
-                        }}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
-                          const mouseEvent = new MouseEvent('mouseup', {});
-                          canvasRef.current?.dispatchEvent(mouseEvent);
-                        }}
+                        style={{ touchAction: 'none' }}
+                        onPointerDown={startDrawing}
+                        onPointerMove={draw}
+                        onPointerUp={stopDrawing}
+                        onPointerCancel={stopDrawing}
                       />
                     </div>
                     {!hasSignature && (
