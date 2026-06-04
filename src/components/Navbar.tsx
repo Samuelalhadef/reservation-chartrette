@@ -36,7 +36,7 @@ export default function Navbar() {
     ...(isAdmin
       ? [
           {
-            href: '/admin',
+            href: '/admin/reservations',
             label: 'Administration',
             icon: Users,
             match: pathname.startsWith('/admin'),

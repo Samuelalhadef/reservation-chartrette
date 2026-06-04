@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import { BarChart3, Calendar, Euro, FileText, PieChart, Users } from 'lucide-react';
 
 const items = [
-  { href: '/admin', label: 'Statistiques', icon: BarChart3 },
   { href: '/admin/reservations', label: 'Réservations', icon: Calendar },
+  { href: '/admin', label: 'Statistiques', icon: BarChart3 },
   { href: '/admin/conventions', label: 'Conventions', icon: FileText },
   { href: '/admin/pricing', label: 'Tarifs', icon: Euro },
   { href: '/admin/room-stats', label: 'Stats salles', icon: PieChart },
