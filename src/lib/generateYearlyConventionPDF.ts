@@ -50,6 +50,26 @@ const PAGE_H = 297;
 const MARGIN = 18;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
+/**
+ * Insère une signature dans un cadre en préservant ses proportions
+ * (centrée horizontalement, alignée en bas du cadre).
+ */
+function addSignatureImage(pdf: jsPDF, dataUrl: string, boxX: number, boxY: number, boxW: number, boxH: number) {
+  const maxW = boxW - 12;
+  const maxH = 22;
+  let drawW = maxW;
+  let drawH = maxH;
+  try {
+    const props = pdf.getImageProperties(dataUrl);
+    const scale = Math.min(maxW / props.width, maxH / props.height);
+    drawW = props.width * scale;
+    drawH = props.height * scale;
+  } catch {
+    // proportions inconnues → cadre max
+  }
+  pdf.addImage(dataUrl, 'PNG', boxX + (boxW - drawW) / 2, boxY + boxH - drawH - 5, drawW, drawH, undefined, 'FAST');
+}
+
 // Palette (alignée sur le générateur ponctuel)
 const PRIMARY: [number, number, number] = [30, 58, 95];
 const ACCENT: [number, number, number] = [5, 150, 105];
@@ -333,9 +353,7 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
   let mairieSigned = false;
   try {
     if (data.mairieSignature && data.mairieSignature.startsWith('data:image/')) {
-      const imgW = sigBoxW - 12;
-      const imgH = 22;
-      pdf.addImage(data.mairieSignature, 'PNG', MARGIN + 6, y + sigBoxH - imgH - 5, imgW, imgH, undefined, 'FAST');
+      addSignatureImage(pdf, data.mairieSignature, MARGIN, y, sigBoxW, sigBoxH);
       mairieSigned = true;
     }
   } catch (e) {
@@ -375,9 +393,7 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
 
   try {
     if (data.signature && data.signature.startsWith('data:image/')) {
-      const imgW = sigBoxW - 12;
-      const imgH = 22;
-      pdf.addImage(data.signature, 'PNG', rX + 6, y + sigBoxH - imgH - 5, imgW, imgH, undefined, 'FAST');
+      addSignatureImage(pdf, data.signature, rX, y, sigBoxW, sigBoxH);
     }
   } catch (e) {
     // ignore

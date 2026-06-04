@@ -360,7 +360,7 @@ export default function ConventionModal({
                     <canvas
                       ref={canvasRef}
                       width={800}
-                      height={200}
+                      height={400}
                       className="w-full cursor-crosshair touch-none"
                       style={{ touchAction: 'none' }}
                       onPointerDown={startDrawing}
