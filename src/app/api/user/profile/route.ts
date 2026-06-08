@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
@@ -63,6 +63,69 @@ export async function GET() {
     });
   } catch (error: any) {
     console.error('GET /api/user/profile error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT /api/user/profile
+ *
+ * Droit de rectification (RGPD art. 16) : permet à l'utilisateur de mettre à
+ * jour ses propres informations personnelles (nom, adresse, résidence).
+ * L'email n'est pas modifiable ici car il nécessite une nouvelle vérification.
+ */
+export async function PUT(req: NextRequest) {
+  try {
+    const session = (await getServerSession(authOptions)) as any;
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const updates: Record<string, any> = { updatedAt: new Date() };
+
+    if (typeof body.name === 'string') {
+      const name = body.name.trim();
+      if (name.length < 2) {
+        return NextResponse.json(
+          { error: 'Le nom doit contenir au moins 2 caractères' },
+          { status: 400 }
+        );
+      }
+      updates.name = name;
+    }
+
+    if (typeof body.address === 'string') {
+      updates.address = body.address.trim() || null;
+    }
+
+    if (typeof body.isChartrettesResident === 'boolean') {
+      updates.isChartrettesResident = body.isChartrettesResident;
+    }
+
+    await db.update(users).set(updates).where(eq(users.id, session.user.id));
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1);
+
+    return NextResponse.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        address: user.address,
+        isChartrettesResident: user.isChartrettesResident,
+      },
+    });
+  } catch (error: any) {
+    console.error('PUT /api/user/profile error:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }

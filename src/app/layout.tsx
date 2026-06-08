@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import HelpChat from "@/components/HelpChat";
+import Footer from "@/components/Footer";
 import SessionProvider from "@/components/SessionProvider";
 
 const inter = Inter({
@@ -25,7 +26,10 @@ export default function RootLayout({
     <html lang="fr" className={inter.variable}>
       <body className="antialiased">
         <SessionProvider>
-          {children}
+          <div className="flex min-h-screen flex-col">
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </div>
           <HelpChat />
         </SessionProvider>
       </body>

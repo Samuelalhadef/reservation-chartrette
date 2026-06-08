@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   User,
@@ -14,6 +14,13 @@ import {
   CheckCircle2,
   Clock,
   X,
+  Pencil,
+  Save,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  ShieldCheck,
+  MapPin,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -45,6 +52,7 @@ interface UserData {
   email: string;
   role: string;
   address?: string;
+  isChartrettesResident?: boolean;
   associationId: string | null;
 }
 
@@ -57,6 +65,16 @@ export default function ProfilePage() {
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
   const [mairieSettings, setMairieSettings] = useState<Record<string, string>>({});
 
+  // Gestion des données personnelles (RGPD)
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', address: '', isChartrettesResident: false });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/signin');
@@ -66,8 +84,92 @@ export default function ProfilePage() {
         .then((r) => r.json())
         .then((d) => d.settings && setMairieSettings(d.settings))
         .catch(() => {});
+      // Récupère les champs éditables complets (dont la résidence)
+      fetch('/api/user/profile')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.user) {
+            setEditForm({
+              name: d.user.name || '',
+              address: d.user.address || '',
+              isChartrettesResident: !!d.user.isChartrettesResident,
+            });
+            setUserData((prev) =>
+              prev ? { ...prev, isChartrettesResident: !!d.user.isChartrettesResident } : prev
+            );
+          }
+        })
+        .catch(() => {});
     }
   }, [status, router]);
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    setProfileError('');
+    setProfileMessage('');
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name,
+          address: editForm.address,
+          isChartrettesResident: editForm.isChartrettesResident,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setProfileError(data.error || 'Erreur lors de la mise à jour');
+        return;
+      }
+      setUserData((prev) => (prev ? { ...prev, ...data.user } : prev));
+      setIsEditing(false);
+      setProfileMessage('Vos informations ont été mises à jour.');
+    } catch {
+      setProfileError('Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/user/export');
+      if (!res.ok) throw new Error('export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mes-donnees-chartrettes.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Erreur lors de l'export de vos données.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/user/account', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Erreur lors de la suppression du compte.');
+        setDeleting(false);
+        setShowDeleteModal(false);
+        return;
+      }
+      // Déconnexion et retour à l'accueil
+      await signOut({ callbackUrl: '/' });
+    } catch {
+      alert('Une erreur est survenue. Veuillez réessayer.');
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
 
   const fetchDocuments = async () => {
     try {
@@ -249,6 +351,141 @@ export default function ProfilePage() {
                     {associationName || '—'}
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Mes informations personnelles (rectification RGPD) */}
+        <div className="card p-6 mb-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-r from-primary-700 to-accent-600 p-2.5 rounded-xl">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Mes informations personnelles</h2>
+                <p className="text-xs text-slate-600">Consultez et modifiez vos données</p>
+              </div>
+            </div>
+            {!isEditing && (
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileMessage('');
+                  setProfileError('');
+                  setIsEditing(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:border-primary-400 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Modifier
+              </button>
+            )}
+          </div>
+
+          {profileMessage && (
+            <div className="mb-4 p-3 bg-accent-50 border border-accent-200 rounded-lg text-accent-800 text-sm">
+              {profileMessage}
+            </div>
+          )}
+          {profileError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {profileError}
+            </div>
+          )}
+
+          {!isEditing ? (
+            <div className="grid sm:grid-cols-2 gap-4">
+              <InfoRow icon={User} label="Nom complet" value={userData?.name} />
+              <InfoRow icon={Mail} label="Email" value={userData?.email} />
+              <InfoRow icon={MapPin} label="Adresse" value={userData?.address || '—'} />
+              <InfoRow
+                icon={Building2}
+                label="Résident de Chartrettes"
+                value={userData?.isChartrettesResident ? 'Oui' : 'Non'}
+              />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Nom complet</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">
+                  Email <span className="text-xs text-slate-400">(non modifiable)</span>
+                </label>
+                <input
+                  type="email"
+                  value={userData?.email || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Adresse</label>
+                <textarea
+                  value={editForm.address}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      address: e.target.value,
+                      isChartrettesResident: e.target.value.toLowerCase().includes('chartrettes'),
+                    })
+                  }
+                  rows={3}
+                  placeholder="Ex: 12 Rue de la Mairie, 77590 Chartrettes"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <label className="flex items-start gap-3 p-3 bg-primary-50 border border-primary-200 rounded-lg cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editForm.isChartrettesResident}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, isChartrettesResident: e.target.checked })
+                  }
+                  className="mt-0.5 w-5 h-5 text-primary-700 rounded focus:ring-2 focus:ring-primary-500"
+                />
+                <span className="text-sm font-medium text-primary-900">J'habite à Chartrettes</span>
+              </label>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setProfileError('');
+                    setEditForm({
+                      name: userData?.name || '',
+                      address: userData?.address || '',
+                      isChartrettesResident: !!userData?.isChartrettesResident,
+                    });
+                  }}
+                  disabled={savingProfile}
+                  className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveProfile}
+                  disabled={savingProfile}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
+                >
+                  {savingProfile ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Enregistrer
+                </button>
               </div>
             </div>
           )}
@@ -455,7 +692,113 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Mes données personnelles — RGPD */}
+        <div className="card p-6 mt-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="bg-gradient-to-r from-primary-700 to-accent-600 p-2.5 rounded-xl">
+              <ShieldCheck className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Mes données personnelles</h2>
+              <p className="text-xs text-slate-600">
+                Téléchargez ou supprimez vos données (RGPD)
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-slate-200 rounded-xl">
+              <div>
+                <p className="font-semibold text-slate-900 text-sm">Exporter mes données</p>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Téléchargez l'ensemble de vos données au format JSON.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={exporting}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 border border-primary-200 text-primary-700 hover:bg-primary-50 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 whitespace-nowrap"
+              >
+                {exporting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Exporter (JSON)
+              </button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-red-200 bg-red-50/50 rounded-xl">
+              <div>
+                <p className="font-semibold text-red-800 text-sm">Supprimer mon compte</p>
+                <p className="text-xs text-red-700/80 mt-0.5">
+                  Action définitive. Vos données personnelles seront supprimées ou
+                  anonymisées si des réservations y sont rattachées.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(true)}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors whitespace-nowrap"
+              >
+                <Trash2 className="w-4 h-4" />
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Modal de confirmation de suppression */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => !deleting && setShowDeleteModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-red-100 p-2.5 rounded-xl">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Supprimer votre compte ?</h3>
+            </div>
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Cette action est définitive. Si des réservations sont rattachées à votre
+              compte, vos données personnelles seront anonymisées (les documents devant
+              être conservés par la mairie le restent). Dans le cas contraire, votre
+              compte sera entièrement supprimé. Vous serez ensuite déconnecté.
+            </p>
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
+              >
+                {deleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                Supprimer définitivement
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox signature */}
       {previewSignature && (
@@ -483,6 +826,28 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div className="flex items-start gap-3 p-3 border border-slate-200 rounded-xl">
+      <div className="bg-slate-100 p-2 rounded-lg">
+        <Icon className="w-4 h-4 text-slate-500" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-sm font-medium text-slate-900 break-words">{value || '—'}</p>
+      </div>
     </div>
   );
 }

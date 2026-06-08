@@ -117,19 +117,23 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
 
   // Gestion de la sélection de créneaux
   const handleSlotClick = (day: Date, hour: number) => {
-    // Vérifier si la date est dans la plage valide
+    // Si le créneau est déjà réservé, on gère l'annulation EN PREMIER, sans
+    // appliquer le délai minimum : l'annulation d'une réservation existante
+    // (par son propriétaire ou un admin) n'est soumise à aucune contrainte de
+    // temps. Le droit d'annuler est vérifié dans handleReservationClick.
+    const reservation = getSlotReservation(day, hour);
+    if (reservation) {
+      handleReservationClick(reservation);
+      return;
+    }
+
+    // Plus aucune réservation : il s'agit d'une nouvelle demande, on impose le
+    // délai minimum de 10 jours.
     if (!isDateInValidRange(day)) {
       alert('Réservation 10 jours à l\'avance minimum');
       return;
     }
 
-    // Vérifier si le créneau est déjà réservé
-    const reservation = getSlotReservation(day, hour);
-    if (reservation) {
-      // Si c'est une réservation de l'utilisateur, ouvrir la modale d'annulation
-      handleReservationClick(reservation);
-      return;
-    }
     if (!selectionStart) {
       // Premier clic : définir le début de la sélection
       setSelectionStart({ date: day, hour });

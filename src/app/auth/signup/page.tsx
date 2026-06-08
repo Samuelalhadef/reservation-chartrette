@@ -32,6 +32,7 @@ export default function SignUpPage() {
     associationIds: [] as string[],
     address: '', // Adresse pour les particuliers
     isChartrettesResident: false, // Indique si l'utilisateur habite à Chartrettes
+    acceptPrivacy: false, // Acceptation de la politique de confidentialité (RGPD)
     newAssociation: {
       name: '',
       description: '',
@@ -80,6 +81,11 @@ export default function SignUpPage() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError('Format d\'email invalide');
+      return;
+    }
+
+    if (!formData.acceptPrivacy) {
+      setError('Vous devez accepter la politique de confidentialité pour créer un compte');
       return;
     }
 
@@ -264,6 +270,29 @@ export default function SignUpPage() {
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               placeholder="••••••••"
             />
+
+            {/* Consentement RGPD */}
+            <label className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-primary-900/40 border border-slate-200 dark:border-primary-700/60 rounded-lg cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.acceptPrivacy}
+                onChange={(e) => setFormData({ ...formData, acceptPrivacy: e.target.checked })}
+                className="mt-0.5 w-5 h-5 text-primary-700 rounded focus:ring-2 focus:ring-primary-500"
+              />
+              <span className="text-sm text-slate-600 dark:text-slate-300">
+                J'ai lu et j'accepte la{' '}
+                <Link
+                  href="/confidentialite"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-primary-700 hover:text-primary-800 dark:text-accent-300 underline"
+                >
+                  politique de confidentialité
+                </Link>{' '}
+                et le traitement de mes données personnelles dans le cadre de la
+                gestion des réservations.
+              </span>
+            </label>
 
             <Button type="submit" className="w-full">
               Continuer
