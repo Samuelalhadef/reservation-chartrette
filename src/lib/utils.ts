@@ -6,8 +6,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(date: Date | string): string {
+  // Les dates de réservation sont stockées à minuit UTC (ex. "2026-06-18").
+  // Si on formate avec le fuseau local du serveur (souvent décalé de l'UTC),
+  // minuit UTC peut basculer sur la veille → on force donc l'UTC pour
+  // toujours afficher le jour calendaire réellement réservé.
   const d = new Date(date);
   return d.toLocaleDateString('fr-FR', {
+    timeZone: 'UTC',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
