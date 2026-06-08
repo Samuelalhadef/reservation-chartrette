@@ -88,7 +88,35 @@ export async function PATCH(
       );
     }
 
-    // Update the reservation
+    // Send email notification
+    const timeSlots = (reservation.timeSlots as any)
+      .map((slot: any) => formatTimeSlot(slot.start, slot.end))
+      .join(', ');
+
+    // Cas du refus : on prévient l'occupant par email puis on SUPPRIME
+    // simplement la demande, afin qu'aucun bloc « Refusée » ne reste affiché
+    // dans ses réservations.
+    if (status === 'rejected') {
+      await sendEmail({
+        to: user.email,
+        subject: 'Réservation refusée',
+        html: emailTemplates.reservationRejected(
+          user.name,
+          room.name,
+          formatDate(reservation.date),
+          adminComment
+        ),
+      });
+
+      await db.delete(reservations).where(eq(reservations.id, id));
+
+      return NextResponse.json(
+        { message: 'Reservation rejected and removed successfully' },
+        { status: 200 }
+      );
+    }
+
+    // Approbation : on met à jour la réservation.
     const [updatedReservation] = await db
       .update(reservations)
       .set({
@@ -101,12 +129,7 @@ export async function PATCH(
       .where(eq(reservations.id, id))
       .returning();
 
-    // Send email notification
-    const timeSlots = (reservation.timeSlots as any)
-      .map((slot: any) => formatTimeSlot(slot.start, slot.end))
-      .join(', ');
-
-    if (status === 'approved') {
+    {
       // Génère le PDF de convention signé par les deux parties (occupant + maire)
       // et le joint à l'email — uniquement si l'occupant a bien signé.
       let attachments;
@@ -187,22 +210,11 @@ export async function PATCH(
         ),
         attachments,
       });
-    } else {
-      await sendEmail({
-        to: user.email,
-        subject: 'Réservation refusée',
-        html: emailTemplates.reservationRejected(
-          user.name,
-          room.name,
-          formatDate(reservation.date),
-          adminComment
-        ),
-      });
     }
 
     return NextResponse.json(
       {
-        message: `Reservation ${status === 'approved' ? 'approved' : 'rejected'} successfully`,
+        message: 'Reservation approved successfully',
         reservation: updatedReservation,
       },
       { status: 200 }
