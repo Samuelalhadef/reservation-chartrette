@@ -34,6 +34,14 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 
+# Fuseau horaire de l'application (France). node:20-slim (Debian) n'embarque pas
+# la base de fuseaux : sans tzdata, TZ retombe silencieusement sur UTC, ce qui
+# décale d'un jour toutes les dates de réservation côté serveur (un dimanche
+# cliqué est validé comme samedi, etc.).
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
+    && rm -rf /var/lib/apt/lists/*
+ENV TZ=Europe/Paris
+
 # Récupère uniquement ce qui est nécessaire à l'exécution.
 COPY --from=deps-prod --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder  --chown=node:node /app/.next            ./.next

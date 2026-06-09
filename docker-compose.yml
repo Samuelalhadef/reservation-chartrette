@@ -23,6 +23,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
+      # Fuseau horaire : les dates de réservation sont raisonnées en heure de Paris.
+      # Sans ça, le conteneur tourne en UTC et décale les jours d'une journée.
+      TZ: ${TZ:-Europe/Paris}
       # --- Base de données SQLite locale (libSQL en mode fichier) ---
       TURSO_DATABASE_URL: ${TURSO_DATABASE_URL:-file:/data/app.db}
       # TURSO_AUTH_TOKEN: non requis pour une base locale

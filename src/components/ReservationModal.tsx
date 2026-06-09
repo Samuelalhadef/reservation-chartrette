@@ -287,9 +287,9 @@ export default function ReservationModal({
 
       if (!isAdmin) {
         const minDate = new Date(today);
-        minDate.setDate(minDate.getDate() + 7);
+        minDate.setDate(minDate.getDate() + 10);
         if (reservationDate < minDate) {
-          alert('Réservation 7 jours à l\'avance minimum');
+          alert('Réservation 10 jours à l\'avance minimum');
           setIsSubmitting(false);
           return;
         }
