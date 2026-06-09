@@ -252,20 +252,38 @@ export async function POST(req: NextRequest) {
         )
         .join('');
 
-      await sendEmail({
-        to: user.email,
-        subject: 'Demande de réservation à l\'année reçue',
-        html: emailTemplates.yearlyReservationSubmitted(
-          user.name,
-          room[0].name,
-          association.name,
-          periodLabel,
-          createdReservations.length,
-          weeklySummaryHtml,
-          datesListHtml,
-          isApproved
-        ),
-      });
+      const html = emailTemplates.yearlyReservationSubmitted(
+        user.name,
+        room[0].name,
+        association.name,
+        periodLabel,
+        createdReservations.length,
+        weeklySummaryHtml,
+        datesListHtml,
+        isApproved
+      );
+      const subject = 'Demande de réservation à l\'année reçue';
+
+      // 1) Copie au demandeur
+      await sendEmail({ to: user.email, subject, html });
+
+      // 2) Copie aux administrateurs (mêmes infos), pour validation/suivi.
+      //    Envoi séparé pour ne pas exposer les adresses entre destinataires.
+      const adminRows = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.role, 'admin'));
+      const adminEmails = adminRows
+        .map((row) => row.email)
+        .filter((email): email is string => !!email && email !== user.email);
+
+      if (adminEmails.length > 0) {
+        await sendEmail({
+          to: adminEmails.join(', '),
+          subject: `[Admin] ${subject} — ${association.name}`,
+          html,
+        });
+      }
     }
 
     return NextResponse.json({
