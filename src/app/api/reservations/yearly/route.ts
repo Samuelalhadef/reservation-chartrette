@@ -5,7 +5,23 @@ import { reservations, rooms, associations, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { getUserAssociationIds } from '@/lib/userAssociations';
+import { sendEmail, emailTemplates } from '@/lib/email';
 import { eachDayOfInterval, parseISO, getDay, isSameDay } from 'date-fns';
+
+// Jours de la semaine (index 0 = dimanche, comme getDay()).
+const WEEK_DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+// Formate une date en jour calendaire français (heure de Paris), pour rester
+// cohérent avec la façon dont les dates sont générées (parseISO = minuit Paris).
+function formatFrDate(date: Date): string {
+  return date.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/Paris',
+  });
+}
 
 // Périodes de vacances scolaires françaises (à personnaliser selon la zone)
 const SCHOOL_HOLIDAYS_2024_2025 = [
@@ -152,6 +168,8 @@ export async function POST(req: NextRequest) {
 
     // Créer les réservations
     const createdReservations = [];
+    // Récapitulatif date + horaires de chaque réservation créée (pour l'email unique).
+    const createdSlots: { date: Date; hoursLabel: string }[] = [];
 
     for (const date of validDates) {
       const dayOfWeek = getDay(date);
@@ -160,6 +178,11 @@ export async function POST(req: NextRequest) {
       const daySlotsData = timeSlots.filter((slot: any) => slot.day === dayOfWeek);
 
       if (daySlotsData.length === 0) continue;
+
+      // Libellé lisible des plages horaires de ce jour (ex. "10:00 - 12:00, 14:00 - 16:00")
+      const hoursLabel = daySlotsData
+        .map((slot: any) => `${slot.startHour}:00 - ${slot.endHour + 1}:00`)
+        .join(', ');
 
       // Convertir les créneaux au format attendu
       const formattedTimeSlots = [];
@@ -198,10 +221,51 @@ export async function POST(req: NextRequest) {
           .returning();
 
         createdReservations.push(reservation);
+        createdSlots.push({ date, hoursLabel });
       } catch (error) {
         console.error(`Erreur lors de la création de la réservation pour ${date}:`, error);
         // Continuer avec les autres dates même si une échoue
       }
+    }
+
+    // Un seul email récapitulatif listant tous les horaires réservés.
+    if (createdReservations.length > 0 && user.email) {
+      const isApproved = session.user?.role === 'admin';
+
+      // Période (bornes demandées), au format français.
+      const periodLabel = `du ${formatFrDate(start)} au ${formatFrDate(end)}`;
+
+      // Créneaux hebdomadaires récurrents, triés par jour puis par heure.
+      const weeklySummaryHtml = [...timeSlots]
+        .sort((a: any, b: any) => a.day - b.day || a.startHour - b.startHour)
+        .map(
+          (slot: any) =>
+            `<li><strong>${WEEK_DAYS[slot.day] ?? 'Jour ' + slot.day}</strong> : ${slot.startHour}:00 - ${slot.endHour + 1}:00</li>`
+        )
+        .join('');
+
+      // Détail de chaque date réservée avec ses horaires (déjà triées chronologiquement).
+      const datesListHtml = createdSlots
+        .map(
+          ({ date, hoursLabel }) =>
+            `<tr><td style="padding: 8px; border: 1px solid #e5e7eb; text-transform: capitalize;">${formatFrDate(date)}</td><td style="padding: 8px; border: 1px solid #e5e7eb;">${hoursLabel}</td></tr>`
+        )
+        .join('');
+
+      await sendEmail({
+        to: user.email,
+        subject: 'Demande de réservation à l\'année reçue',
+        html: emailTemplates.yearlyReservationSubmitted(
+          user.name,
+          room[0].name,
+          association.name,
+          periodLabel,
+          createdReservations.length,
+          weeklySummaryHtml,
+          datesListHtml,
+          isApproved
+        ),
+      });
     }
 
     return NextResponse.json({

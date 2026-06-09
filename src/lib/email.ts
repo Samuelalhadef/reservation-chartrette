@@ -80,6 +80,55 @@ export const emailTemplates = {
     </div>
   `,
 
+  // Récapitulatif unique pour une demande de réservation à l'année :
+  // un seul email listant la période, les créneaux hebdomadaires récurrents
+  // et le détail de toutes les dates réservées avec leurs horaires.
+  yearlyReservationSubmitted: (
+    userName: string,
+    roomName: string,
+    associationName: string,
+    periodLabel: string,
+    count: number,
+    weeklySummaryHtml: string,
+    datesListHtml: string,
+    isApproved: boolean
+  ) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2563eb;">Demande de réservation à l'année reçue</h2>
+      <p>Bonjour ${userName},</p>
+      <p>Nous avons bien reçu votre demande de réservation à l'année pour :</p>
+      <ul>
+        <li><strong>Salle :</strong> ${roomName}</li>
+        <li><strong>Association :</strong> ${associationName}</li>
+        <li><strong>Période :</strong> ${periodLabel}</li>
+        <li><strong>Nombre de créneaux réservés :</strong> ${count}</li>
+      </ul>
+
+      <h3 style="color: #2563eb; margin-top: 24px;">Créneaux hebdomadaires</h3>
+      <ul>
+        ${weeklySummaryHtml}
+      </ul>
+
+      <h3 style="color: #2563eb; margin-top: 24px;">Détail de toutes les dates réservées</h3>
+      <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #f3f4f6;">
+            <th style="text-align: left; padding: 8px; border: 1px solid #e5e7eb;">Date</th>
+            <th style="text-align: left; padding: 8px; border: 1px solid #e5e7eb;">Horaires</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${datesListHtml}
+        </tbody>
+      </table>
+
+      ${isApproved
+        ? `<p style="margin-top: 24px;">Ces réservations ont été <strong>automatiquement approuvées</strong>.</p>`
+        : `<p style="margin-top: 24px;">Votre demande est en cours d'examen. Vous recevrez une notification dès qu'un administrateur l'aura traitée.</p>`}
+      <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
+    </div>
+  `,
+
   reservationApproved: (userName: string, roomName: string, date: string, timeSlots: string, adminComment?: string, hasConvention?: boolean) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #16a34a;">Réservation approuvée</h2>
