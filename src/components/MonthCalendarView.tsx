@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle, Repeat } from 'lucide-react';
 import {
   format,
   startOfMonth,
@@ -43,9 +42,6 @@ export default function MonthCalendarView({
   currentMonth,
   reservations,
   onDayClick,
-  onPrevMonth,
-  onNextMonth,
-  onGoToToday,
   isDateInValidRange,
 }: MonthCalendarViewProps) {
   const monthStart = startOfMonth(currentMonth);
