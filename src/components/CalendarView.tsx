@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Users, Clock, MessageSquare, CheckCircle, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Users, Clock, X, CheckCircle, XCircle } from 'lucide-react';
 import { formatTimeSlot, formatDate } from '@/lib/utils';
-import Button from '@/components/Button';
 
 interface Reservation {
   id: string;
@@ -32,8 +31,15 @@ interface CalendarViewProps {
   onReject: (reservationId: string) => void;
 }
 
-type TimeSlotPeriod = 'morning' | 'afternoon' | 'evening';
 type CalendarMode = 'week' | 'month';
+
+// Format YYYY-MM-DD sans décalage de fuseau horaire
+const toDateKey = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 export default function CalendarView({ reservations, rooms, onApprove, onReject }: CalendarViewProps) {
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('week');
@@ -47,38 +53,12 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-  const [hoveredCell, setHoveredCell] = useState<string | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Réservation sélectionnée → affichée dans une modale (pas de tooltip au survol)
+  const [selected, setSelected] = useState<Reservation | null>(null);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Debug: Log data when component mounts or data changes
-  useEffect(() => {
-    console.log('=== CalendarView Debug ===');
-    console.log('Reservations:', reservations);
-    console.log('Rooms:', rooms);
-    console.log('Number of reservations:', reservations.length);
-    console.log('Number of rooms:', rooms.length);
-
-    if (reservations.length > 0) {
-      console.log('First reservation example:', reservations[0]);
-      console.log('First reservation date:', new Date(reservations[0].date));
-      console.log('First reservation timeSlots:', reservations[0].timeSlots);
-      console.log('Time periods:', getTimePeriod(reservations[0].timeSlots));
-    }
-  }, [reservations, rooms]);
-
-  // Generate week days
+  // ---- Génération des jours ------------------------------------------------
   const getWeekDays = () => {
-    const days = [];
+    const days: Date[] = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(currentWeekStart);
       date.setDate(currentWeekStart.getDate() + i);
@@ -86,10 +66,8 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     }
     return days;
   };
-
   const weekDays = getWeekDays();
 
-  // Generate month days (full weeks from Monday to Sunday)
   const getMonthDays = () => {
     const firstOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
     const start = new Date(firstOfMonth);
@@ -101,7 +79,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     const endDay = end.getDay();
     end.setDate(end.getDate() + (endDay === 0 ? 0 : 7 - endDay));
 
-    const days = [];
+    const days: Date[] = [];
     const d = new Date(start);
     while (d <= end) {
       days.push(new Date(d));
@@ -109,30 +87,27 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     }
     return days;
   };
-
   const monthDays = getMonthDays();
 
-  // Navigate weeks / months
+  // ---- Navigation ----------------------------------------------------------
   const goToPrevious = () => {
     if (calendarMode === 'week') {
-      const newDate = new Date(currentWeekStart);
-      newDate.setDate(newDate.getDate() - 7);
-      setCurrentWeekStart(newDate);
+      const d = new Date(currentWeekStart);
+      d.setDate(d.getDate() - 7);
+      setCurrentWeekStart(d);
     } else {
       setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
     }
   };
-
   const goToNext = () => {
     if (calendarMode === 'week') {
-      const newDate = new Date(currentWeekStart);
-      newDate.setDate(newDate.getDate() + 7);
-      setCurrentWeekStart(newDate);
+      const d = new Date(currentWeekStart);
+      d.setDate(d.getDate() + 7);
+      setCurrentWeekStart(d);
     } else {
       setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
     }
   };
-
   const goToToday = () => {
     const now = new Date();
     const day = now.getDay();
@@ -141,101 +116,39 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
   };
 
-  // Determine time period from time slots
-  const getTimePeriod = (timeSlots: { start: string; end: string }[]): TimeSlotPeriod[] => {
-    const periods: TimeSlotPeriod[] = [];
+  // ---- Filtrage des réservations (on ignore rejetées et annulées) ----------
+  const visibleReservations = reservations.filter(
+    (r) => r.status !== 'rejected' && r.status !== 'cancelled'
+  );
 
-    timeSlots.forEach(slot => {
-      const startHour = parseInt(slot.start.split(':')[0]);
-
-      if (startHour >= 8 && startHour < 12) {
-        if (!periods.includes('morning')) periods.push('morning');
-      }
-      if (startHour >= 12 && startHour < 18) {
-        if (!periods.includes('afternoon')) periods.push('afternoon');
-      }
-      if (startHour >= 18 && startHour < 24) {
-        if (!periods.includes('evening')) periods.push('evening');
-      }
-    });
-
-    return periods;
+  const getForRoomAndDay = (roomId: string, date: Date) => {
+    const key = toDateKey(date);
+    return visibleReservations.filter(
+      (r) => r.roomId.id === roomId && toDateKey(new Date(r.date)) === key
+    );
   };
 
-  // Get reservations for a specific room, date, and period
-  const getReservationsForCell = (roomId: string, date: Date, period: TimeSlotPeriod) => {
-    // Format date without timezone issues
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const dateStr = `${year}-${month}-${day}`;
-
-    const filtered = reservations.filter(res => {
-      // Skip rejected reservations
-      if (res.status === 'rejected') return false;
-
-      // Parse reservation date without timezone issues
-      const resDate = new Date(res.date);
-      const resYear = resDate.getFullYear();
-      const resMonth = String(resDate.getMonth() + 1).padStart(2, '0');
-      const resDay = String(resDate.getDate()).padStart(2, '0');
-      const resDateStr = `${resYear}-${resMonth}-${resDay}`;
-
-      // Check room match
-      const roomMatch = res.roomId.id === roomId;
-
-      // Check date match
-      const dateMatch = resDateStr === dateStr;
-
-      // Check period match
-      const periods = getTimePeriod(res.timeSlots);
-      const periodMatch = periods.includes(period);
-
-      // Debug logging
-      if (roomMatch && dateMatch) {
-        console.log(`🔍 Found reservation for ${res.roomId.name} on ${dateStr}`);
-        console.log(`   Period: ${period}, Periods in reservation: [${periods.join(', ')}]`);
-        console.log(`   Match: ${periodMatch}, Status: ${res.status}`);
-      }
-
-      return roomMatch && dateMatch && periodMatch;
-    });
-
-    if (filtered.length > 0) {
-      console.log(`✅ Returning ${filtered.length} reservation(s) for ${roomId} on ${dateStr} ${period}`);
-    }
-
-    return filtered;
+  const getForDay = (date: Date) => {
+    const key = toDateKey(date);
+    return visibleReservations.filter((r) => toDateKey(new Date(r.date)) === key);
   };
 
-  // Get all reservations for a specific day (month view)
-  const getReservationsForDay = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const dateStr = `${year}-${month}-${day}`;
-
-    return reservations.filter(res => {
-      if (res.status === 'rejected') return false;
-
-      const resDate = new Date(res.date);
-      const resYear = resDate.getFullYear();
-      const resMonth = String(resDate.getMonth() + 1).padStart(2, '0');
-      const resDay = String(resDate.getDate()).padStart(2, '0');
-      return `${resYear}-${resMonth}-${resDay}` === dateStr;
-    });
-  };
-
-  // Status color mapping
-  const getStatusColor = (status: string) => {
+  // ---- Helpers d'affichage -------------------------------------------------
+  const chipClass = (status: string) => {
     switch (status) {
       case 'approved':
-        return 'bg-accent-500 dark:bg-accent-600';
+        return 'bg-accent-500 hover:bg-accent-600 text-white';
       case 'pending':
-        return 'bg-yellow-500 dark:bg-yellow-600';
+        return 'bg-yellow-500 hover:bg-yellow-600 text-white';
       default:
-        return 'bg-slate-300 dark:bg-primary-700';
+        return 'bg-slate-400 hover:bg-slate-500 text-white';
     }
+  };
+
+  const timeRange = (r: Reservation) => {
+    const first = r.timeSlots?.[0]?.start ?? '';
+    const last = r.timeSlots?.[r.timeSlots.length - 1]?.end ?? '';
+    return first && last ? `${first}–${last}` : '';
   };
 
   const formatWeekRange = () => {
@@ -243,158 +156,39 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     const end = weekDays[6];
     return `${start.getDate()} ${start.toLocaleDateString('fr-FR', { month: 'short' })} - ${end.getDate()} ${end.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}`;
   };
-
   const formatMonthLabel = () => {
     const label = currentMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     return label.charAt(0).toUpperCase() + label.slice(1);
   };
-
   const isCurrentMonth = (date: Date) => date.getMonth() === currentMonth.getMonth();
+  const isToday = (date: Date) => date.toDateString() === new Date().toDateString();
 
-  const isToday = (date: Date) => {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  };
-
-  const getPeriodLabel = (period: TimeSlotPeriod) => {
-    switch (period) {
-      case 'morning':
-        return 'Matin (8h-12h)';
-      case 'afternoon':
-        return 'Après-midi (12h-18h)';
-      case 'evening':
-        return 'Soir (18h-24h)';
-    }
-  };
-
-  const handleMouseEnter = (cellId: string, event: React.MouseEvent) => {
-    // Cancel any pending close timeout
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-
-    setHoveredCell(cellId);
-    const rect = event.currentTarget.getBoundingClientRect();
-    setTooltipPosition({
-      x: rect.left + rect.width / 2,
-      y: rect.top
-    });
-  };
-
-  const handleMouseLeave = () => {
-    // Delay closing to allow moving mouse to tooltip
-    closeTimeoutRef.current = setTimeout(() => {
-      setHoveredCell(null);
-    }, 300); // 300ms delay
-  };
-
-  const handleTooltipMouseEnter = () => {
-    // Cancel close timeout when entering tooltip
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-  };
-
-  const handleTooltipMouseLeave = () => {
-    // Close tooltip when leaving it
-    setHoveredCell(null);
-  };
-
-  // Reservation details card (shared between week and month tooltips)
-  const renderReservationCard = (reservation: Reservation) => (
-    <div key={reservation.id} className="space-y-2 pb-3 border-b border-slate-200 dark:border-primary-700/60 last:border-0">
-      <div className="flex items-center justify-between">
-        <span className="font-semibold text-slate-900 dark:text-white text-sm">
-          {reservation.associationId.name}
-        </span>
-        <span
-          className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-            reservation.status === 'approved'
-              ? 'bg-accent-100 text-accent-800 dark:bg-accent-500/10 dark:text-accent-300'
-              : reservation.status === 'rejected'
-              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-          }`}
-        >
-          {reservation.status === 'approved' ? 'Approuvée' : reservation.status === 'rejected' ? 'Rejetée' : 'En attente'}
-        </span>
-      </div>
-
-      <div className="text-xs space-y-1 text-slate-600 dark:text-slate-300">
-        <div className="flex items-center gap-1">
-          <Users className="w-3 h-3" />
-          <span>{reservation.userId.name}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          <span>
-            {reservation.timeSlots.map(slot =>
-              formatTimeSlot(slot.start, slot.end)
-            ).join(', ')}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Users className="w-3 h-3" />
-          <span>{reservation.estimatedParticipants} participants</span>
-        </div>
-      </div>
-
-      <div className="text-xs text-slate-600 dark:text-slate-300">
-        <span className="font-medium">Motif:</span> {reservation.reason}
-      </div>
-
-      {reservation.adminComment && (
-        <div className="text-xs bg-slate-50 dark:bg-primary-900/40 p-2 rounded">
-          <span className="font-medium text-slate-600 dark:text-slate-300">Admin:</span>{' '}
-          <span className="text-slate-600 dark:text-slate-300">{reservation.adminComment}</span>
-        </div>
-      )}
-
-      {reservation.status === 'pending' && (
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onApprove(reservation.id);
-              setHoveredCell(null);
-            }}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-accent-500 hover:bg-accent-600 text-white rounded text-xs font-medium transition-colors"
-          >
-            <CheckCircle className="w-3 h-3" />
-            Approuver
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onReject(reservation.id);
-              setHoveredCell(null);
-            }}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-medium transition-colors"
-          >
-            <XCircle className="w-3 h-3" />
-            Refuser
-          </button>
-        </div>
-      )}
-    </div>
+  // Petite pastille cliquable représentant une réservation
+  const ReservationChip = ({ r, showRoom = false }: { r: Reservation; showRoom?: boolean }) => (
+    <button
+      onClick={() => setSelected(r)}
+      title={`${r.associationId.name} — ${timeRange(r)}`}
+      className={`w-full text-left rounded-md px-1.5 py-1 text-[11px] leading-tight font-medium truncate transition-colors shadow-sm ${chipClass(r.status)}`}
+    >
+      {showRoom && <span className="font-semibold">{r.roomId.name} · </span>}
+      {timeRange(r)} {r.associationId.name}
+    </button>
   );
 
   return (
     <div className="space-y-4">
-      {/* Navigation Header */}
+      {/* Barre de navigation */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-primary-800/40 p-4 rounded-lg shadow">
         <div className="flex items-center gap-2">
           <button
             onClick={goToPrevious}
-            className="p-2 hover:bg-slate-50 dark:hover:bg-primary-900/40 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-primary-900/40 rounded-lg transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={goToNext}
-            className="p-2 hover:bg-slate-50 dark:hover:bg-primary-900/40 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-primary-900/40 rounded-lg transition-colors"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -405,7 +199,6 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
         </h2>
 
         <div className="flex items-center gap-2">
-          {/* Week / Month toggle */}
           <div className="flex rounded-lg border border-slate-200 dark:border-primary-700/60 overflow-hidden">
             {(['week', 'month'] as const).map((mode) => (
               <button
@@ -421,7 +214,6 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
               </button>
             ))}
           </div>
-
           <button
             onClick={goToToday}
             className="px-4 py-2 text-sm font-medium text-primary-700 dark:text-accent-300 hover:bg-primary-50 dark:hover:bg-accent-500/10 rounded-lg transition-colors"
@@ -431,242 +223,220 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
         </div>
       </div>
 
-      {/* Week Grid */}
+      {/* ---- Vue Semaine : grille salles × jours ---- */}
       {calendarMode === 'week' ? (
-      <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse min-w-[1400px]">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-primary-900/40">
-                <th className="sticky left-0 z-10 bg-slate-50 dark:bg-primary-900/40 px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60 min-w-[200px]">
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <div className="min-w-[860px]">
+              {/* En-tête des jours */}
+              <div className="grid grid-cols-[140px_repeat(7,minmax(0,1fr))] bg-slate-50 dark:bg-primary-900/40 border-b border-slate-200 dark:border-primary-700/60">
+                <div className="px-3 py-3 text-sm font-semibold text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60">
                   Salles
-                </th>
-                {weekDays.map((day, index) => (
-                  <th
-                    key={index}
-                    className={`px-2 py-3 text-center text-sm font-semibold border-r border-slate-200 dark:border-primary-700/60 min-w-[180px] ${
-                      isToday(day)
-                        ? 'bg-primary-50 dark:bg-accent-500/10 text-primary-700 dark:text-accent-300'
-                        : 'text-slate-900 dark:text-white'
+                </div>
+                {weekDays.map((day, i) => (
+                  <div
+                    key={i}
+                    className={`px-2 py-2 text-center border-r border-slate-200 dark:border-primary-700/60 last:border-r-0 ${
+                      isToday(day) ? 'bg-primary-50 dark:bg-accent-500/10' : ''
                     }`}
                   >
-                    <div className="flex flex-col">
-                      <span className="text-xs uppercase">
-                        {day.toLocaleDateString('fr-FR', { weekday: 'short' })}
-                      </span>
-                      <span className="text-lg font-bold">
-                        {day.getDate()}
-                      </span>
-                      <span className="text-xs">
-                        {day.toLocaleDateString('fr-FR', { month: 'short' })}
-                      </span>
+                    <div className={`text-[11px] uppercase font-semibold ${isToday(day) ? 'text-primary-700 dark:text-accent-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                      {day.toLocaleDateString('fr-FR', { weekday: 'short' })}
                     </div>
-                  </th>
+                    <div className={`text-lg font-bold leading-tight ${isToday(day) ? 'text-primary-700 dark:text-accent-300' : 'text-slate-900 dark:text-white'}`}>
+                      {day.getDate()}
+                    </div>
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-primary-700/60">
+              </div>
+
+              {/* Lignes par salle */}
               {rooms.map((room) => (
-                <tr key={room.id} className="hover:bg-slate-50 dark:hover:bg-primary-900/40 transition-colors">
-                  <td className="sticky left-0 z-10 bg-white dark:bg-primary-800/40 hover:bg-slate-50 dark:hover:bg-primary-900/40 px-4 py-3 text-sm font-medium text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60">
-                    {room.name}
-                  </td>
-                  {weekDays.map((day, dayIndex) => {
-                    const periods: TimeSlotPeriod[] = ['morning', 'afternoon', 'evening'];
-                    return (
-                      <td
-                        key={dayIndex}
-                        className={`px-2 py-2 border-r border-slate-200 dark:border-primary-700/60 ${
-                          isToday(day) ? 'bg-primary-50/30 dark:bg-accent-500/10' : ''
-                        }`}
-                      >
-                        <div className="flex flex-col gap-1 min-h-[120px]">
-                          {periods.map((period, index) => {
-                            const cellReservations = getReservationsForCell(room.id, day, period);
-                            const cellId = `${room.id}-${day.toISOString()}-${period}`;
-                            const hasReservations = cellReservations.length > 0;
-                            const firstReservation = cellReservations[0];
-
-                            return (
-                              <div
-                                key={period}
-                                className={`relative flex-1 min-h-[36px] rounded transition-all flex items-center justify-center ${
-                                  hasReservations
-                                    ? `${getStatusColor(firstReservation.status)} hover:opacity-90 cursor-pointer shadow-sm`
-                                    : 'bg-slate-100 dark:bg-primary-900/40'
-                                }`}
-                                onMouseEnter={(e) => hasReservations && handleMouseEnter(cellId, e)}
-                                onMouseLeave={handleMouseLeave}
-                                title={hasReservations ? `${getPeriodLabel(period)} - ${firstReservation.associationId.name}` : getPeriodLabel(period)}
-                              >
-                                {hasReservations ? (
-                                  <>
-                                    {cellReservations.length > 1 && (
-                                      <div className="absolute top-1 right-1 bg-white dark:bg-primary-800/40 rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold shadow border border-slate-300">
-                                        {cellReservations.length}
-                                      </div>
-                                    )}
-                                    <span className="text-[10px] text-white font-bold uppercase">
-                                      {period === 'morning' ? 'M' : period === 'afternoon' ? 'A' : 'S'}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-medium">
-                                    {period === 'morning' ? 'M' : period === 'afternoon' ? 'A' : 'S'}
-                                  </span>
-                                )}
-
-                                {/* Tooltip */}
-                                {hoveredCell === cellId && (
-                                  <div
-                                    className="fixed z-50 w-80 bg-white dark:bg-primary-800/40 rounded-lg shadow-2xl border border-slate-200 dark:border-primary-700/60 p-4"
-                                    style={{
-                                      left: `${tooltipPosition.x}px`,
-                                      top: `${tooltipPosition.y - 10}px`,
-                                      transform: 'translate(-50%, -100%)'
-                                    }}
-                                    onMouseEnter={handleTooltipMouseEnter}
-                                    onMouseLeave={handleTooltipMouseLeave}
-                                  >
-                                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                                      <div className="font-semibold text-sm text-slate-900 dark:text-white border-b pb-2">
-                                        {getPeriodLabel(period)}
-                                      </div>
-
-                                      {cellReservations.map(renderReservationCard)}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      ) : (
-      /* Month Grid */
-      <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow overflow-hidden">
-        {/* Day-of-week headers */}
-        <div className="grid grid-cols-7 bg-slate-50 dark:bg-primary-900/40 border-b border-slate-200 dark:border-primary-700/60">
-          {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((dayName) => (
-            <div
-              key={dayName}
-              className="px-2 py-3 text-center text-xs font-semibold uppercase text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60 last:border-r-0"
-            >
-              {dayName}
-            </div>
-          ))}
-        </div>
-
-        {/* Day cells */}
-        <div className="grid grid-cols-7">
-          {monthDays.map((day, index) => {
-            const dayReservations = getReservationsForDay(day);
-            const maxVisible = 3;
-            const visibleReservations = dayReservations.slice(0, maxVisible);
-            const hiddenCount = dayReservations.length - visibleReservations.length;
-
-            return (
-              <div
-                key={index}
-                className={`min-h-[110px] p-1.5 border-r border-b border-slate-200 dark:border-primary-700/60 [&:nth-child(7n)]:border-r-0 ${
-                  isToday(day)
-                    ? 'bg-primary-50/30 dark:bg-accent-500/10'
-                    : !isCurrentMonth(day)
-                    ? 'bg-slate-50/60 dark:bg-primary-900/20'
-                    : ''
-                }`}
-              >
                 <div
-                  className={`text-xs font-semibold mb-1 ${
-                    isToday(day)
-                      ? 'text-primary-700 dark:text-accent-300'
-                      : isCurrentMonth(day)
-                      ? 'text-slate-900 dark:text-white'
-                      : 'text-slate-400 dark:text-slate-500'
-                  }`}
+                  key={room.id}
+                  className="grid grid-cols-[140px_repeat(7,minmax(0,1fr))] border-b border-slate-200 dark:border-primary-700/60 last:border-b-0"
                 >
-                  {day.getDate()}
-                </div>
-
-                <div className="space-y-1">
-                  {visibleReservations.map((reservation) => {
-                    const cellId = `month-${reservation.id}-${day.toISOString()}`;
+                  <div className="px-3 py-2 text-sm font-medium text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60 flex items-center">
+                    {room.name}
+                  </div>
+                  {weekDays.map((day, i) => {
+                    const dayRes = getForRoomAndDay(room.id, day);
                     return (
                       <div
-                        key={reservation.id}
-                        className={`relative px-1.5 py-0.5 rounded text-[10px] text-white font-medium truncate cursor-pointer hover:opacity-90 shadow-sm ${getStatusColor(reservation.status)}`}
-                        onMouseEnter={(e) => handleMouseEnter(cellId, e)}
-                        onMouseLeave={handleMouseLeave}
-                        title={`${reservation.roomId.name} - ${reservation.associationId.name}`}
+                        key={i}
+                        className={`min-h-[72px] p-1 border-r border-slate-200 dark:border-primary-700/60 last:border-r-0 flex flex-col gap-1 ${
+                          isToday(day) ? 'bg-primary-50/40 dark:bg-accent-500/5' : ''
+                        }`}
                       >
-                        {reservation.roomId.name} · {reservation.associationId.name}
-
-                        {/* Tooltip */}
-                        {hoveredCell === cellId && (
-                          <div
-                            className="fixed z-50 w-80 bg-white dark:bg-primary-800/40 rounded-lg shadow-2xl border border-slate-200 dark:border-primary-700/60 p-4 cursor-default whitespace-normal"
-                            style={{
-                              left: `${tooltipPosition.x}px`,
-                              top: `${tooltipPosition.y - 10}px`,
-                              transform: 'translate(-50%, -100%)'
-                            }}
-                            onMouseEnter={handleTooltipMouseEnter}
-                            onMouseLeave={handleTooltipMouseLeave}
-                          >
-                            <div className="space-y-3 max-h-96 overflow-y-auto">
-                              <div className="font-semibold text-sm text-slate-900 dark:text-white border-b pb-2">
-                                {reservation.roomId.name} — {formatDate(day)}
-                              </div>
-                              {renderReservationCard(reservation)}
-                            </div>
-                          </div>
-                        )}
+                        {dayRes.map((r) => (
+                          <ReservationChip key={r.id} r={r} />
+                        ))}
                       </div>
                     );
                   })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ---- Vue Mois ---- */
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow overflow-hidden">
+          <div className="grid grid-cols-7 bg-slate-50 dark:bg-primary-900/40 border-b border-slate-200 dark:border-primary-700/60">
+            {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((dayName) => (
+              <div
+                key={dayName}
+                className="px-2 py-3 text-center text-xs font-semibold uppercase text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60 last:border-r-0"
+              >
+                {dayName}
+              </div>
+            ))}
+          </div>
 
-                  {hiddenCount > 0 && (
-                    <div className="px-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                      +{hiddenCount} autre{hiddenCount > 1 ? 's' : ''}
-                    </div>
+          <div className="grid grid-cols-7">
+            {monthDays.map((day, index) => {
+              const dayRes = getForDay(day);
+              const visible = dayRes.slice(0, 3);
+              const hidden = dayRes.length - visible.length;
+              return (
+                <div
+                  key={index}
+                  className={`min-h-[110px] p-1.5 border-r border-b border-slate-200 dark:border-primary-700/60 [&:nth-child(7n)]:border-r-0 flex flex-col gap-1 ${
+                    isToday(day)
+                      ? 'bg-primary-50/40 dark:bg-accent-500/10'
+                      : !isCurrentMonth(day)
+                      ? 'bg-slate-50/60 dark:bg-primary-900/20'
+                      : ''
+                  }`}
+                >
+                  <div
+                    className={`text-xs font-semibold ${
+                      isToday(day)
+                        ? 'text-primary-700 dark:text-accent-300'
+                        : isCurrentMonth(day)
+                        ? 'text-slate-900 dark:text-white'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}
+                  >
+                    {day.getDate()}
+                  </div>
+                  {visible.map((r) => (
+                    <ReservationChip key={r.id} r={r} showRoom />
+                  ))}
+                  {hidden > 0 && (
+                    <span className="px-1 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                      +{hidden} autre{hidden > 1 ? 's' : ''}
+                    </span>
                   )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
       )}
 
-      {/* Legend */}
+      {/* Légende */}
       <div className="flex flex-wrap items-center gap-6 bg-white dark:bg-primary-800/40 p-4 rounded-lg shadow">
         <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Légende :</span>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-accent-500 dark:bg-accent-600 shadow-sm"></div>
+          <div className="w-5 h-5 rounded bg-accent-500"></div>
           <span className="text-sm text-slate-600 dark:text-slate-300">Approuvée</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-yellow-500 dark:bg-yellow-600 shadow-sm"></div>
+          <div className="w-5 h-5 rounded bg-yellow-500"></div>
           <span className="text-sm text-slate-600 dark:text-slate-300">En attente</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-slate-100 dark:bg-primary-900/40 border border-slate-300 dark:border-primary-700/60"></div>
-          <span className="text-sm text-slate-600 dark:text-slate-300">Libre</span>
-        </div>
-        {calendarMode === 'week' && (
-          <div className="text-xs text-slate-500 dark:text-slate-400 ml-4">
-            M = Matin (8h-12h) • A = Après-midi (12h-18h) • S = Soir (18h-24h)
-          </div>
-        )}
+        <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">
+          Cliquez sur une réservation pour voir le détail
+        </span>
       </div>
+
+      {/* Modale de détail (remplace les tooltips au survol) */}
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelected(null);
+          }}
+        >
+          <div className="bg-white dark:bg-primary-800/60 rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-primary-700/60 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between p-5 border-b border-slate-200 dark:border-primary-700/60">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {selected.associationId.name}
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  {selected.roomId.name} — {formatDate(selected.date)}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelected(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-primary-900/40 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3 text-sm">
+              <span
+                className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-full ${
+                  selected.status === 'approved'
+                    ? 'bg-accent-100 text-accent-800 dark:bg-accent-500/10 dark:text-accent-300'
+                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                }`}
+              >
+                {selected.status === 'approved' ? 'Approuvée' : 'En attente'}
+              </span>
+
+              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                <Users className="w-4 h-4 shrink-0" />
+                <span>{selected.userId.name}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>{selected.timeSlots.map((s) => formatTimeSlot(s.start, s.end)).join(', ')}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                <Users className="w-4 h-4 shrink-0" />
+                <span>{selected.estimatedParticipants} participants</span>
+              </div>
+              <div className="text-slate-600 dark:text-slate-300">
+                <span className="font-medium">Motif :</span> {selected.reason}
+              </div>
+              {selected.adminComment && (
+                <div className="bg-slate-50 dark:bg-primary-900/40 p-3 rounded-lg text-slate-600 dark:text-slate-300">
+                  <span className="font-medium">Commentaire admin :</span> {selected.adminComment}
+                </div>
+              )}
+            </div>
+
+            {selected.status === 'pending' && (
+              <div className="flex gap-2 p-5 pt-0">
+                <button
+                  onClick={() => {
+                    onApprove(selected.id);
+                    setSelected(null);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-accent-500 hover:bg-accent-600 text-white rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Approuver
+                </button>
+                <button
+                  onClick={() => {
+                    onReject(selected.id);
+                    setSelected(null);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Refuser
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
