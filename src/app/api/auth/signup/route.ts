@@ -71,10 +71,18 @@ export async function POST(req: NextRequest) {
       .limit(1);
 
     if (existingUser.length > 0) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 409 }
-      );
+      // Si le compte a déjà vérifié son email, c'est un vrai doublon : on refuse.
+      if (existingUser[0].emailVerified) {
+        return NextResponse.json(
+          { error: 'User with this email already exists' },
+          { status: 409 }
+        );
+      }
+      // Sinon, l'inscription précédente n'a jamais été menée à terme (email non
+      // vérifié) : on supprime l'enregistrement obsolète pour permettre de
+      // recommencer avec la même adresse. La suppression en cascade retire aussi
+      // les liens user_associations associés.
+      await db.delete(users).where(eq(users.id, existingUser[0].id));
     }
 
     // Liste finale des associations rattachées au compte (peut en contenir plusieurs)
