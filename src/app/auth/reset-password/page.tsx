@@ -57,7 +57,7 @@ function ResetPasswordForm() {
 
       setSuccess(true);
       setTimeout(() => {
-        router.push('/auth/signin');
+        router.push('/');
       }, 3000);
     } catch (error) {
       setError('Une erreur est survenue. Veuillez réessayer.');
@@ -150,7 +150,7 @@ function ResetPasswordForm() {
 
         <div className="mt-6 text-center">
           <Link
-            href="/auth/signin"
+            href="/"
             className="text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300"
           >
             Retour à la connexion

@@ -77,7 +77,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+      router.push('/');
     } else if (status === 'authenticated') {
       fetchDocuments();
       fetch('/api/convention-settings')

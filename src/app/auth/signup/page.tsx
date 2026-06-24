@@ -151,7 +151,7 @@ export default function SignUpPage() {
         setStep(3);
       } else {
         // Redirect to signin with success message
-        router.push('/auth/signin?message=inscription-reussie');
+        router.push('/?message=inscription-reussie');
       }
     } catch (error) {
       setError('Une erreur est survenue. Veuillez réessayer.');
@@ -189,7 +189,7 @@ export default function SignUpPage() {
       }
 
       // Redirect to signin with success message
-      router.push('/auth/signin?message=email-verifie');
+      router.push('/?message=email-verifie');
     } catch (error) {
       setError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
@@ -741,7 +741,7 @@ export default function SignUpPage() {
           <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
             Vous avez déjà un compte ?{' '}
             <Link
-              href="/auth/signin"
+              href="/"
               className="font-semibold text-primary-700 hover:text-primary-800 dark:text-accent-300"
             >
               Se connecter

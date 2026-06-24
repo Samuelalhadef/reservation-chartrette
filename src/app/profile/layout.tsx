@@ -12,7 +12,7 @@ export default async function ProfileLayout({
   const session = await getServerSession(authOptions);
 
   if (!session) {
-    redirect('/auth/signin');
+    redirect('/');
   }
 
   return (

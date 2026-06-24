@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
           <p className="text-sm text-slate-500 mb-6">
             Vérifiez votre boîte de réception et vos spams.
           </p>
-          <Link href="/auth/signin">
+          <Link href="/">
             <Button className="w-full">Retour à la connexion</Button>
           </Link>
         </div>
@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
       subtitle="Entrez votre email pour recevoir un lien de réinitialisation"
     >
         <Link
-          href="/auth/signin"
+          href="/"
           className="inline-flex items-center text-sm text-primary-700 hover:text-primary-800 dark:text-accent-300 dark:hover:text-accent-200 mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
           <p className="text-sm text-slate-600 dark:text-slate-300">
             Vous vous souvenez de votre mot de passe ?{' '}
             <Link
-              href="/auth/signin"
+              href="/"
               className="text-primary-700 hover:text-primary-800 dark:text-accent-300 font-semibold"
             >
               Se connecter

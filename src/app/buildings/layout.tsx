@@ -12,7 +12,7 @@ export default async function BuildingsLayout({
   const session = await getServerSession(authOptions);
 
   if (!session) {
-    redirect('/auth/signin');
+    redirect('/');
   }
 
   return (
