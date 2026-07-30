@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/email';
+import { sendEmail, MAIRIE_EMAIL } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     // Envoyer l'email à l'animateur culturel (destinataire des messages du chatbot)
     await sendEmail({
-      to: 'animateur.culturel@mairie-chartrettes.fr',
+      to: MAIRIE_EMAIL,
       subject: `[Réservation Chartrettes] Question de ${name}`,
       text: `Vous avez reçu un nouveau message de la part de ${name} (${email}):\n\n${message}`,
       html: `

@@ -5,7 +5,7 @@ import { reservations, rooms, associations, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { getUserAssociationIds } from '@/lib/userAssociations';
-import { sendEmail, emailTemplates } from '@/lib/email';
+import { sendEmail, emailTemplates, MAIRIE_EMAIL } from '@/lib/email';
 import { eachDayOfInterval, parseISO, getDay, isSameDay } from 'date-fns';
 
 // Jours de la semaine (index 0 = dimanche, comme getDay()).
@@ -267,23 +267,12 @@ export async function POST(req: NextRequest) {
       // 1) Copie au demandeur
       await sendEmail({ to: user.email, subject, html });
 
-      // 2) Copie aux administrateurs (mêmes infos), pour validation/suivi.
-      //    Envoi séparé pour ne pas exposer les adresses entre destinataires.
-      const adminRows = await db
-        .select({ email: users.email })
-        .from(users)
-        .where(eq(users.role, 'admin'));
-      const adminEmails = adminRows
-        .map((row) => row.email)
-        .filter((email): email is string => !!email && email !== user.email);
-
-      if (adminEmails.length > 0) {
-        await sendEmail({
-          to: adminEmails.join(', '),
-          subject: `[Admin] ${subject} — ${association.name}`,
-          html,
-        });
-      }
+      // 2) Copie à la mairie (mêmes infos), pour validation/suivi.
+      await sendEmail({
+        to: MAIRIE_EMAIL,
+        subject: `[Admin] ${subject} — ${association.name}`,
+        html,
+      });
     }
 
     return NextResponse.json({

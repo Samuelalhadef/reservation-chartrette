@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer';
 
+// Adresse mairie unique : expéditeur (from) de TOUS les mails de l'application
+// ET destinataire des notifications admin (demandes de réservation à l'année,
+// formulaire de contact). Source de vérité côté code pour ne pas dépendre d'une
+// variable d'env prod potentiellement obsolète.
+export const MAIRIE_EMAIL = 'animateur.culturel@mairie-chartrettes.fr';
+
 // Configuration avec port 465 et SSL pour éviter les problèmes de timeout
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_SERVER_HOST || 'smtp.gmail.com',
@@ -36,7 +42,7 @@ export async function sendEmail({ to, subject, html, text, attachments }: EmailO
 
   try {
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'noreply@reservation-chartrettes.fr',
+      from: MAIRIE_EMAIL,
       to,
       subject,
       html,
