@@ -303,7 +303,10 @@ export default function ReservationModal({
       const reservationPromises = selectedRoomIds.map(async (roomIdToReserve) => {
         const requestBody: any = {
           roomId: roomIdToReserve,
-          date: date.toISOString(),
+          // Envoyer le jour calendaire local (ex. "2026-06-18") et NON date.toISOString().
+          // toISOString() convertit minuit Paris en UTC (veille à 22:00/23:00Z), ce qui
+          // décalait la date stockée et affichée dans l'email d'un jour en arrière.
+          date: format(date, 'yyyy-MM-dd'),
           timeSlots,
           reason,
           estimatedParticipants: numberOfPeople,
