@@ -48,16 +48,28 @@ export async function POST(req: NextRequest) {
 
     const data = await req.json();
 
-    if (!data.name || !data.capacity) {
+    if (!data.buildingId || !data.name || !data.capacity) {
       return NextResponse.json(
-        { error: 'Name and capacity are required' },
+        { error: "L'établissement, le nom et la capacité sont obligatoires" },
         { status: 400 }
       );
     }
 
+    // On ne conserve que les champs attendus ; les colonnes JSON
+    // (equipment, images, tarifs, créneaux…) prennent leurs valeurs par défaut.
     const [room] = await db
       .insert(rooms)
-      .values(data)
+      .values({
+        buildingId: String(data.buildingId),
+        name: String(data.name).trim(),
+        description: data.description?.trim() || null,
+        capacity: Number(data.capacity),
+        surface: data.surface != null && data.surface !== '' ? Number(data.surface) : null,
+        rules: data.rules?.trim() || null,
+        isPaid: !!data.isPaid,
+        deposit: data.deposit != null && data.deposit !== '' ? Number(data.deposit) : 0,
+        isActive: data.isActive !== undefined ? !!data.isActive : true,
+      })
       .returning();
 
     return NextResponse.json(
