@@ -9,6 +9,7 @@ import {
   X,
   Eye,
   EyeOff,
+  Trash2,
   Users as UsersIcon,
   Info,
 } from 'lucide-react';
@@ -61,6 +62,8 @@ export default function AdminBuildingsPage() {
   const [roomForm, setRoomForm] = useState({ ...emptyRoom });
   const [savingRoom, setSavingRoom] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [togglingRoomId, setTogglingRoomId] = useState<string | null>(null);
+  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAll();
@@ -160,6 +163,50 @@ export default function AdminBuildingsPage() {
       notify('error', error.message || 'Erreur lors de la création');
     } finally {
       setSavingRoom(false);
+    }
+  };
+
+  const toggleRoom = async (room: Room) => {
+    setTogglingRoomId(room.id);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !room.isActive }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur');
+      notify('success', `Salle ${!room.isActive ? 'activée' : 'désactivée'}.`);
+      await fetchAll();
+    } catch (error: any) {
+      notify('error', error.message || 'Erreur');
+    } finally {
+      setTogglingRoomId(null);
+    }
+  };
+
+  const deleteRoom = async (room: Room) => {
+    const ok = window.confirm(
+      `Supprimer définitivement la salle « ${room.name} » ?\n\n` +
+        `Toutes les réservations liées à cette salle seront aussi supprimées. ` +
+        `Cette action est irréversible.\n\n` +
+        `Astuce : pour la masquer sans perdre l'historique, désactivez-la plutôt.`
+    );
+    if (!ok) return;
+    setDeletingRoomId(room.id);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur');
+      const extra = data.reservationsDeleted
+        ? ` (${data.reservationsDeleted} réservation(s) supprimée(s))`
+        : '';
+      notify('success', `Salle « ${data.roomName} » supprimée${extra}.`);
+      await fetchAll();
+    } catch (error: any) {
+      notify('error', error.message || 'Erreur');
+    } finally {
+      setDeletingRoomId(null);
     }
   };
 
@@ -357,23 +404,47 @@ export default function AdminBuildingsPage() {
                     {bRooms.map((room) => (
                       <div
                         key={room.id}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 dark:border-primary-700/60 px-3 py-2"
+                        className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 ${
+                          room.isActive
+                            ? 'border-slate-200 dark:border-primary-700/60'
+                            : 'border-slate-200 bg-slate-50 dark:bg-primary-900/40 dark:border-primary-700/40'
+                        }`}
                       >
                         <div className="min-w-0">
-                          <p className="font-medium text-slate-800 dark:text-white truncate">
-                            {room.name}
-                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-medium text-slate-800 dark:text-white truncate">
+                              {room.name}
+                            </p>
+                            {!room.isActive && (
+                              <span className="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-primary-700/60 dark:text-slate-300">
+                                inactive
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                             <UsersIcon className="w-3 h-3" /> {room.capacity} pers.
                             {room.surface ? ` · ${room.surface} m²` : ''}
                             {room.isPaid ? ' · payante' : ' · gratuite'}
                           </p>
                         </div>
-                        {!room.isActive && (
-                          <span className="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-primary-700/60 dark:text-slate-300">
-                            inactive
-                          </span>
-                        )}
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <button
+                            onClick={() => toggleRoom(room)}
+                            disabled={togglingRoomId === room.id || deletingRoomId === room.id}
+                            title={room.isActive ? 'Désactiver la salle' : 'Activer la salle'}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-primary-700 hover:bg-slate-100 dark:hover:bg-primary-700/40 disabled:opacity-40 transition-colors"
+                          >
+                            {room.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => deleteRoom(room)}
+                            disabled={deletingRoomId === room.id || togglingRoomId === room.id}
+                            title="Supprimer la salle"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-40 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

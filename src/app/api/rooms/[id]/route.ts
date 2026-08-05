@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { rooms } from '@/lib/db/schema';
+import { rooms, reservations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // PATCH /api/rooms/[id] - Update room pricing and settings
@@ -35,6 +35,7 @@ export async function PATCH(
       pricingHalfDay,
       pricingHourly,
       deposit,
+      isActive,
     } = body;
 
     const { id } = await params;
@@ -76,6 +77,12 @@ export async function PATCH(
       updateData.deposit = deposit;
     }
 
+    if (isActive !== undefined) {
+      updateData.isActive = !!isActive;
+    }
+
+    updateData.updatedAt = new Date();
+
     // Mettre à jour la salle
     const [updatedRoom] = await db
       .update(rooms)
@@ -84,13 +91,61 @@ export async function PATCH(
       .returning();
 
     return NextResponse.json({
-      message: 'Tarifs mis à jour avec succès',
+      message: 'Salle mise à jour avec succès',
       room: updatedRoom,
     });
   } catch (error) {
-    console.error('Erreur lors de la mise à jour des tarifs:', error);
+    console.error('Erreur lors de la mise à jour de la salle:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la mise à jour des tarifs' },
+      { error: 'Erreur lors de la mise à jour de la salle' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/rooms/[id] - Supprimer une salle (admin uniquement).
+// Les réservations rattachées à la salle sont supprimées d'abord (contrainte FK).
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
+    }
+
+    const { id } = await params;
+
+    const [room] = await db.select().from(rooms).where(eq(rooms.id, id)).limit(1);
+    if (!room) {
+      return NextResponse.json({ error: 'Salle non trouvée' }, { status: 404 });
+    }
+
+    // Compter puis supprimer les réservations liées, sinon la contrainte FK bloque.
+    const roomReservations = await db
+      .select({ id: reservations.id })
+      .from(reservations)
+      .where(eq(reservations.roomId, id));
+
+    if (roomReservations.length > 0) {
+      await db.delete(reservations).where(eq(reservations.roomId, id));
+    }
+
+    await db.delete(rooms).where(eq(rooms.id, id));
+
+    return NextResponse.json({
+      message: 'Salle supprimée',
+      roomName: room.name,
+      reservationsDeleted: roomReservations.length,
+    });
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la salle:', error);
+    return NextResponse.json(
+      { error: 'Erreur lors de la suppression de la salle' },
       { status: 500 }
     );
   }
