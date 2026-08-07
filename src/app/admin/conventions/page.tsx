@@ -22,6 +22,7 @@ type ConventionType = 'ponctuelle' | 'annuelle';
 
 interface ConventionItem {
   type: ConventionType;
+  signed: boolean;
   id: string;
   signedAt: string | Date | null;
   signature: string | null;
@@ -45,6 +46,7 @@ interface ConventionItem {
 }
 
 type TypeFilter = 'all' | ConventionType;
+type SignedFilter = 'all' | 'signed' | 'unsigned';
 
 const SETTINGS_FIELDS: Array<{ key: string; label: string; hint?: string }> = [
   { key: 'mayorName', label: 'Nom du maire', hint: 'Ex: Pascal Gros' },
@@ -64,7 +66,8 @@ export default function AdminConventionsPage() {
   const [search, setSearch] = useState('');
   const [associationFilter, setAssociationFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'signer' | 'association'>('date');
+  const [signedFilter, setSignedFilter] = useState<SignedFilter>('all');
+  const [sortBy, setSortBy] = useState<'date' | 'signer' | 'association' | 'signed'>('date');
 
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
 
@@ -146,6 +149,10 @@ export default function AdminConventionsPage() {
       arr = arr.filter(i => i.type === typeFilter);
     }
 
+    if (signedFilter !== 'all') {
+      arr = arr.filter(i => (signedFilter === 'signed' ? i.signed : !i.signed));
+    }
+
     if (associationFilter !== 'all') {
       arr = arr.filter(i => {
         const id = i.associationId || `__${i.associationName}`;
@@ -175,14 +182,21 @@ export default function AdminConventionsPage() {
       sorted.sort((a, b) => a.signerName.localeCompare(b.signerName));
     } else if (sortBy === 'association') {
       sorted.sort((a, b) => a.associationName.localeCompare(b.associationName));
+    } else if (sortBy === 'signed') {
+      // Non signées d'abord (ce sont les relances à faire), puis par nom d'association
+      sorted.sort((a, b) => {
+        if (a.signed !== b.signed) return a.signed ? 1 : -1;
+        return a.associationName.localeCompare(b.associationName);
+      });
     }
     return sorted;
-  }, [items, typeFilter, associationFilter, search, sortBy]);
+  }, [items, typeFilter, signedFilter, associationFilter, search, sortBy]);
 
   const resetFilters = () => {
     setSearch('');
     setAssociationFilter('all');
     setTypeFilter('all');
+    setSignedFilter('all');
     setSortBy('date');
   };
 
@@ -317,7 +331,8 @@ export default function AdminConventionsPage() {
     () => ({
       total: items.length,
       ponctuelles: items.filter(i => i.type === 'ponctuelle').length,
-      annuelles: items.filter(i => i.type === 'annuelle').length,
+      annuelles: items.filter(i => i.type === 'annuelle' && i.signed).length,
+      nonSignees: items.filter(i => !i.signed).length,
     }),
     [items]
   );
@@ -331,9 +346,10 @@ export default function AdminConventionsPage() {
             <FileText className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Conventions signées</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Conventions</h1>
             <p className="text-sm text-slate-600">
-              Toutes les conventions de mise à disposition signées électroniquement
+              Conventions de mise à disposition signées électroniquement, et associations
+              qui n&apos;ont pas encore signé leur convention annuelle
             </p>
           </div>
         </div>
@@ -409,7 +425,7 @@ export default function AdminConventionsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="card p-4">
           <p className="text-xs text-slate-500">Total</p>
           <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
@@ -419,14 +435,25 @@ export default function AdminConventionsPage() {
           <p className="text-2xl font-bold text-primary-700">{stats.ponctuelles}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-slate-500">Annuelles</p>
+          <p className="text-xs text-slate-500">Annuelles signées</p>
           <p className="text-2xl font-bold text-accent-600">{stats.annuelles}</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setSignedFilter(f => (f === 'unsigned' ? 'all' : 'unsigned'))}
+          className={`card p-4 text-left transition-all hover:border-amber-400 ${
+            signedFilter === 'unsigned' ? 'ring-2 ring-amber-400' : ''
+          }`}
+          title="Afficher uniquement les conventions non signées"
+        >
+          <p className="text-xs text-slate-500">Non signées</p>
+          <p className="text-2xl font-bold text-amber-600">{stats.nonSignees}</p>
+        </button>
       </div>
 
       {/* Filtres */}
       <div className="card p-4 mb-4">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Recherche */}
           <div className="relative">
             <label className="block text-xs font-medium text-slate-600 mb-1">Recherche</label>
@@ -454,6 +481,20 @@ export default function AdminConventionsPage() {
             </select>
           </div>
 
+          {/* Signature */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Signature</label>
+            <select
+              value={signedFilter}
+              onChange={e => setSignedFilter(e.target.value as SignedFilter)}
+              className="input text-sm"
+            >
+              <option value="all">Toutes</option>
+              <option value="signed">Signées</option>
+              <option value="unsigned">Non signées</option>
+            </select>
+          </div>
+
           {/* Association */}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Association</label>
@@ -478,13 +519,14 @@ export default function AdminConventionsPage() {
               className="input text-sm"
             >
               <option value="date">Date (récent → ancien)</option>
+              <option value="signed">Statut (non signées d&apos;abord)</option>
               <option value="signer">Signataire (A → Z)</option>
               <option value="association">Association (A → Z)</option>
             </select>
           </div>
         </div>
 
-        {(search || typeFilter !== 'all' || associationFilter !== 'all' || sortBy !== 'date') && (
+        {(search || typeFilter !== 'all' || signedFilter !== 'all' || associationFilter !== 'all' || sortBy !== 'date') && (
           <div className="mt-3 flex items-center justify-between">
             <p className="text-xs text-slate-500">
               {filtered.length} résultat{filtered.length > 1 ? 's' : ''} sur {items.length}
@@ -580,7 +622,11 @@ export default function AdminConventionsPage() {
                             {format(new Date(item.signedAt), 'HH:mm', { locale: fr })}
                           </div>
                         </div>
-                      ) : '—'}
+                      ) : (
+                        <span className="badge badge-warning whitespace-nowrap">
+                          Non signée
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {item.signature ? (
@@ -627,7 +673,11 @@ export default function AdminConventionsPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       {item.type === 'annuelle' ? (
-                        item.validatedAt ? (
+                        !item.signed ? (
+                          <span className="text-xs text-slate-400 whitespace-nowrap">
+                            En attente de signature
+                          </span>
+                        ) : item.validatedAt ? (
                           <span className="badge badge-success whitespace-nowrap">Validée</span>
                         ) : (
                           <button
@@ -676,11 +726,13 @@ export default function AdminConventionsPage() {
                       {item.reservationDate && ` — ${format(new Date(item.reservationDate), 'd MMM yyyy', { locale: fr })}`}
                     </div>
                   )}
-                  {item.signedAt && (
+                  {item.signedAt ? (
                     <div className="flex items-center gap-1.5">
                       <UserIcon className="h-3.5 w-3.5 text-slate-400" />
                       Signée le {format(new Date(item.signedAt), 'd MMM yyyy à HH:mm', { locale: fr })}
                     </div>
+                  ) : (
+                    <span className="badge badge-warning">Non signée</span>
                   )}
                 </div>
                 {item.signature && (
