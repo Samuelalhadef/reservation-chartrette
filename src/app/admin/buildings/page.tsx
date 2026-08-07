@@ -12,6 +12,7 @@ import {
   Trash2,
   Users as UsersIcon,
   Info,
+  Pencil,
 } from 'lucide-react';
 import Button from '@/components/Button';
 
@@ -28,8 +29,10 @@ interface Room {
   id: string;
   buildingId: string;
   name: string;
+  description: string | null;
   capacity: number;
   surface: number | null;
+  deposit: number | null;
   isActive: boolean;
   isPaid: boolean;
 }
@@ -45,8 +48,134 @@ const emptyRoom = {
   isActive: true,
 };
 
+type RoomFormState = typeof emptyRoom;
+
+/** Pré-remplit le formulaire à partir d'une salle existante (édition). */
+const roomToForm = (room: Room): RoomFormState => ({
+  name: room.name,
+  capacity: String(room.capacity),
+  surface: room.surface != null ? String(room.surface) : '',
+  description: room.description || '',
+  isPaid: !!room.isPaid,
+  deposit: room.deposit != null ? String(room.deposit) : '',
+  isActive: !!room.isActive,
+});
+
 const fieldClass =
   'w-full px-4 py-2 border-2 border-slate-200 dark:border-primary-700/60 rounded-lg focus:border-accent-500 focus:ring-2 focus:ring-accent-200 dark:bg-primary-950 dark:text-white transition-colors';
+
+/**
+ * Champs d'une salle, partagés entre la création et la modification.
+ * Le parent gère l'état et la soumission ; ce composant ne fait que l'affichage.
+ */
+function RoomFields({
+  form,
+  onChange,
+}: {
+  form: RoomFormState;
+  onChange: (patch: Partial<RoomFormState>) => void;
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            Nom de la salle <span className="text-red-500">*</span>
+          </label>
+          <input
+            className={fieldClass}
+            placeholder="Ex : Grande salle"
+            value={form.name}
+            onChange={(e) => onChange({ name: e.target.value })}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Capacité <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="1"
+              className={fieldClass}
+              placeholder="Ex : 50"
+              value={form.capacity}
+              onChange={(e) => onChange({ capacity: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Surface (m²)
+            </label>
+            <input
+              type="number"
+              min="0"
+              className={fieldClass}
+              placeholder="Ex : 80"
+              value={form.surface}
+              onChange={(e) => onChange({ surface: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            Description / règlement (optionnel)
+          </label>
+          <textarea
+            className={fieldClass}
+            rows={2}
+            placeholder="Équipements, consignes particulières…"
+            value={form.description}
+            onChange={(e) => onChange({ description: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.isPaid}
+            onChange={(e) => onChange({ isPaid: e.target.checked })}
+            className="w-5 h-5 text-accent-600 rounded focus:ring-2 focus:ring-accent-500"
+          />
+          <span className="font-medium text-slate-800 dark:text-slate-200">Salle payante</span>
+        </label>
+        {form.isPaid && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600 dark:text-slate-300">Caution (€)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className={`${fieldClass} w-28`}
+              placeholder="0"
+              value={form.deposit}
+              onChange={(e) => onChange({ deposit: e.target.value })}
+            />
+          </div>
+        )}
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.isActive}
+            onChange={(e) => onChange({ isActive: e.target.checked })}
+            className="w-5 h-5 text-accent-600 rounded focus:ring-2 focus:ring-accent-500"
+          />
+          <span className="font-medium text-slate-800 dark:text-slate-200">Active</span>
+        </label>
+      </div>
+
+      <div className="mt-3 flex items-start gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <span>
+          Les tarifs détaillés (par profil et durée) se règlent dans l&apos;onglet
+          <b> Tarifs</b>. Ici, seuls la caution et le caractère payant sont définis.
+        </span>
+      </div>
+    </>
+  );
+}
 
 export default function AdminBuildingsPage() {
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -59,8 +188,11 @@ export default function AdminBuildingsPage() {
   const [savingBuilding, setSavingBuilding] = useState(false);
 
   const [addingRoomFor, setAddingRoomFor] = useState<string | null>(null);
-  const [roomForm, setRoomForm] = useState({ ...emptyRoom });
+  const [roomForm, setRoomForm] = useState<RoomFormState>({ ...emptyRoom });
   const [savingRoom, setSavingRoom] = useState(false);
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [editRoomForm, setEditRoomForm] = useState<RoomFormState>({ ...emptyRoom });
+  const [savingRoomEdit, setSavingRoomEdit] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [togglingRoomId, setTogglingRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
@@ -138,7 +270,47 @@ export default function AdminBuildingsPage() {
 
   const openRoomForm = (buildingId: string) => {
     setRoomForm({ ...emptyRoom });
+    setEditingRoomId(null);
     setAddingRoomFor(buildingId);
+  };
+
+  const openRoomEdit = (room: Room) => {
+    setEditRoomForm(roomToForm(room));
+    setAddingRoomFor(null);
+    setEditingRoomId(room.id);
+  };
+
+  const saveRoomEdit = async (room: Room) => {
+    if (!editRoomForm.name.trim() || !editRoomForm.capacity) {
+      notify('error', 'Le nom et la capacité de la salle sont obligatoires.');
+      return;
+    }
+    setSavingRoomEdit(true);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editRoomForm.name,
+          description: editRoomForm.description,
+          capacity: editRoomForm.capacity,
+          surface: editRoomForm.surface,
+          isPaid: editRoomForm.isPaid,
+          // Une salle repassée en gratuite ne conserve pas sa caution
+          deposit: editRoomForm.isPaid ? editRoomForm.deposit : 0,
+          isActive: editRoomForm.isActive,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur lors de la modification');
+      notify('success', `Salle « ${data.room.name} » modifiée.`);
+      setEditingRoomId(null);
+      await fetchAll();
+    } catch (error: any) {
+      notify('error', error.message || 'Erreur lors de la modification');
+    } finally {
+      setSavingRoomEdit(false);
+    }
   };
 
   const createRoom = async (buildingId: string) => {
@@ -405,7 +577,9 @@ export default function AdminBuildingsPage() {
                       <div
                         key={room.id}
                         className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 ${
-                          room.isActive
+                          editingRoomId === room.id
+                            ? 'border-accent-400 ring-2 ring-accent-200 dark:border-accent-500/60'
+                            : room.isActive
                             ? 'border-slate-200 dark:border-primary-700/60'
                             : 'border-slate-200 bg-slate-50 dark:bg-primary-900/40 dark:border-primary-700/40'
                         }`}
@@ -428,6 +602,16 @@ export default function AdminBuildingsPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <button
+                            onClick={() =>
+                              editingRoomId === room.id ? setEditingRoomId(null) : openRoomEdit(room)
+                            }
+                            disabled={togglingRoomId === room.id || deletingRoomId === room.id}
+                            title="Modifier les informations de la salle"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-accent-600 hover:bg-accent-50 dark:hover:bg-accent-500/10 disabled:opacity-40 transition-colors"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => toggleRoom(room)}
                             disabled={togglingRoomId === room.id || deletingRoomId === room.id}
@@ -465,102 +649,10 @@ export default function AdminBuildingsPage() {
                         <X className="w-5 h-5" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                          Nom de la salle <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          className={fieldClass}
-                          placeholder="Ex : Grande salle"
-                          value={roomForm.name}
-                          onChange={(e) => setRoomForm({ ...roomForm, name: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                            Capacité <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            className={fieldClass}
-                            placeholder="Ex : 50"
-                            value={roomForm.capacity}
-                            onChange={(e) => setRoomForm({ ...roomForm, capacity: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                            Surface (m²)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            className={fieldClass}
-                            placeholder="Ex : 80"
-                            value={roomForm.surface}
-                            onChange={(e) => setRoomForm({ ...roomForm, surface: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                          Description / règlement (optionnel)
-                        </label>
-                        <textarea
-                          className={fieldClass}
-                          rows={2}
-                          placeholder="Équipements, consignes particulières…"
-                          value={roomForm.description}
-                          onChange={(e) => setRoomForm({ ...roomForm, description: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap items-center gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={roomForm.isPaid}
-                          onChange={(e) => setRoomForm({ ...roomForm, isPaid: e.target.checked })}
-                          className="w-5 h-5 text-accent-600 rounded focus:ring-2 focus:ring-accent-500"
-                        />
-                        <span className="font-medium text-slate-800 dark:text-slate-200">Salle payante</span>
-                      </label>
-                      {roomForm.isPaid && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-slate-600 dark:text-slate-300">Caution (€)</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            className={`${fieldClass} w-28`}
-                            placeholder="0"
-                            value={roomForm.deposit}
-                            onChange={(e) => setRoomForm({ ...roomForm, deposit: e.target.value })}
-                          />
-                        </div>
-                      )}
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={roomForm.isActive}
-                          onChange={(e) => setRoomForm({ ...roomForm, isActive: e.target.checked })}
-                          className="w-5 h-5 text-accent-600 rounded focus:ring-2 focus:ring-accent-500"
-                        />
-                        <span className="font-medium text-slate-800 dark:text-slate-200">Active</span>
-                      </label>
-                    </div>
-
-                    <div className="mt-3 flex items-start gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <span>
-                        Les tarifs détaillés (par profil et durée) se règlent ensuite dans l'onglet
-                        <b> Tarifs</b>. Ici, seuls la caution et le caractère payant sont définis.
-                      </span>
-                    </div>
+                    <RoomFields
+                      form={roomForm}
+                      onChange={(patch) => setRoomForm((f) => ({ ...f, ...patch }))}
+                    />
 
                     <div className="mt-4">
                       <Button
@@ -570,6 +662,46 @@ export default function AdminBuildingsPage() {
                       >
                         <Save className="h-4 w-4 mr-2" />
                         Ajouter la salle
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Formulaire de modification d'une salle du bâtiment */}
+                {bRooms.some((r) => r.id === editingRoomId) && (
+                  <div className="mt-5 rounded-lg border-2 border-accent-200 dark:border-accent-500/40 bg-accent-50/50 dark:bg-accent-500/5 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h5 className="font-semibold text-primary-800 dark:text-white">
+                        Modifier «&nbsp;{bRooms.find((r) => r.id === editingRoomId)?.name}&nbsp;»
+                      </h5>
+                      <button
+                        onClick={() => setEditingRoomId(null)}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        aria-label="Fermer"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <RoomFields
+                      form={editRoomForm}
+                      onChange={(patch) => setEditRoomForm((f) => ({ ...f, ...patch }))}
+                    />
+
+                    <div className="mt-4 flex items-center gap-2">
+                      <Button
+                        variant="success"
+                        onClick={() => {
+                          const room = bRooms.find((r) => r.id === editingRoomId);
+                          if (room) saveRoomEdit(room);
+                        }}
+                        isLoading={savingRoomEdit}
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Enregistrer les modifications
+                      </Button>
+                      <Button variant="outline" onClick={() => setEditingRoomId(null)}>
+                        Annuler
                       </Button>
                     </div>
                   </div>

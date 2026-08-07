@@ -30,6 +30,10 @@ export async function PATCH(
 
     const body = await req.json();
     const {
+      name,
+      description,
+      capacity,
+      surface,
       isPaid,
       pricingFullDay,
       pricingHalfDay,
@@ -57,6 +61,49 @@ export async function PATCH(
     // Préparer les données à mettre à jour
     const updateData: any = {};
 
+    // Informations descriptives de la salle. Chaque champ est optionnel : seuls
+    // ceux présents dans le corps sont modifiés (mise à jour partielle).
+    if (name !== undefined) {
+      const trimmed = String(name).trim();
+      if (!trimmed) {
+        return NextResponse.json(
+          { error: 'Le nom de la salle ne peut pas être vide' },
+          { status: 400 }
+        );
+      }
+      updateData.name = trimmed;
+    }
+
+    if (description !== undefined) {
+      updateData.description = String(description).trim() || null;
+    }
+
+    if (capacity !== undefined) {
+      const parsed = Number(capacity);
+      if (!Number.isFinite(parsed) || parsed < 1) {
+        return NextResponse.json(
+          { error: 'La capacité doit être un nombre supérieur ou égal à 1' },
+          { status: 400 }
+        );
+      }
+      updateData.capacity = Math.floor(parsed);
+    }
+
+    if (surface !== undefined) {
+      if (surface === null || surface === '') {
+        updateData.surface = null;
+      } else {
+        const parsed = Number(surface);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          return NextResponse.json(
+            { error: 'La surface doit être un nombre positif' },
+            { status: 400 }
+          );
+        }
+        updateData.surface = parsed;
+      }
+    }
+
     if (isPaid !== undefined) {
       updateData.isPaid = isPaid;
     }
@@ -74,7 +121,15 @@ export async function PATCH(
     }
 
     if (deposit !== undefined) {
-      updateData.deposit = deposit;
+      // Le formulaire envoie une chaîne (champ vide = pas de caution)
+      const parsed = deposit === null || deposit === '' ? 0 : Number(deposit);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return NextResponse.json(
+          { error: 'La caution doit être un nombre positif' },
+          { status: 400 }
+        );
+      }
+      updateData.deposit = parsed;
     }
 
     if (isActive !== undefined) {
