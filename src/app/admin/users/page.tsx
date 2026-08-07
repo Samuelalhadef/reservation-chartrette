@@ -1,9 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Users, Mail, Shield, CheckCircle, XCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrateur',
+  user: "Membre d'association",
+  particulier: 'Particulier',
+};
 
 interface User {
   id: string;
@@ -23,9 +30,12 @@ interface User {
 }
 
 export default function AdminUsersPage() {
+  const { data: session } = useSession();
+  const currentUserId = (session?.user as any)?.id as string | undefined;
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
@@ -81,25 +91,55 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleChangeRole = async (user: User, newRole: string) => {
+    if (newRole === user.role) return;
+
+    const promoting = newRole === 'admin';
+    const confirmText = promoting
+      ? `Donner les droits d'administrateur à « ${user.name} » ?\n\n` +
+        `Cette personne pourra gérer les réservations, les salles, les tarifs et les autres comptes.`
+      : `Changer le rôle de « ${user.name} » en ${ROLE_LABELS[newRole]} ?`;
+    if (!confirm(confirmText)) return;
+
+    setUpdatingRoleId(user.id);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur lors du changement de rôle');
+
+      if (data.warning) alert(data.warning);
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Error updating role:', error);
+      alert(error.message || 'Erreur lors du changement de rôle');
+    } finally {
+      setUpdatingRoleId(null);
+    }
+  };
+
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'admin':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-300">
             <Shield className="w-3 h-3" />
-            Administrateur
+            {ROLE_LABELS.admin}
           </span>
         );
       case 'particulier':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-accent-300">
-            Particulier
+            {ROLE_LABELS.particulier}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-accent-100 dark:bg-accent-900/20 text-accent-800 dark:text-accent-300">
-            Utilisateur
+            {ROLE_LABELS.user}
           </span>
         );
     }
@@ -203,9 +243,9 @@ export default function AdminUsersPage() {
               className="w-full px-4 py-2 border border-slate-200 dark:border-primary-700/60 rounded-lg focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-800/40 text-slate-900 dark:text-white"
             >
               <option value="all">Tous les rôles</option>
-              <option value="admin">Administrateurs</option>
-              <option value="user">Utilisateurs</option>
-              <option value="particulier">Particuliers</option>
+              <option value="admin">{ROLE_LABELS.admin}</option>
+              <option value="user">{ROLE_LABELS.user}</option>
+              <option value="particulier">{ROLE_LABELS.particulier}</option>
             </select>
           </div>
           <div>
@@ -283,7 +323,31 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getRoleBadge(user.role)}
+                      {user.id === currentUserId ? (
+                        // Son propre rôle n'est pas modifiable : cela reviendrait à
+                        // pouvoir se retirer soi-même l'accès à cette page.
+                        <div className="flex flex-col gap-1">
+                          {getRoleBadge(user.role)}
+                          <span className="text-xs text-slate-400">vous</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={user.role}
+                            onChange={(e) => handleChangeRole(user, e.target.value)}
+                            disabled={updatingRoleId === user.id}
+                            className="px-3 py-1.5 text-sm border border-slate-200 dark:border-primary-700/60 rounded-lg bg-white dark:bg-primary-800/40 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+                            title="Changer le rôle de cet utilisateur"
+                          >
+                            <option value="user">{ROLE_LABELS.user}</option>
+                            <option value="particulier">{ROLE_LABELS.particulier}</option>
+                            <option value="admin">{ROLE_LABELS.admin}</option>
+                          </select>
+                          {updatingRoleId === user.id && (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600" />
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {user.association ? (
@@ -368,6 +432,11 @@ export default function AdminUsersPage() {
               <li>• Les utilisateurs avec des réservations actives ne peuvent pas être supprimés</li>
               <li>• Les comptes administrateurs sont protégés contre la suppression</li>
               <li>• Vous ne pouvez pas supprimer votre propre compte</li>
+              <li>• Vous ne pouvez pas modifier votre propre rôle, ni retirer le dernier administrateur</li>
+              <li>
+                • Un <strong>membre d&apos;association</strong> doit être rattaché à une association
+                pour pouvoir réserver
+              </li>
             </ul>
           </div>
         </div>
