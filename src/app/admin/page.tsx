@@ -268,19 +268,10 @@ export default function AdminDashboard() {
         {/* Top Rooms */}
         <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60">
           <div className="p-6 border-b border-slate-200 dark:border-primary-700/60">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2" />
-                Salles les plus réservées
-              </h2>
-              <Link
-                href="/admin/room-stats"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-700 to-primary-800 hover:from-primary-800 hover:to-primary-900 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Voir statistiques détaillées
-              </Link>
-            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
+              <BarChart3 className="h-5 w-5 mr-2" />
+              Salles les plus réservées
+            </h2>
           </div>
           <div className="p-6">
             {stats.reservationsByRoom.length > 0 ? (

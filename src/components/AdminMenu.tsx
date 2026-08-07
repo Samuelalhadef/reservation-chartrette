@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Building2, Calendar, Euro, FileText, PieChart, Users } from 'lucide-react';
+import { BarChart3, Building2, Calendar, Euro, FileText, Users } from 'lucide-react';
 
 const items = [
   { href: '/admin/reservations', label: 'Réservations', icon: Calendar },
@@ -10,7 +10,6 @@ const items = [
   { href: '/admin/buildings', label: 'Établissements', icon: Building2 },
   { href: '/admin/conventions', label: 'Conventions', icon: FileText },
   { href: '/admin/pricing', label: 'Tarifs', icon: Euro },
-  { href: '/admin/room-stats', label: 'Stats salles', icon: PieChart },
   { href: '/admin/users', label: 'Utilisateurs', icon: Users },
 ];
 
