@@ -8,6 +8,12 @@ import { sendEmail, emailTemplates } from '@/lib/email';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
 import { calculateReservationPrice } from '@/lib/pricing';
 import { getUserAssociationIds } from '@/lib/userAssociations';
+import { isMairieAssociationName } from '@/lib/mairieAssociation';
+
+/** Une signature de convention valide est une image encodée en data URL. */
+function hasValidSignature(signature: unknown): boolean {
+  return typeof signature === 'string' && signature.startsWith('data:image/');
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -158,14 +164,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Convention obligatoire pour toute réservation ponctuelle créée par un non-admin
-    if (session.user?.role !== 'admin') {
-      if (!data.signature || typeof data.signature !== 'string' || !data.signature.startsWith('data:image/')) {
-        return NextResponse.json(
-          { error: 'Signature de convention requise pour finaliser la réservation' },
-          { status: 400 }
-        );
-      }
+    // Convention obligatoire pour toute réservation ponctuelle créée par un non-admin.
+    // Côté admin, la règle dépend du bénéficiaire : voir le contrôle après la
+    // résolution de l'association (seule la mairie en est dispensée).
+    if (session.user?.role !== 'admin' && !hasValidSignature(data.signature)) {
+      return NextResponse.json(
+        { error: 'Signature de convention requise pour finaliser la réservation' },
+        { status: 400 }
+      );
     }
 
     // Determine the target user ID
@@ -230,6 +236,17 @@ export async function POST(req: NextRequest) {
       if (!customAssoc) {
         return NextResponse.json(
           { error: 'Association sélectionnée non trouvée' },
+          { status: 400 }
+        );
+      }
+
+      // Un admin qui réserve pour un tiers met une salle à disposition : la
+      // convention suit le chemin habituel. Seule la mairie en est dispensée.
+      if (!isMairieAssociationName(customAssoc.name) && !hasValidSignature(data.signature)) {
+        return NextResponse.json(
+          {
+            error: `La convention de mise à disposition doit être signée par « ${customAssoc.name} » pour finaliser la réservation`,
+          },
           { status: 400 }
         );
       }

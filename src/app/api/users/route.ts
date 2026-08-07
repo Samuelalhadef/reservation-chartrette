@@ -22,10 +22,16 @@ export async function GET() {
       associationId: users.associationId,
     }).from(users);
 
-    // Get all associations
+    // Get all associations.
+    // Les coordonnées du contact sont incluses : elles pré-remplissent la convention
+    // quand un admin réserve au nom d'une association (route admin uniquement).
     const allAssociations = await db.select({
       id: associations.id,
       name: associations.name,
+      address: associations.address,
+      contactName: associations.contactName,
+      contactEmail: associations.contactEmail,
+      contactPhone: associations.contactPhone,
     }).from(associations)
       .where(eq(associations.status, 'active'));
 

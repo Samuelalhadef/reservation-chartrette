@@ -8,10 +8,15 @@ import { useSession } from 'next-auth/react';
 import ConventionModal, { ConventionSignerData, MairieSettings } from './ConventionModal';
 import { formatPrice, getDurationTypeLabel, getUserTypeLabel } from '@/lib/pricing';
 import type { PricingResult } from '@/lib/pricing';
+import { isMairieAssociationName } from '@/lib/mairieAssociation';
 
 interface Association {
   id: string;
   name: string;
+  address?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
 }
 
 interface ReservationModalProps {
@@ -171,6 +176,26 @@ export default function ReservationModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userAssociationId]);
 
+  // Association pour laquelle l'admin réserve (vide = Mairie)
+  const adminAssociation = isAdmin
+    ? associations.find((a) => a.id === selectedAssociationId) || null
+    : null;
+
+  // La convention est due dès que la réservation n'est PAS au nom de la mairie.
+  // Un admin qui réserve pour une association fait donc signer comme un membre.
+  const requiresConvention = isAdmin
+    ? Boolean(adminAssociation) && !isMairieAssociationName(adminAssociation?.name)
+    : true;
+
+  // L'admin change d'association : la convention doit être établie au nom de la
+  // nouvelle association, l'éventuelle signature précédente n'est plus valable.
+  useEffect(() => {
+    if (!isAdmin || !profileUser) return;
+    setSignerData(buildSignerData(profileUser, adminAssociation));
+    setSignatureDataUrl(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAssociationId, isAdmin, profileUser]);
+
   const loadPricing = async () => {
     setIsLoadingPrice(true);
     try {
@@ -265,9 +290,9 @@ export default function ReservationModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Les admins ne signent pas (ils créent au nom de la collectivité ou d'une asso)
-    if (!isAdmin && !signatureDataUrl) {
-      alert('Vous devez signer la convention avant de valider la réservation.');
+    // Seules les réservations au nom de la mairie sont dispensées de convention.
+    if (requiresConvention && !signatureDataUrl) {
+      alert('La convention doit être signée avant de valider la réservation.');
       return;
     }
 
@@ -313,7 +338,7 @@ export default function ReservationModal({
           requiredEquipment: [],
         };
 
-        // Signature de convention (obligatoire pour non-admin)
+        // Signature de convention (obligatoire hors réservation au nom de la mairie)
         if (signatureDataUrl) {
           requestBody.signature = signatureDataUrl;
         }
@@ -525,7 +550,11 @@ export default function ReservationModal({
                     <option key={assoc.id} value={assoc.id}>{assoc.name}</option>
                   ))}
                 </select>
-                <p className="text-xs text-slate-600 mt-1">En tant qu'administrateur, vous n'avez pas à signer de convention.</p>
+                <p className="text-xs text-slate-600 mt-1">
+                  {requiresConvention
+                    ? `La réservation n'est pas au nom de la mairie : la convention doit être lue et signée par ${adminAssociation?.contactName || 'le représentant de l\'association'}.`
+                    : 'Réservation au nom de la mairie : aucune convention à signer.'}
+                </p>
               </div>
             ) : (
               <div>
@@ -541,8 +570,8 @@ export default function ReservationModal({
               </div>
             )}
 
-            {/* Bloc convention (uniquement pour non-admin) */}
-            {!isAdmin && (
+            {/* Bloc convention — masqué uniquement pour les réservations de la mairie */}
+            {requiresConvention && (
               <div className={`p-4 rounded-xl border-2 ${
                 signatureDataUrl
                   ? 'bg-accent-50 border-accent-300'
@@ -564,7 +593,9 @@ export default function ReservationModal({
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-600 mt-1">
                       {signatureDataUrl
-                        ? 'Votre signature est prête. Vous pouvez valider la réservation.'
+                        ? 'La signature est prête. Vous pouvez valider la réservation.'
+                        : isAdmin
+                        ? `Réservation au nom de ${adminAssociation?.name} : la convention de mise à disposition doit être signée par son représentant.`
                         : 'Chaque réservation ponctuelle nécessite la signature de la convention de mise à disposition.'}
                     </p>
                     {signatureDataUrl && (
@@ -671,12 +702,12 @@ export default function ReservationModal({
           <button
             type="submit"
             form="reservation-form"
-            disabled={isSubmitting || (!isAdmin && !signatureDataUrl)}
+            disabled={isSubmitting || (requiresConvention && !signatureDataUrl)}
             className="w-full sm:flex-1 px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base bg-primary-700 hover:bg-primary-800 text-white rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting
               ? 'Réservation...'
-              : (!isAdmin && !signatureDataUrl)
+              : (requiresConvention && !signatureDataUrl)
               ? 'Signez la convention'
               : 'Réserver'}
           </button>
