@@ -46,7 +46,37 @@ interface ConventionItem {
 }
 
 type TypeFilter = 'all' | ConventionType;
-type SignedFilter = 'all' | 'signed' | 'unsigned';
+
+/**
+ * Cycle de vie d'une convention, du point de vue des signatures :
+ *  - unsigned  : aucune signature — l'association n'a pas encore signé
+ *  - pending   : 1 signature — l'association a signé, la mairie doit valider
+ *  - validated : 2 signatures — association + maire
+ * Pour une convention ponctuelle, la signature du maire est apposée à
+ * l'approbation de la réservation : c'est le statut de celle-ci qui fait foi.
+ */
+type ConventionStatus = 'unsigned' | 'pending' | 'validated';
+type StatusFilter = 'all' | ConventionStatus;
+
+function getStatus(item: ConventionItem): ConventionStatus {
+  if (!item.signed) return 'unsigned';
+  const validated =
+    item.type === 'annuelle' ? Boolean(item.validatedAt) : item.reservationStatus === 'approved';
+  return validated ? 'validated' : 'pending';
+}
+
+const STATUS_LABELS: Record<ConventionStatus, string> = {
+  unsigned: 'Non signée',
+  pending: 'En attente de validation',
+  validated: 'Validée',
+};
+
+/** Ordre du tri par statut : ce qui reste à traiter remonte en premier. */
+const STATUS_ORDER: Record<ConventionStatus, number> = {
+  unsigned: 0,
+  pending: 1,
+  validated: 2,
+};
 
 const SETTINGS_FIELDS: Array<{ key: string; label: string; hint?: string }> = [
   { key: 'mayorName', label: 'Nom du maire', hint: 'Ex: Pascal Gros' },
@@ -66,8 +96,8 @@ export default function AdminConventionsPage() {
   const [search, setSearch] = useState('');
   const [associationFilter, setAssociationFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-  const [signedFilter, setSignedFilter] = useState<SignedFilter>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'signer' | 'association' | 'signed'>('date');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sortBy, setSortBy] = useState<'date' | 'signer' | 'association' | 'status'>('date');
 
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
 
@@ -149,8 +179,8 @@ export default function AdminConventionsPage() {
       arr = arr.filter(i => i.type === typeFilter);
     }
 
-    if (signedFilter !== 'all') {
-      arr = arr.filter(i => (signedFilter === 'signed' ? i.signed : !i.signed));
+    if (statusFilter !== 'all') {
+      arr = arr.filter(i => getStatus(i) === statusFilter);
     }
 
     if (associationFilter !== 'all') {
@@ -182,21 +212,22 @@ export default function AdminConventionsPage() {
       sorted.sort((a, b) => a.signerName.localeCompare(b.signerName));
     } else if (sortBy === 'association') {
       sorted.sort((a, b) => a.associationName.localeCompare(b.associationName));
-    } else if (sortBy === 'signed') {
-      // Non signées d'abord (ce sont les relances à faire), puis par nom d'association
+    } else if (sortBy === 'status') {
+      // Ce qui reste à traiter d'abord (non signées, puis à valider)
       sorted.sort((a, b) => {
-        if (a.signed !== b.signed) return a.signed ? 1 : -1;
+        const diff = STATUS_ORDER[getStatus(a)] - STATUS_ORDER[getStatus(b)];
+        if (diff !== 0) return diff;
         return a.associationName.localeCompare(b.associationName);
       });
     }
     return sorted;
-  }, [items, typeFilter, signedFilter, associationFilter, search, sortBy]);
+  }, [items, typeFilter, statusFilter, associationFilter, search, sortBy]);
 
   const resetFilters = () => {
     setSearch('');
     setAssociationFilter('all');
     setTypeFilter('all');
-    setSignedFilter('all');
+    setStatusFilter('all');
     setSortBy('date');
   };
 
@@ -330,9 +361,9 @@ export default function AdminConventionsPage() {
   const stats = useMemo(
     () => ({
       total: items.length,
-      ponctuelles: items.filter(i => i.type === 'ponctuelle').length,
-      annuelles: items.filter(i => i.type === 'annuelle' && i.signed).length,
-      nonSignees: items.filter(i => !i.signed).length,
+      validees: items.filter(i => getStatus(i) === 'validated').length,
+      enAttente: items.filter(i => getStatus(i) === 'pending').length,
+      nonSignees: items.filter(i => getStatus(i) === 'unsigned').length,
     }),
     [items]
   );
@@ -425,26 +456,48 @@ export default function AdminConventionsPage() {
       </div>
 
       {/* Stats */}
+      {/* Stats — chaque état filtre la liste au clic */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div className="card p-4">
-          <p className="text-xs text-slate-500">Total</p>
-          <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs text-slate-500">Ponctuelles</p>
-          <p className="text-2xl font-bold text-primary-700">{stats.ponctuelles}</p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs text-slate-500">Annuelles signées</p>
-          <p className="text-2xl font-bold text-accent-600">{stats.annuelles}</p>
-        </div>
         <button
           type="button"
-          onClick={() => setSignedFilter(f => (f === 'unsigned' ? 'all' : 'unsigned'))}
-          className={`card p-4 text-left transition-all hover:border-amber-400 ${
-            signedFilter === 'unsigned' ? 'ring-2 ring-amber-400' : ''
+          onClick={() => setStatusFilter('all')}
+          className={`card p-4 text-left transition-all hover:border-slate-400 ${
+            statusFilter === 'all' ? 'ring-2 ring-slate-400' : ''
           }`}
-          title="Afficher uniquement les conventions non signées"
+          title="Afficher toutes les conventions"
+        >
+          <p className="text-xs text-slate-500">Total</p>
+          <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(f => (f === 'validated' ? 'all' : 'validated'))}
+          className={`card p-4 text-left transition-all hover:border-accent-400 ${
+            statusFilter === 'validated' ? 'ring-2 ring-accent-400' : ''
+          }`}
+          title="Conventions signées par l'association et validées par la mairie"
+        >
+          <p className="text-xs text-slate-500">Validées (2 signatures)</p>
+          <p className="text-2xl font-bold text-accent-600">{stats.validees}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(f => (f === 'pending' ? 'all' : 'pending'))}
+          className={`card p-4 text-left transition-all hover:border-primary-400 ${
+            statusFilter === 'pending' ? 'ring-2 ring-primary-400' : ''
+          }`}
+          title="Signées par l'association, en attente de validation par la mairie"
+        >
+          <p className="text-xs text-slate-500">À valider (1 signature)</p>
+          <p className="text-2xl font-bold text-primary-700">{stats.enAttente}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(f => (f === 'unsigned' ? 'all' : 'unsigned'))}
+          className={`card p-4 text-left transition-all hover:border-amber-400 ${
+            statusFilter === 'unsigned' ? 'ring-2 ring-amber-400' : ''
+          }`}
+          title="Associations qui n'ont pas encore signé"
         >
           <p className="text-xs text-slate-500">Non signées</p>
           <p className="text-2xl font-bold text-amber-600">{stats.nonSignees}</p>
@@ -481,16 +534,17 @@ export default function AdminConventionsPage() {
             </select>
           </div>
 
-          {/* Signature */}
+          {/* Statut de signature / validation */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Signature</label>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Statut</label>
             <select
-              value={signedFilter}
-              onChange={e => setSignedFilter(e.target.value as SignedFilter)}
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as StatusFilter)}
               className="input text-sm"
             >
-              <option value="all">Toutes</option>
-              <option value="signed">Signées</option>
+              <option value="all">Tous</option>
+              <option value="validated">Validées (2 signatures)</option>
+              <option value="pending">À valider (1 signature)</option>
               <option value="unsigned">Non signées</option>
             </select>
           </div>
@@ -519,14 +573,14 @@ export default function AdminConventionsPage() {
               className="input text-sm"
             >
               <option value="date">Date (récent → ancien)</option>
-              <option value="signed">Statut (non signées d&apos;abord)</option>
+              <option value="status">Statut (à traiter d&apos;abord)</option>
               <option value="signer">Signataire (A → Z)</option>
               <option value="association">Association (A → Z)</option>
             </select>
           </div>
         </div>
 
-        {(search || typeFilter !== 'all' || signedFilter !== 'all' || associationFilter !== 'all' || sortBy !== 'date') && (
+        {(search || typeFilter !== 'all' || statusFilter !== 'all' || associationFilter !== 'all' || sortBy !== 'date') && (
           <div className="mt-3 flex items-center justify-between">
             <p className="text-xs text-slate-500">
               {filtered.length} résultat{filtered.length > 1 ? 's' : ''} sur {items.length}
@@ -689,8 +743,13 @@ export default function AdminConventionsPage() {
                             {validatingId === item.id ? '...' : 'Valider'}
                           </button>
                         )
+                      ) : getStatus(item) === 'validated' ? (
+                        // Ponctuelle : le maire signe à l'approbation de la réservation
+                        <span className="badge badge-success whitespace-nowrap">Validée</span>
                       ) : (
-                        <span className="text-xs text-slate-300">—</span>
+                        <span className="badge badge-neutral whitespace-nowrap">
+                          Réservation à approuver
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -731,9 +790,20 @@ export default function AdminConventionsPage() {
                       <UserIcon className="h-3.5 w-3.5 text-slate-400" />
                       Signée le {format(new Date(item.signedAt), 'd MMM yyyy à HH:mm', { locale: fr })}
                     </div>
-                  ) : (
-                    <span className="badge badge-warning">Non signée</span>
-                  )}
+                  ) : null}
+                  <div>
+                    <span
+                      className={`badge ${
+                        getStatus(item) === 'validated'
+                          ? 'badge-success'
+                          : getStatus(item) === 'pending'
+                          ? 'badge-info'
+                          : 'badge-warning'
+                      }`}
+                    >
+                      {STATUS_LABELS[getStatus(item)]}
+                    </span>
+                  </div>
                 </div>
                 {item.signature && (
                   <div className="space-y-2 mt-2">
@@ -775,9 +845,8 @@ export default function AdminConventionsPage() {
                           <FileText className="w-3.5 h-3.5" />
                           Convention PDF
                         </button>
-                        {item.validatedAt ? (
-                          <span className="block text-center badge badge-success w-full">Validée par la mairie</span>
-                        ) : (
+                        {/* Le statut est déjà affiché plus haut : ne reste ici que l'action */}
+                        {!item.validatedAt && (
                           <button
                             type="button"
                             onClick={() => validateYearly(item)}
@@ -789,6 +858,12 @@ export default function AdminConventionsPage() {
                         )}
                       </>
                     )}
+                  </div>
+                )}
+                {/* Association sans signature : pas de bloc PDF, mais le rappel reste utile */}
+                {!item.signature && (
+                  <div className="text-xs text-slate-500">
+                    Convention annuelle non signée — aucun document disponible.
                   </div>
                 )}
               </div>
