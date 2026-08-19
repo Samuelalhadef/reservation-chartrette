@@ -1,16 +1,44 @@
 import nodemailer from 'nodemailer';
 
-// Adresse mairie unique : expéditeur (from) de TOUS les mails de l'application
-// ET destinataire des notifications admin (demandes de réservation à l'année,
-// formulaire de contact). Source de vérité côté code pour ne pas dépendre d'une
-// variable d'env prod potentiellement obsolète.
-export const MAIRIE_EMAIL = 'animateur.culturel@mairie-chartrettes.fr';
+// --- Adresses ---------------------------------------------------------------
+// Deux adresses distinctes, avec deux rôles différents :
+//
+// FROM_ADDRESS (var. EMAIL_FROM) : adresse technique d'expédition. C'est le
+//   service informatique de la mairie qui porte la boîte SMTP, donc tous les
+//   mails de l'application partent de là — confirmations de réservation,
+//   codes de vérification, notifications d'approbation/refus.
+//   Attention : le serveur SMTP réécrit le From vers le compte authentifié
+//   (EMAIL_SERVER_USER) si cette adresse n'est pas la sienne ou un de ses alias
+//   autorisés. EMAIL_FROM doit donc correspondre au compte configuré.
+//
+// MAIRIE_EMAIL (var. EMAIL_ADMIN) : contact métier. Destinataire des
+//   notifications admin (formulaire de contact, demandes de réservation à
+//   l'année) ET adresse de réponse (Reply-To) des mails sortants : quand une
+//   association répond à une confirmation, le message part vers l'animateur
+//   culturel, pas vers le service informatique.
+//
+// Les littéraux servent de repli si la variable d'env est absente, pour ne pas
+// dépendre d'une configuration prod incomplète.
+export const MAIRIE_EMAIL =
+  process.env.EMAIL_ADMIN?.trim() || 'animateur.culturel@mairie-chartrettes.fr';
 
-// Configuration avec port 465 et SSL pour éviter les problèmes de timeout
+const FROM_ADDRESS =
+  process.env.EMAIL_FROM?.trim() || 'serviceinformatique@mairie-chartrettes.fr';
+const FROM_NAME = process.env.EMAIL_FROM_NAME?.trim() || 'Réservation Chartrettes';
+
+/** En-tête From complet, ex : "Réservation Chartrettes" <adresse@exemple.fr> */
+export const EMAIL_FROM = `"${FROM_NAME}" <${FROM_ADDRESS}>`;
+
+// --- Transport SMTP ---------------------------------------------------------
+// Port 465 (SSL implicite) par défaut : évite les timeouts observés en 587
+// (STARTTLS). Surchargeable via EMAIL_SERVER_PORT si le serveur de la mairie
+// n'expose que 587.
+const SMTP_PORT = Number(process.env.EMAIL_SERVER_PORT) || 465;
+
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_SERVER_HOST || 'smtp.gmail.com',
-  port: 465, // Port SSL au lieu de 587 (STARTTLS)
-  secure: true, // SSL activé
+  port: SMTP_PORT,
+  secure: SMTP_PORT === 465, // SSL implicite en 465, STARTTLS sinon
   auth: {
     user: process.env.EMAIL_SERVER_USER,
     pass: process.env.EMAIL_SERVER_PASSWORD,
@@ -34,15 +62,20 @@ interface EmailOptions {
   html: string;
   text?: string;
   attachments?: EmailAttachment[];
+  /** Adresse de réponse spécifique (par défaut : MAIRIE_EMAIL). */
+  replyTo?: string;
 }
 
-export async function sendEmail({ to, subject, html, text, attachments }: EmailOptions) {
+export async function sendEmail({ to, subject, html, text, attachments, replyTo }: EmailOptions) {
   // En développement local, si l'email échoue, on log simplement
   const isDev = process.env.NODE_ENV === 'development';
 
   try {
     const info = await transporter.sendMail({
-      from: MAIRIE_EMAIL,
+      from: EMAIL_FROM,
+      // Les réponses des associations doivent arriver à la mairie, même si
+      // l'expéditeur technique est une adresse noreply.
+      replyTo: replyTo || MAIRIE_EMAIL,
       to,
       subject,
       html,
@@ -97,7 +130,9 @@ export const emailTemplates = {
     count: number,
     weeklySummaryHtml: string,
     datesListHtml: string,
-    isApproved: boolean
+    isApproved: boolean,
+    // Dates demandées alors qu'un autre créneau est déjà pris : la mairie doit arbitrer.
+    conflictsListHtml?: string
   ) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #2563eb;">Demande de réservation à l'année reçue</h2>
@@ -127,6 +162,22 @@ export const emailTemplates = {
           ${datesListHtml}
         </tbody>
       </table>
+
+      ${conflictsListHtml
+        ? `
+      <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; margin: 24px 0;">
+        <p style="margin: 0 0 8px 0; color: #991b1b;">
+          ⚠️ <strong>Dates déjà réservées par un autre demandeur</strong>
+        </p>
+        <p style="margin: 0 0 8px 0; color: #7f1d1d;">
+          La demande a été transmise à la mairie pour arbitrage. Ces dates ne sont pas
+          acquises tant qu'un administrateur n'a pas tranché entre les demandes.
+        </p>
+        <ul style="margin: 0; color: #7f1d1d;">
+          ${conflictsListHtml}
+        </ul>
+      </div>`
+        : ''}
 
       ${isApproved
         ? `<p style="margin-top: 24px;">Ces réservations ont été <strong>automatiquement approuvées</strong>.</p>`

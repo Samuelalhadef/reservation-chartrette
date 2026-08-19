@@ -25,6 +25,8 @@ export async function POST(req: NextRequest) {
     // Envoyer l'email à l'animateur culturel (destinataire des messages du chatbot)
     await sendEmail({
       to: MAIRIE_EMAIL,
+      // La mairie répond directement au visiteur depuis sa messagerie.
+      replyTo: email,
       subject: `[Réservation Chartrettes] Question de ${name}`,
       text: `Vous avez reçu un nouveau message de la part de ${name} (${email}):\n\n${message}`,
       html: `
