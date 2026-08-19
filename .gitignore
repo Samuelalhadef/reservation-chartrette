@@ -39,3 +39,6 @@ next-env.d.ts
 # guide administrateur (outillage de génération + PDF avec données réelles / RGPD)
 /guide-build/
 /Guide-Administrateur-Chartrettes.pdf
+
+# Base SQLite de développement local
+local.db
