@@ -8,6 +8,10 @@ import ViewToggle from '@/components/ViewToggle';
 import CalendarView from '@/components/CalendarView';
 import PaymentModal from '@/components/PaymentModal';
 import ConflictsPanel, { type ConflictGroup } from '@/components/ConflictsPanel';
+import {
+  type RecurringConflict,
+  type RecurringParty,
+} from '@/components/RecurringConflictsPanel';
 import ValidationQueue from '@/components/ValidationQueue';
 import { formatPrice } from '@/lib/pricing';
 
@@ -48,10 +52,17 @@ export default function AdminReservationsPage() {
   const [queueCount, setQueueCount] = useState<number | null>(null);
   // Créneaux demandés par plusieurs personnes, à arbitrer
   const [conflictGroups, setConflictGroups] = useState<ConflictGroup[]>([]);
+  // Les mêmes conflits regroupés par demandes opposées : un cours à l'année
+  // n'appelle qu'un arbitrage, pas un par date.
+  const [recurringConflicts, setRecurringConflicts] = useState<RecurringConflict[]>([]);
   const [conflictsLoading, setConflictsLoading] = useState(true);
   const [arbitrationModal, setArbitrationModal] = useState<{
     group: ConflictGroup;
     winnerId: string;
+  } | null>(null);
+  const [seriesArbitrationModal, setSeriesArbitrationModal] = useState<{
+    conflict: RecurringConflict;
+    winner: RecurringParty;
   } | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -78,6 +89,7 @@ export default function AdminReservationsPage() {
       if (!res.ok) return;
       const data = await res.json();
       setConflictGroups(data.conflicts || []);
+      setRecurringConflicts(data.recurring || []);
     } catch (error) {
       console.error('Error fetching conflicts:', error);
     } finally {
@@ -312,6 +324,76 @@ export default function AdminReservationsPage() {
     }
   };
 
+  // Arbitrage d'un conflit récurrent : la série retenue est validée sur toutes
+  // ses dates disputées, les séries concurrentes y sont refusées. On passe par
+  // l'API de décision groupée pour que chaque occupant ne reçoive qu'un seul
+  // email récapitulatif, et non un par date.
+  const handleSeriesArbitration = async () => {
+    if (!seriesArbitrationModal) return;
+
+    const { conflict, winner } = seriesArbitrationModal;
+    const losers = conflict.parties.filter(
+      p => p.seriesKey !== winner.seriesKey && p.pendingCount > 0
+    );
+
+    if (!comment.trim()) {
+      alert('Veuillez indiquer le motif communiqué aux demandes refusées');
+      return;
+    }
+
+    setProcessingId(winner.seriesKey);
+
+    try {
+      const decide = (action: 'approved' | 'rejected', parties: RecurringParty[]) =>
+        fetch('/api/admin/pending-requests/decide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            adminComment: action === 'rejected' ? comment.trim() : undefined,
+            requests: parties.map(p => ({ key: p.seriesKey, ids: p.ids })),
+          }),
+        });
+
+      const approveRes = await decide('approved', [winner]);
+      const approveData = await approveRes.json();
+
+      if (!approveRes.ok || approveData.failed?.length > 0) {
+        alert(approveData.error || "La série retenue n'a pas pu être validée");
+        return;
+      }
+
+      let rejected = 0;
+
+      if (losers.length > 0) {
+        const rejectRes = await decide('rejected', losers);
+        const rejectData = await rejectRes.json();
+
+        if (!rejectRes.ok || rejectData.failed?.length > 0) {
+          alert(
+            `Série retenue validée, mais certains refus n'ont pas abouti. Traitez-les manuellement.`
+          );
+          return;
+        }
+
+        rejected = rejectData.processedReservations ?? 0;
+      }
+
+      alert(
+        `Conflit arbitré : ${approveData.processedReservations} date(s) validée(s), ${rejected} refusée(s).`
+      );
+
+      await Promise.all([fetchReservations(), fetchConflicts()]);
+      setSeriesArbitrationModal(null);
+      setComment('');
+    } catch (error) {
+      console.error('Error arbitrating recurring conflict:', error);
+      alert('Une erreur est survenue');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   // Taille de la série annuelle dont fait partie une demande (0 si ponctuelle).
   const getSeriesCount = (reservationId: string) => {
     const reservation = reservations.find(r => r.id === reservationId);
@@ -398,6 +480,7 @@ export default function AdminReservationsPage() {
         ) : filter === 'conflicts' ? (
           <ConflictsPanel
             conflicts={conflictGroups}
+            recurring={recurringConflicts}
             loading={conflictsLoading}
             processingId={processingId}
             getSeriesCount={getSeriesCount}
@@ -407,6 +490,10 @@ export default function AdminReservationsPage() {
               setArbitrationModal({ group, winnerId });
               setComment('');
               setConfirmationText('');
+            }}
+            onArbitrateSeries={(conflict, winner) => {
+              setSeriesArbitrationModal({ conflict, winner });
+              setComment('');
             }}
           />
         ) : loading ? (
@@ -1011,6 +1098,94 @@ export default function AdminReservationsPage() {
                   onClick={handleArbitration}
                   isLoading={processingId === winnerId}
                   disabled={processingId !== null || !comment.trim() || !isConfirmationValid}
+                  className="flex-1"
+                >
+                  Valider l&apos;arbitrage
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {seriesArbitrationModal && (() => {
+        const { conflict, winner } = seriesArbitrationModal;
+        const losers = conflict.parties.filter(
+          p => p.seriesKey !== winner.seriesKey && p.pendingCount > 0
+        );
+        const rejectedDates = losers.reduce((sum, p) => sum + p.ids.length, 0);
+
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-xl max-w-md w-full p-6 border border-slate-200 dark:border-primary-700/60 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xl font-bold text-primary-800 dark:text-white mb-1 flex items-center gap-2">
+                <Gavel className="h-5 w-5" />
+                Arbitrer le conflit récurrent
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                {conflict.roomName} — {conflict.weeklyPattern.join(', ')} — {conflict.periodLabel}
+              </p>
+
+              <div className="mb-4 p-3 bg-accent-50 dark:bg-accent-900/20 border-2 border-accent-200 dark:border-accent-700 rounded-lg">
+                <p className="text-sm font-semibold text-accent-900 dark:text-accent-100 mb-1">
+                  Demande retenue sur {winner.ids.length} date(s)
+                </p>
+                <p className="text-sm text-accent-800 dark:text-accent-200">
+                  {winner.userName}
+                  {winner.associationName ? ` — ${winner.associationName}` : ''} ({winner.hours})
+                </p>
+                <p className="text-xs text-accent-700 dark:text-accent-300 mt-1">{winner.reason}</p>
+              </div>
+
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-700 rounded-lg">
+                <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-1">
+                  {losers.length} demande(s) refusée(s), soit {rejectedDates} date(s)
+                </p>
+                <ul className="text-sm text-red-800 dark:text-red-200 list-disc list-inside">
+                  {losers.map(loser => (
+                    <li key={loser.seriesKey}>
+                      {loser.userName}
+                      {loser.associationName ? ` — ${loser.associationName}` : ''} (
+                      {loser.ids.length} date{loser.ids.length > 1 ? 's' : ''})
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                  Le refus supprime les dates concernées et envoie un seul email récapitulatif par
+                  demandeur, avec le motif ci-dessous.
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Motif communiqué aux demandes refusées (obligatoire)
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/30 text-slate-900 dark:text-slate-100"
+                  placeholder="Ex. : ce créneau a été attribué à une autre association pour l'année, contactez la mairie pour un créneau de repli."
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSeriesArbitrationModal(null);
+                    setComment('');
+                  }}
+                  className="flex-1"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  variant="success"
+                  onClick={handleSeriesArbitration}
+                  isLoading={processingId === winner.seriesKey}
+                  disabled={processingId !== null || !comment.trim()}
                   className="flex-1"
                 >
                   Valider l&apos;arbitrage

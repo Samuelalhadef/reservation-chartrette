@@ -1,7 +1,22 @@
 'use client';
 
-import { AlertTriangle, CheckCircle, Clock, Gavel, Repeat, Users, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import {
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle,
+  Clock,
+  Gavel,
+  LayoutList,
+  Repeat,
+  Users,
+  XCircle,
+} from 'lucide-react';
 import Button from '@/components/Button';
+import RecurringConflictsPanel, {
+  type RecurringConflict,
+  type RecurringParty,
+} from '@/components/RecurringConflictsPanel';
 
 /** Une demande concurrente sur un créneau disputé. */
 export interface ConflictClaim {
@@ -15,6 +30,7 @@ export interface ConflictClaim {
   userName: string;
   userEmail: string;
   associationName: string;
+  seriesKey: string;
 }
 
 /** Un créneau disputé : une salle, un jour, et les demandes qui se chevauchent. */
@@ -31,6 +47,8 @@ export interface ConflictGroup {
 
 interface ConflictsPanelProps {
   conflicts: ConflictGroup[];
+  /** Les mêmes conflits, regroupés par demandes opposées. */
+  recurring: RecurringConflict[];
   loading: boolean;
   processingId: string | null;
   /** Nombre de réservations de la série annuelle dont fait partie la demande (0 si ponctuelle). */
@@ -39,17 +57,24 @@ interface ConflictsPanelProps {
   onReject: (reservationId: string) => void;
   /** Valider une demande et refuser toutes les autres du même créneau. */
   onArbitrate: (group: ConflictGroup, winnerId: string) => void;
+  /** Trancher un conflit récurrent d'un bloc, sur toutes ses dates. */
+  onArbitrateSeries: (conflict: RecurringConflict, winner: RecurringParty) => void;
 }
 
 export default function ConflictsPanel({
   conflicts,
+  recurring,
   loading,
   processingId,
   getSeriesCount,
   onApprove,
   onReject,
   onArbitrate,
+  onArbitrateSeries,
 }: ConflictsPanelProps) {
+  // Vue par défaut : les conflits regroupés. Une série hebdomadaire à l'année
+  // remplit sinon la page de quarante fois la même question.
+  const [view, setView] = useState<'recurring' | 'dates'>('recurring');
   if (loading) {
     return (
       <div className="p-8 text-center text-slate-600 dark:text-slate-300">
@@ -58,19 +83,54 @@ export default function ConflictsPanel({
     );
   }
 
-  if (conflicts.length === 0) {
-    return (
-      <div className="p-8 text-center">
-        <CheckCircle className="h-10 w-10 mx-auto mb-3 text-accent-600" />
-        <p className="text-slate-600 dark:text-slate-300">
-          Aucun créneau disputé : aucune date à venir n&apos;est demandée par plusieurs personnes.
-        </p>
-      </div>
-    );
-  }
+  const emptyState = (
+    <div className="p-8 text-center">
+      <CheckCircle className="h-10 w-10 mx-auto mb-3 text-accent-600" />
+      <p className="text-slate-600 dark:text-slate-300">
+        Aucun créneau disputé : aucune date à venir n&apos;est demandée par plusieurs personnes.
+      </p>
+    </div>
+  );
+
+  const repeatingCount = recurring.filter(c => c.dateCount > 1).length;
+  const tabClass = (active: boolean) =>
+    `px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+      active
+        ? 'bg-primary-700 text-white'
+        : 'bg-slate-100 dark:bg-primary-700/40 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-primary-700/60'
+    }`;
 
   return (
-    <div className="space-y-4 p-4">
+    <div>
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-4">
+        <button onClick={() => setView('recurring')} className={tabClass(view === 'recurring')}>
+          <Repeat className="h-4 w-4" />
+          Conflits regroupés ({recurring.length})
+        </button>
+        <button onClick={() => setView('dates')} className={tabClass(view === 'dates')}>
+          <LayoutList className="h-4 w-4" />
+          Date par date ({conflicts.length})
+        </button>
+        {view === 'dates' && repeatingCount > 0 && (
+          <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+            <CalendarDays className="h-3 w-3" />
+            {repeatingCount} conflit{repeatingCount > 1 ? 's' : ''} se répète
+            {repeatingCount > 1 ? 'nt' : ''} à l&apos;identique — la vue regroupée évite de trancher
+            plusieurs fois la même question.
+          </span>
+        )}
+      </div>
+
+      {view === 'recurring' ? (
+        <RecurringConflictsPanel
+          recurring={recurring}
+          processingId={processingId}
+          onArbitrateSeries={onArbitrateSeries}
+        />
+      ) : conflicts.length === 0 ? (
+        emptyState
+      ) : (
+        <div className="space-y-4 p-4">
       <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
         <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
         <p className="text-sm text-amber-900 dark:text-amber-100">
@@ -200,6 +260,8 @@ export default function ConflictsPanel({
           </div>
         </div>
       ))}
+        </div>
+      )}
     </div>
   );
 }

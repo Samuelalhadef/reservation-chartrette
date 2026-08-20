@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { findConflictGroups } from '@/lib/reservationConflicts';
+import { findConflictsOverview } from '@/lib/reservationConflicts';
 
 /**
  * Créneaux disputés à arbitrer : dates où plusieurs demandes se chevauchent sur
  * la même salle et où au moins une reste en attente de validation.
+ *
+ * Renvoyés sous deux angles : date par date (`conflicts`), et regroupés par
+ * conflit récurrent (`recurring`) — un cours hebdomadaire à l'année produit
+ * sinon une quarantaine de créneaux disputés strictement identiques.
  */
 export async function GET() {
   try {
@@ -15,9 +19,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const conflicts = await findConflictGroups();
+    const { groups, recurring } = await findConflictsOverview();
 
-    return NextResponse.json({ conflicts });
+    return NextResponse.json({ conflicts: groups, recurring });
   } catch (error) {
     console.error('Erreur lors de la détection des conflits:', error);
     return NextResponse.json(

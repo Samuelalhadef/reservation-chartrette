@@ -1,4 +1,3 @@
-import { createHash } from 'crypto';
 import { db } from '@/lib/db';
 import { reservations, rooms, users, associations } from '@/lib/db/schema';
 import { and, eq, inArray, gte } from 'drizzle-orm';
@@ -7,6 +6,7 @@ import {
   formatFrDate,
   formatHourRanges,
   parisDayKey,
+  requestKey,
   slotListsOverlap,
   type HourSlot,
 } from '@/lib/reservationConflicts';
@@ -90,21 +90,9 @@ interface Row {
   totalPrice: number | null;
 }
 
-/**
- * Clé de regroupement d'une demande. Les lignes d'une même soumission sont
- * créées dans la même boucle : même occupant, même salle, même motif, et
- * horodatage à la minute près.
- */
-export function requestKey(row: {
-  userId: string;
-  roomId: string;
-  reason: string;
-  createdAt: Date;
-}): string {
-  const minute = Math.floor(row.createdAt.getTime() / 60000);
-  const reasonHash = createHash('sha1').update(row.reason).digest('hex').slice(0, 8);
-  return `${row.userId}:${row.roomId}:${minute}:${reasonHash}`;
-}
+// La clé de regroupement est partagée avec la détection de conflits, pour que
+// les deux vues parlent bien des mêmes séries.
+export { requestKey };
 
 function slotsOf(row: { timeSlots: unknown }): HourSlot[] {
   return (row.timeSlots as HourSlot[]) ?? [];
