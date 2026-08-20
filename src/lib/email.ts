@@ -186,6 +186,61 @@ export const emailTemplates = {
     </div>
   `,
 
+  /**
+   * Décision de la mairie sur une demande couvrant plusieurs dates (réservation
+   * à l'année). Un seul email récapitulatif, quel que soit le nombre de dates.
+   */
+  seriesDecision: (
+    userName: string,
+    roomName: string,
+    associationName: string,
+    periodLabel: string,
+    count: number,
+    datesListHtml: string,
+    decision: 'approved' | 'rejected',
+    adminComment?: string
+  ) => `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: ${decision === 'approved' ? '#16a34a' : '#dc2626'};">
+        ${decision === 'approved' ? 'Réservations approuvées' : 'Demande de réservation refusée'}
+      </h2>
+      <p>Bonjour ${userName},</p>
+      <p>
+        ${decision === 'approved'
+          ? `Votre demande de réservation a été <strong>approuvée</strong> par la mairie pour l'ensemble des dates ci-dessous :`
+          : `Votre demande de réservation n'a pas pu être retenue pour les dates ci-dessous :`}
+      </p>
+      <ul>
+        <li><strong>Salle :</strong> ${roomName}</li>
+        ${associationName ? `<li><strong>Association :</strong> ${associationName}</li>` : ''}
+        <li><strong>Période :</strong> ${periodLabel}</li>
+        <li><strong>Nombre de créneaux :</strong> ${count}</li>
+      </ul>
+
+      ${adminComment
+        ? `<p><strong>${decision === 'approved' ? 'Message de la mairie' : 'Motif du refus'} :</strong><br/>${adminComment}</p>`
+        : ''}
+
+      <h3 style="color: #2563eb; margin-top: 24px;">Détail des dates concernées</h3>
+      <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+        <thead>
+          <tr style="background-color: #f3f4f6;">
+            <th style="text-align: left; padding: 8px; border: 1px solid #e5e7eb;">Date</th>
+            <th style="text-align: left; padding: 8px; border: 1px solid #e5e7eb;">Horaires</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${datesListHtml}
+        </tbody>
+      </table>
+
+      ${decision === 'approved'
+        ? `<p style="margin-top: 24px;">N'oubliez pas de respecter le règlement de la salle et de laisser les lieux propres après chaque utilisation.</p>`
+        : `<p style="margin-top: 24px;">Vous pouvez soumettre une nouvelle demande en tenant compte de ces informations.</p>`}
+      <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
+    </div>
+  `,
+
   reservationApproved: (userName: string, roomName: string, date: string, timeSlots: string, adminComment?: string, hasConvention?: boolean) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #16a34a;">Réservation approuvée</h2>

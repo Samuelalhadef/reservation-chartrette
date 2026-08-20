@@ -8,6 +8,7 @@ import ViewToggle from '@/components/ViewToggle';
 import CalendarView from '@/components/CalendarView';
 import PaymentModal from '@/components/PaymentModal';
 import ConflictsPanel, { type ConflictGroup } from '@/components/ConflictsPanel';
+import ValidationQueue from '@/components/ValidationQueue';
 import { formatPrice } from '@/lib/pricing';
 
 interface Reservation {
@@ -40,7 +41,11 @@ export default function AdminReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'conflicts'>('pending');
+  // « queue » : la file de validation, regroupée par demande. C'est l'entrée par
+  // défaut — la liste ligne par ligne devient vite ingérable sur une année
+  // scolaire complète (une ligne par date et par créneau).
+  const [filter, setFilter] = useState<'queue' | 'all' | 'pending' | 'approved' | 'rejected' | 'conflicts'>('queue');
+  const [queueCount, setQueueCount] = useState<number | null>(null);
   // Créneaux demandés par plusieurs personnes, à arbitrer
   const [conflictGroups, setConflictGroups] = useState<ConflictGroup[]>([]);
   const [conflictsLoading, setConflictsLoading] = useState(true);
@@ -359,7 +364,7 @@ export default function AdminReservationsPage() {
           {/* Filter Tabs */}
           <div className="mb-6 bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60">
             <div className="flex flex-wrap gap-2 p-4">
-              {(['all', 'pending', 'approved', 'rejected', 'conflicts'] as const).map((status) => (
+              {(['queue', 'all', 'pending', 'approved', 'rejected', 'conflicts'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilter(status)}
@@ -371,6 +376,8 @@ export default function AdminReservationsPage() {
                       : 'bg-slate-100 dark:bg-primary-700/40 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-primary-700/60'
                   }`}
                 >
+                  {status === 'queue' &&
+                    `À valider${queueCount !== null ? ` (${queueCount} demandes)` : ''}`}
                   {status === 'all' && `Toutes (${statusCounts.all})`}
                   {status === 'pending' && `En attente (${statusCounts.pending})`}
                   {status === 'approved' && `Approuvées (${statusCounts.approved})`}
@@ -380,7 +387,15 @@ export default function AdminReservationsPage() {
               ))}
             </div>
 
-        {filter === 'conflicts' ? (
+        {filter === 'queue' ? (
+          <ValidationQueue
+            onTotals={(totals) => setQueueCount(totals.requests)}
+            onProcessed={() => {
+              fetchReservations();
+              fetchConflicts();
+            }}
+          />
+        ) : filter === 'conflicts' ? (
           <ConflictsPanel
             conflicts={conflictGroups}
             loading={conflictsLoading}

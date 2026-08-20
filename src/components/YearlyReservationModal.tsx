@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Calendar, Clock, Users as UsersIcon, FileText, AlertCircle, CheckCircle, CalendarOff, Sparkles, Gavel } from 'lucide-react';
 import { format, addDays, eachDayOfInterval, isSameDay, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -32,6 +32,34 @@ interface TimeSlot {
   day: number; // 0 = dimanche, 1 = lundi, etc.
   startHour: number;
   endHour: number;
+}
+
+/** Une date déjà prise sur un créneau de la grille hebdomadaire. */
+interface OccupiedDate {
+  date: string;
+  dateLabel: string;
+  hours: string;
+  status: 'approved' | 'pending'; // pending = demande en cours de validation
+  associationName?: string;
+}
+
+/** Occupation d'une case de la grille (un jour + une heure) sur la période. */
+interface OccupancyCell {
+  day: number;
+  hour: number;
+  approved: number;
+  pending: number;
+  dates: OccupiedDate[];
+}
+
+/** Plage horaire occupée, obtenue en fusionnant les cases contiguës d'un jour. */
+interface OccupancyRange {
+  day: number;
+  startHour: number;
+  endHour: number;
+  approvedDates: Set<string>;
+  pendingDates: Set<string>;
+  associations: Set<string>;
 }
 
 /** Créneau demandé qui chevauche une réservation déjà enregistrée. */
@@ -80,6 +108,11 @@ export default function YearlyReservationModal({
   // Associations rattachées au compte du membre (non-admin)
   const [userAssociations, setUserAssociations] = useState<Association[]>([]);
 
+  // Créneaux déjà pris dans la salle sur la période demandée : affichés sur la
+  // grille hebdomadaire pour que le demandeur choisisse en connaissance de cause.
+  const [occupancy, setOccupancy] = useState<OccupancyCell[]>([]);
+  const [isLoadingOccupancy, setIsLoadingOccupancy] = useState(false);
+
   // Conflits avec des créneaux déjà réservés dans la salle
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
@@ -104,6 +137,7 @@ export default function YearlyReservationModal({
       setTimeSlots([]);
       setExcludeSchoolHolidays(true);
       setExcludedDates([]);
+      setOccupancy([]);
       setConflicts([]);
       acceptConflictsRef.current = false;
       setSelectedDay(null);
@@ -166,6 +200,138 @@ export default function YearlyReservationModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, step, roomId, startDate, endDate, timeSlots, excludeSchoolHolidays, excludedDates]);
+
+  // Dès que la période est connue, on charge les créneaux déjà pris dans la
+  // salle pour les faire apparaître sur la grille des horaires (étape 2).
+  useEffect(() => {
+    if (!isOpen || !startDate || !endDate || new Date(startDate) > new Date(endDate)) {
+      setOccupancy([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadOccupancy = async () => {
+      setIsLoadingOccupancy(true);
+      try {
+        const params = new URLSearchParams({ roomId, startDate, endDate });
+        const response = await fetch(`/api/reservations/yearly/occupancy?${params}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) setOccupancy(data.cells || []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des créneaux occupés:', error);
+      } finally {
+        if (!cancelled) setIsLoadingOccupancy(false);
+      }
+    };
+
+    loadOccupancy();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, roomId, startDate, endDate]);
+
+  // Accès direct à l'occupation d'une case de la grille.
+  const occupancyByCell = useMemo(() => {
+    const map = new Map<string, OccupancyCell>();
+    for (const cell of occupancy) map.set(`${cell.day}|${cell.hour}`, cell);
+    return map;
+  }, [occupancy]);
+
+  const getCellOccupancy = (day: number, hour: number) => occupancyByCell.get(`${day}|${hour}`);
+
+  /** Détail affiché au survol d'une case déjà occupée. */
+  const occupancyTooltip = (cell: OccupancyCell): string => {
+    const names = [...new Set(cell.dates.map(d => d.associationName).filter(Boolean))];
+    return [
+      cell.approved > 0 ? `${cell.approved} date(s) déjà réservée(s)` : null,
+      cell.pending > 0 ? `${cell.pending} demande(s) en cours de validation` : null,
+      names.length > 0 ? `Par : ${names.join(', ')}` : null,
+      ...cell.dates.slice(0, 8).map(d => `• ${d.dateLabel} (${d.hours})`),
+      cell.dates.length > 8 ? `… et ${cell.dates.length - 8} autre(s)` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  // Récapitulatif lisible : les cases occupées contiguës sont fusionnées en plages.
+  const occupancySummary = useMemo(() => {
+    const byDay = new Map<number, OccupancyCell[]>();
+    for (const cell of occupancy) {
+      const list = byDay.get(cell.day) ?? [];
+      list.push(cell);
+      byDay.set(cell.day, list);
+    }
+
+    const ranges: OccupancyRange[] = [];
+
+    // Semaine affichée du lundi au dimanche, comme la grille.
+    const dayOrder = [1, 2, 3, 4, 5, 6, 0];
+    for (const day of dayOrder) {
+      const cells = byDay.get(day);
+      if (!cells) continue;
+
+      let current: OccupancyRange | null = null;
+      for (const cell of [...cells].sort((a, b) => a.hour - b.hour)) {
+        if (!current || cell.hour !== current.endHour) {
+          current = {
+            day,
+            startHour: cell.hour,
+            endHour: cell.hour + 1,
+            approvedDates: new Set<string>(),
+            pendingDates: new Set<string>(),
+            associations: new Set<string>(),
+          };
+          ranges.push(current);
+        } else {
+          current.endHour = cell.hour + 1;
+        }
+
+        for (const occupied of cell.dates) {
+          const bucket =
+            occupied.status === 'approved' ? current.approvedDates : current.pendingDates;
+          bucket.add(occupied.date);
+          if (occupied.associationName) current.associations.add(occupied.associationName);
+        }
+      }
+    }
+
+    return ranges;
+  }, [occupancy]);
+
+  /** Nombre de dates déjà prises qui chevauchent un créneau sélectionné. */
+  const countOccupiedDatesForSlot = (slot: TimeSlot): number => {
+    const dates = new Set<string>();
+    for (let hour = slot.startHour; hour <= slot.endHour; hour++) {
+      getCellOccupancy(slot.day, hour)?.dates.forEach(d => dates.add(d.date));
+    }
+    return dates.size;
+  };
+
+  // Dates de la période déjà prises sur les créneaux choisis, indexées par jour
+  // calendaire (heure de Paris) pour l'aperçu de l'étape 3.
+  const occupiedDatesByDay = useMemo(() => {
+    const byDay = new Map<string, 'approved' | 'pending'>();
+
+    for (const cell of occupancy) {
+      const isRequested = timeSlots.some(
+        slot => slot.day === cell.day && cell.hour >= slot.startHour && cell.hour <= slot.endHour
+      );
+      if (!isRequested) continue;
+
+      for (const occupied of cell.dates) {
+        const key = new Date(occupied.date).toLocaleDateString('fr-CA', {
+          timeZone: 'Europe/Paris',
+        });
+        // Une réservation validée prime sur une demande encore en attente.
+        if (occupied.status === 'approved' || !byDay.has(key)) byDay.set(key, occupied.status);
+      }
+    }
+
+    return byDay;
+  }, [occupancy, timeSlots]);
 
   const loadUserAssociations = async () => {
     try {
@@ -716,22 +882,39 @@ export default function YearlyReservationModal({
                       {hours.map((hour) => {
                         const selected = isSlotSelected(dayIndex, hour);
                         const selectionStart = isSlotSelectionStart(dayIndex, hour);
+                        // Créneau déjà pris sur la période : signalé sans être
+                        // interdit (la mairie peut arbitrer entre les demandes).
+                        const occupied = getCellOccupancy(dayIndex, hour);
+                        const occupiedCount = occupied ? occupied.approved + occupied.pending : 0;
 
                         return (
                           <button
                             key={hour}
                             type="button"
                             onClick={() => handleSlotClick(dayIndex, hour)}
+                            title={occupied ? occupancyTooltip(occupied) : undefined}
                             className={`min-h-[52px] p-2 rounded-lg border-2 transition-all text-xs font-medium ${
-                              selected
+                              selected && occupied
+                                ? 'border-red-600 bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100'
+                                : selected
                                 ? 'border-primary-600 bg-primary-200 dark:bg-primary-800 text-primary-900 dark:text-primary-100'
                                 : selectionStart
                                 ? 'border-orange-500 bg-orange-100 dark:bg-orange-900 text-orange-900 dark:text-orange-100'
+                                : occupied && occupied.approved > 0
+                                ? 'border-red-300 bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                                : occupied
+                                ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
                                 : 'border-slate-200 dark:border-primary-700/60 hover:border-primary-400 dark:hover:border-primary-500 active:border-primary-500'
                             }`}
                           >
                             <div>{hour}:00</div>
-                            {selected && <div className="text-lg">✓</div>}
+                            {selected && <div className="text-base leading-none">✓</div>}
+                            {occupiedCount > 0 && (
+                              <div className="text-[10px] leading-tight font-semibold">
+                                {selected ? '⚠ ' : ''}
+                                {occupiedCount} pris
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -765,21 +948,38 @@ export default function YearlyReservationModal({
                         {weekDays.map((_, dayIndex) => {
                           const selected = isSlotSelected(dayIndex, hour);
                           const selectionStart = isSlotSelectionStart(dayIndex, hour);
+                          const occupied = getCellOccupancy(dayIndex, hour);
+                          const occupiedCount = occupied ? occupied.approved + occupied.pending : 0;
 
                           return (
                             <button
                               key={dayIndex}
                               type="button"
                               onClick={() => handleSlotClick(dayIndex, hour)}
-                              className={`min-h-[50px] p-2 rounded-lg border-2 transition-all ${
-                                selected
+                              title={occupied ? occupancyTooltip(occupied) : undefined}
+                              className={`min-h-[50px] p-1 rounded-lg border-2 transition-all ${
+                                selected && occupied
+                                  ? 'border-red-600 bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100'
+                                  : selected
                                   ? 'border-primary-600 bg-primary-200 dark:bg-primary-800'
                                   : selectionStart
                                   ? 'border-orange-500 bg-orange-100 dark:bg-orange-900'
+                                  : occupied && occupied.approved > 0
+                                  ? 'border-red-300 bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                                  : occupied
+                                  ? 'border-amber-300 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
                                   : 'border-slate-200 dark:border-primary-700/60 hover:border-primary-400 dark:hover:border-primary-500'
                               }`}
                             >
-                              {selected && <span className="text-xs">✓</span>}
+                              <span className="flex flex-col items-center justify-center leading-tight">
+                                {selected && <span className="text-xs">✓</span>}
+                                {occupiedCount > 0 && (
+                                  <span className="text-[10px] font-semibold whitespace-nowrap">
+                                    {selected ? '⚠ ' : ''}
+                                    {occupiedCount} pris
+                                  </span>
+                                )}
+                              </span>
                             </button>
                           );
                         })}
@@ -789,6 +989,79 @@ export default function YearlyReservationModal({
                 </div>
               </div>
 
+              {/* Créneaux déjà pris dans la salle sur la période demandée */}
+              {isLoadingOccupancy ? (
+                <div className="flex items-center gap-3 p-3 sm:p-4 bg-slate-100 dark:bg-primary-900/40 rounded-xl text-sm text-slate-600 dark:text-slate-300">
+                  <Clock className="w-5 h-5 flex-shrink-0 animate-pulse" />
+                  Recherche des créneaux déjà réservés...
+                </div>
+              ) : occupancy.length === 0 ? (
+                <div className="flex items-center gap-3 p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800 rounded-xl">
+                  <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                    Aucun créneau n&apos;est déjà réservé dans cette salle sur la période choisie.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-primary-800 border-2 border-slate-200 dark:border-primary-700/60 rounded-xl p-3 sm:p-4">
+                  <div className="flex items-start gap-3 mb-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">
+                        Créneaux déjà occupés sur la période
+                      </h4>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                        Ils apparaissent en couleur dans la grille ci-dessus. Vous pouvez malgré tout
+                        les demander : la mairie tranchera alors entre les demandes concurrentes.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 mb-3 text-xs text-slate-600 dark:text-slate-300">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded border-2 border-red-300 bg-red-50 dark:bg-red-900/30" />
+                      Déjà réservé
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded border-2 border-amber-300 bg-amber-50 dark:bg-amber-900/30" />
+                      En cours de validation
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-3 h-3 rounded border-2 border-primary-600 bg-primary-200 dark:bg-primary-800" />
+                      Votre sélection
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {occupancySummary.map((range, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 bg-slate-50 dark:bg-primary-900/40 rounded-lg px-3 py-2"
+                      >
+                        <span className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">
+                          {weekDays[range.day]} · {range.startHour}:00 - {range.endHour}:00
+                        </span>
+                        <span className="text-xs text-slate-600 dark:text-slate-300">
+                          {range.approvedDates.size > 0 && (
+                            <span className="text-red-700 dark:text-red-300 font-medium">
+                              {range.approvedDates.size} date{range.approvedDates.size > 1 ? 's' : ''}{' '}
+                              déjà réservée{range.approvedDates.size > 1 ? 's' : ''}
+                            </span>
+                          )}
+                          {range.approvedDates.size > 0 && range.pendingDates.size > 0 && ' · '}
+                          {range.pendingDates.size > 0 && (
+                            <span className="text-amber-700 dark:text-amber-300 font-medium">
+                              {range.pendingDates.size} en cours de validation
+                            </span>
+                          )}
+                          {range.associations.size > 0 && ` — ${[...range.associations].join(', ')}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Liste des créneaux sélectionnés */}
               {timeSlots.length > 0 && (
                 <div className="bg-primary-50 dark:bg-primary-900/30 rounded-xl p-3 sm:p-4">
@@ -796,23 +1069,33 @@ export default function YearlyReservationModal({
                     Créneaux sélectionnés ({timeSlots.length})
                   </h4>
                   <div className="space-y-2">
-                    {timeSlots.map((slot, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between bg-white dark:bg-primary-800 p-2 sm:p-3 rounded-lg"
-                      >
-                        <span className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white">
-                          {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeTimeSlot(index)}
-                          className="text-red-600 hover:text-red-700 transition-colors p-1"
+                    {timeSlots.map((slot, index) => {
+                      const occupiedDates = countOccupiedDatesForSlot(slot);
+
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between gap-2 bg-white dark:bg-primary-800 p-2 sm:p-3 rounded-lg"
                         >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+                          <span className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white">
+                            {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
+                            {occupiedDates > 0 && (
+                              <span className="block text-[11px] font-semibold text-red-700 dark:text-red-300">
+                                ⚠ {occupiedDates} date{occupiedDates > 1 ? 's' : ''} déjà prise
+                                {occupiedDates > 1 ? 's' : ''} sur ce créneau
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeTimeSlot(index)}
+                            className="text-red-600 hover:text-red-700 transition-colors p-1 flex-shrink-0"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -862,6 +1145,12 @@ export default function YearlyReservationModal({
                     <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
                       Cliquez sur les dates à exclure ou utilisez le bouton ci-dessous
                     </p>
+                    {occupiedDatesByDay.size > 0 && (
+                      <p className="text-sm font-medium text-red-700 dark:text-red-300 mt-1">
+                        Les dates en rouge sont déjà réservées, celles en orange font l&apos;objet
+                        d&apos;une demande en cours de validation.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -922,7 +1211,19 @@ export default function YearlyReservationModal({
                       const publicLabel = getPublicHolidayLabel(date);
                       const schoolLabel = getSchoolBreakLabel(date);
                       const isSpecial = publicLabel || schoolLabel;
-                      const tooltip = publicLabel || schoolLabel || '';
+                      // Date déjà prise sur les créneaux demandés : le demandeur
+                      // peut l'exclure tout de suite plutôt qu'au récapitulatif.
+                      const occupiedStatus = occupiedDatesByDay.get(format(date, 'yyyy-MM-dd'));
+                      const tooltip = [
+                        publicLabel || schoolLabel || '',
+                        occupiedStatus === 'approved'
+                          ? 'Créneau déjà réservé à cette date'
+                          : occupiedStatus
+                          ? 'Demande en cours de validation sur ce créneau'
+                          : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' — ');
                       return (
                         <button
                           key={index}
@@ -932,13 +1233,22 @@ export default function YearlyReservationModal({
                           className={`p-3 sm:p-2 rounded-lg border-2 transition-all text-sm sm:text-xs font-medium min-h-[48px] sm:min-h-0 relative ${
                             isExcluded
                               ? 'border-red-500 bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100 line-through'
+                              : occupiedStatus === 'approved'
+                              ? 'border-red-400 bg-red-50 dark:bg-red-900/30 hover:border-red-500 text-red-900 dark:text-red-100'
+                              : occupiedStatus
+                              ? 'border-amber-500 bg-amber-100 dark:bg-amber-900/40 hover:border-amber-600 text-amber-900 dark:text-amber-100'
                               : isSpecial
                               ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/30 hover:border-amber-500 text-amber-900 dark:text-amber-100'
                               : 'border-primary-200 dark:border-primary-700/60 hover:border-primary-500 active:border-primary-600 text-slate-900 dark:text-white'
                           }`}
                         >
                           {format(date, 'EEE d MMM', { locale: fr })}
-                          {isSpecial && !isExcluded && (
+                          {!isExcluded && occupiedStatus && (
+                            <span className="block text-[10px] mt-0.5 font-semibold truncate">
+                              {occupiedStatus === 'approved' ? '⛔ déjà réservé' : '⏳ en attente'}
+                            </span>
+                          )}
+                          {!isExcluded && !occupiedStatus && isSpecial && (
                             <span className="block text-[10px] mt-0.5 opacity-80 truncate">
                               {publicLabel ? '🇫🇷 férié' : '🎒 vacances'}
                             </span>

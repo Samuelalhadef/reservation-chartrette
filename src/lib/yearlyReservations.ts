@@ -206,3 +206,101 @@ export function conflictErrorMessage(conflicts: YearlyConflict[]): string {
     ? 'Date déjà réservée : il y a un conflit pour réserver ce créneau. Excluez cette date ou contactez la mairie.'
     : `${conflicts.length} dates déjà réservées : il y a un conflit pour réserver ces créneaux. Excluez ces dates ou contactez la mairie.`;
 }
+
+/** Une date précise déjà occupée sur un créneau hebdomadaire. */
+export interface OccupiedDate {
+  date: string; // ISO
+  dateLabel: string; // "lundi 12 janvier 2026"
+  hours: string; // "18:00 - 20:00"
+  status: 'approved' | 'pending'; // pending = demande en cours de validation
+  associationName?: string;
+}
+
+/**
+ * Occupation d'une case de la grille hebdomadaire (un jour + une heure) :
+ * combien de dates de la période sont déjà prises sur ce créneau.
+ */
+export interface OccupancyCell {
+  day: number; // 0 = dimanche, comme getDay()
+  hour: number; // heure de début (18 => 18:00 - 19:00)
+  approved: number; // dates déjà validées par la mairie
+  pending: number; // demandes en cours de validation
+  dates: OccupiedDate[];
+}
+
+/**
+ * Créneaux déjà pris dans la salle sur la période demandée, projetés sur la
+ * grille hebdomadaire. Permet d'afficher au demandeur, avant qu'il ne choisisse
+ * ses horaires, ce qui est déjà réservé ou en cours de validation.
+ */
+export async function getWeeklyOccupancy(params: {
+  roomId: string;
+  startDate: string;
+  endDate: string;
+}): Promise<{ cells: OccupancyCell[]; totalReservations: number }> {
+  const { roomId, startDate, endDate } = params;
+
+  const rangeStart = parseISO(startDate);
+  rangeStart.setHours(0, 0, 0, 0);
+  const rangeEnd = parseISO(endDate);
+  rangeEnd.setHours(23, 59, 59, 999);
+
+  const existing = await db
+    .select({
+      date: reservations.date,
+      timeSlots: reservations.timeSlots,
+      status: reservations.status,
+      associationName: associations.name,
+    })
+    .from(reservations)
+    .leftJoin(associations, eq(reservations.associationId, associations.id))
+    .where(
+      and(
+        eq(reservations.roomId, roomId),
+        gte(reservations.date, rangeStart),
+        lte(reservations.date, rangeEnd),
+        inArray(reservations.status, [...BLOCKING_STATUSES])
+      )
+    )
+    .orderBy(reservations.date);
+
+  // Une case par jour de la semaine + heure ; on y accumule les dates concernées.
+  const cells = new Map<string, OccupancyCell>();
+
+  for (const reservation of existing) {
+    const slots = (reservation.timeSlots as HourSlot[]) ?? [];
+    if (slots.length === 0) continue;
+
+    // Le jour de la semaine se lit à l'heure de Paris (cf. fuseau des dates).
+    const dayOfWeek = getDay(parseISO(parisDayKey(reservation.date)));
+    // Une réservation validée occupe le créneau ; en attente, elle le bloque
+    // provisoirement le temps de la décision de la mairie.
+    const status: OccupiedDate['status'] =
+      reservation.status === 'approved' ? 'approved' : 'pending';
+
+    const occupied: OccupiedDate = {
+      date: reservation.date.toISOString(),
+      dateLabel: formatFrDate(reservation.date),
+      hours: formatHourRanges(slots),
+      status,
+      ...(reservation.associationName ? { associationName: reservation.associationName } : {}),
+    };
+
+    for (const slot of slots) {
+      const [start, end] = [slot.start, slot.end].map(h => parseInt(h.split(':')[0], 10));
+      for (let hour = start; hour < end; hour++) {
+        const key = `${dayOfWeek}|${hour}`;
+        const cell = cells.get(key) ?? { day: dayOfWeek, hour, approved: 0, pending: 0, dates: [] };
+        // Une réservation couvrant plusieurs heures ne compte qu'une fois par case.
+        if (!cell.dates.some(d => d.date === occupied.date && d.hours === occupied.hours)) {
+          cell.dates.push(occupied);
+          if (status === 'approved') cell.approved += 1;
+          else cell.pending += 1;
+        }
+        cells.set(key, cell);
+      }
+    }
+  }
+
+  return { cells: [...cells.values()], totalReservations: existing.length };
+}

@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
-import { reservations, users, rooms, associations } from '@/lib/db/schema';
+import { reservations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
-import { sendEmail, emailTemplates } from '@/lib/email';
-import { formatDate, formatTimeSlot } from '@/lib/utils';
-import { getConventionSettings } from '@/lib/conventionSettings';
-import { getMairieSignatureDataUrl } from '@/lib/mairieSignature';
-import { generateReservationConventionPDF } from '@/lib/generateReservationConventionPDF';
+import { decideSingleReservation } from '@/lib/reservationDecision';
 
 export async function PATCH(
   req: NextRequest,
@@ -38,184 +34,23 @@ export async function PATCH(
       );
     }
 
-    // Get reservation with joined user, room and association data
-    const reservationData = await db
-      .select({
-        reservation: reservations,
-        user: {
-          name: users.name,
-          email: users.email,
-          role: users.role,
-          address: users.address,
-          associationId: users.associationId,
-        },
-        room: {
-          name: rooms.name,
-        },
-        association: {
-          name: associations.name,
-          address: associations.address,
-          contactName: associations.contactName,
-        },
-      })
-      .from(reservations)
-      .leftJoin(users, eq(reservations.userId, users.id))
-      .leftJoin(rooms, eq(reservations.roomId, rooms.id))
-      .leftJoin(associations, eq(reservations.associationId, associations.id))
-      .where(eq(reservations.id, id))
-      .limit(1);
+    const outcome = await decideSingleReservation({
+      id,
+      status,
+      adminComment,
+      adminId: session.user.id,
+    });
 
-    if (!reservationData.length || !reservationData[0]) {
-      return NextResponse.json(
-        { error: 'Reservation not found' },
-        { status: 404 }
-      );
-    }
-
-    const { reservation, user, room, association } = reservationData[0];
-
-    if (!user || !room) {
-      return NextResponse.json(
-        { error: 'User or room not found' },
-        { status: 404 }
-      );
-    }
-
-    if (reservation.status !== 'pending') {
-      return NextResponse.json(
-        { error: 'Reservation has already been processed' },
-        { status: 400 }
-      );
-    }
-
-    // Send email notification
-    const timeSlots = (reservation.timeSlots as any)
-      .map((slot: any) => formatTimeSlot(slot.start, slot.end))
-      .join(', ');
-
-    // Cas du refus : on prévient l'occupant par email puis on SUPPRIME
-    // simplement la demande, afin qu'aucun bloc « Refusée » ne reste affiché
-    // dans ses réservations.
-    if (status === 'rejected') {
-      await sendEmail({
-        to: user.email,
-        subject: 'Réservation refusée',
-        html: emailTemplates.reservationRejected(
-          user.name,
-          room.name,
-          formatDate(reservation.date),
-          adminComment
-        ),
-      });
-
-      await db.delete(reservations).where(eq(reservations.id, id));
-
-      return NextResponse.json(
-        { message: 'Reservation rejected and removed successfully' },
-        { status: 200 }
-      );
-    }
-
-    // Approbation : on met à jour la réservation.
-    const [updatedReservation] = await db
-      .update(reservations)
-      .set({
-        status: status as any,
-        adminComment,
-        reviewedBy: session.user.id,
-        reviewedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(reservations.id, id))
-      .returning();
-
-    {
-      // Génère le PDF de convention signé par les deux parties (occupant + maire)
-      // et le joint à l'email — uniquement si l'occupant a bien signé.
-      let attachments;
-      try {
-        if (
-          reservation.conventionSignature &&
-          reservation.conventionSignature.startsWith('data:image/')
-        ) {
-          const [settings, mairieSignature] = await Promise.all([
-            getConventionSettings(),
-            getMairieSignatureDataUrl(),
-          ]);
-
-          const isAssoc =
-            !!user.associationId &&
-            !!association?.name;
-          const signerType: 'association' | 'particulier' | 'mairie' = isAssoc
-            ? 'association'
-            : user.role === 'admin'
-              ? 'mairie'
-              : 'particulier';
-
-          const pdf = generateReservationConventionPDF({
-            signer: {
-              name: user.name,
-              email: user.email,
-              address: user.address || undefined,
-              type: signerType,
-            },
-            association: isAssoc
-              ? {
-                  name: association!.name,
-                  address: association!.address || undefined,
-                  presidentName: association!.contactName || undefined,
-                }
-              : undefined,
-            reservation: {
-              roomName: room.name,
-              date: reservation.date,
-              timeSlots: reservation.timeSlots as any,
-              reason: reservation.reason,
-              estimatedParticipants: reservation.estimatedParticipants,
-            },
-            signature: reservation.conventionSignature,
-            signedAt: reservation.conventionSignedAt || reservation.date,
-            mairieSignature,
-            mairieValidatedAt: new Date(),
-            settings,
-          });
-
-          const pdfBase64 = pdf.output('datauristring').split(',')[1];
-          const dateStr = new Date(reservation.date).toISOString().slice(0, 10);
-          const safeRoom = room.name.replace(/\s+/g, '_');
-          attachments = [
-            {
-              filename: `convention_${safeRoom}_${dateStr}.pdf`,
-              content: pdfBase64,
-              encoding: 'base64' as const,
-              contentType: 'application/pdf',
-            },
-          ];
-        }
-      } catch (pdfError) {
-        console.error('Génération PDF convention échouée:', pdfError);
-        // On envoie quand même l'email d'approbation, sans pièce jointe.
-      }
-
-      await sendEmail({
-        to: user.email,
-        subject: 'Réservation approuvée',
-        html: emailTemplates.reservationApproved(
-          user.name,
-          room.name,
-          formatDate(reservation.date),
-          timeSlots,
-          adminComment,
-          !!attachments
-        ),
-        attachments,
-      });
+    if (!outcome.ok) {
+      return NextResponse.json({ error: outcome.error }, { status: outcome.status ?? 400 });
     }
 
     return NextResponse.json(
       {
-        message: 'Reservation approved successfully',
-        reservation: updatedReservation,
+        message:
+          status === 'rejected'
+            ? 'Reservation rejected and removed successfully'
+            : 'Reservation approved successfully',
       },
       { status: 200 }
     );
