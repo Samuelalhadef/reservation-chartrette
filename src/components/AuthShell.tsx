@@ -23,7 +23,7 @@ export default function AuthShell({
           <Link href="/" className="inline-flex items-center gap-2">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white p-1.5 shadow-md ring-1 ring-white/30">
               <Image
-                src="/image/logo.jpg"
+                src="/image/logo.webp"
                 alt="Blason de Chartrettes"
                 width={48}
                 height={48}

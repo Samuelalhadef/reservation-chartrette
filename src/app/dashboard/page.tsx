@@ -14,18 +14,18 @@ export default async function DashboardPage() {
   // Fonction pour obtenir l'image du bâtiment
   const getBuildingImage = (buildingName: string) => {
     if (buildingName.includes('MAIRIE')) {
-      return '/image/mairie.png';
+      return '/image/mairie.webp';
     }
     if (buildingName.includes('COMPLEXE SPORTIF')) {
-      return '/image/complexe_sportif.png';
+      return '/image/complexe_sportif.webp';
     }
     if (buildingName.includes('ESPACE CULTUREL') || buildingName.includes('RENÉE WANNER')) {
-      return '/image/espace_culturel.png';
+      return '/image/espace_culturel.webp';
     }
     if (buildingName.includes('VERGERS')) {
-      return '/image/espace_verger.png';
+      return '/image/espace_verger.webp';
     }
-    return '/image/mairie.png'; // Image par défaut
+    return '/image/mairie.webp'; // Image par défaut
   };
 
   return (
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-        {allBuildings.map((building) => (
+        {allBuildings.map((building, index) => (
           <Link
             key={building.id}
             href={`/buildings/${building.id}/rooms`}
@@ -52,6 +52,9 @@ export default async function DashboardPage() {
                 src={getBuildingImage(building.name)}
                 alt={building.name}
                 fill
+                sizes="(max-width: 768px) 100vw, 576px"
+                // Les deux premières cartes sont visibles d'emblée.
+                priority={index < 2}
                 className="object-cover group-hover:scale-110 transition-transform duration-300"
               />
 

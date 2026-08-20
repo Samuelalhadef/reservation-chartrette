@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { buildings, rooms, reservations, users, associations } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq, gte, lte, ne } from 'drizzle-orm';
 import { ArrowLeft, DoorOpen, Users, Ruler, Package } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import RoomCalendar from '@/components/RoomCalendar';
@@ -31,28 +31,32 @@ export default async function RoomCalendarPage({
     notFound();
   }
 
+  // Le calendrier n'affiche qu'une fenêtre autour d'aujourd'hui : inutile
+  // d'envoyer au navigateur tout l'historique de la salle (une réservation à
+  // l'année génère à elle seule des dizaines de lignes). Au-delà de cette
+  // fenêtre, le calendrier complète à la demande via
+  // /api/rooms/[id]/reservations.
+  const windowStart = new Date();
+  windowStart.setMonth(windowStart.getMonth() - 3);
+  windowStart.setHours(0, 0, 0, 0);
+
+  const windowEnd = new Date();
+  windowEnd.setMonth(windowEnd.getMonth() + 15);
+  windowEnd.setHours(23, 59, 59, 999);
+
+  // Seules les colonnes réellement affichées sont sélectionnées.
   const roomReservations = await db
     .select({
       id: reservations.id,
       userId: reservations.userId,
       roomId: reservations.roomId,
-      associationId: reservations.associationId,
       date: reservations.date,
       timeSlots: reservations.timeSlots,
       reason: reservations.reason,
-      estimatedParticipants: reservations.estimatedParticipants,
-      requiredEquipment: reservations.requiredEquipment,
       status: reservations.status,
-      adminComment: reservations.adminComment,
-      reviewedBy: reservations.reviewedBy,
-      reviewedAt: reservations.reviewedAt,
-      cancelledAt: reservations.cancelledAt,
-      cancelReason: reservations.cancelReason,
       createdAt: reservations.createdAt,
-      updatedAt: reservations.updatedAt,
       user: {
         name: users.name,
-        email: users.email,
       },
       association: {
         name: associations.name,
@@ -61,7 +65,15 @@ export default async function RoomCalendarPage({
     .from(reservations)
     .leftJoin(users, eq(reservations.userId, users.id))
     .leftJoin(associations, eq(reservations.associationId, associations.id))
-    .where(eq(reservations.roomId, roomId));
+    .where(
+      and(
+        eq(reservations.roomId, roomId),
+        // Les vues semaine et mois ignorent les réservations annulées.
+        ne(reservations.status, 'cancelled'),
+        gte(reservations.date, windowStart),
+        lte(reservations.date, windowEnd)
+      )
+    );
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-primary-950">
@@ -145,6 +157,8 @@ export default async function RoomCalendarPage({
             roomName={room.name}
             roomCapacity={room.capacity}
             reservations={roomReservations}
+            loadedFrom={windowStart.toISOString()}
+            loadedTo={windowEnd.toISOString()}
             buildingId={buildingId}
           />
         </div>

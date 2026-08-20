@@ -98,7 +98,7 @@ function HomePage() {
             <Link href="/" className="inline-flex items-center gap-3">
               <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white p-1 shadow-md ring-1 ring-white/40">
                 <Image
-                  src="/image/logo.jpg"
+                  src="/image/logo.webp"
                   alt="Blason de Chartrettes"
                   width={40}
                   height={40}
@@ -149,7 +149,7 @@ function HomePage() {
             <Link href="/" className="inline-flex items-center gap-2">
               <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
                 <Image
-                  src="/image/logo.jpg"
+                  src="/image/logo.webp"
                   alt="Blason de Chartrettes"
                   width={40}
                   height={40}

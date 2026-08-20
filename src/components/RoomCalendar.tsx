@@ -1,23 +1,30 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Calendar, Repeat, LayoutGrid, CalendarDays } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, addMonths, subMonths, isToday, isSameDay, addDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, addWeeks, subWeeks, addMonths, subMonths, isToday, isSameDay, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import ReservationModal from './ReservationModal';
-import YearlyReservationModal from './YearlyReservationModal';
 import MonthCalendarView from './MonthCalendarView';
+
+// Les modales représentent l'essentiel du JavaScript de cette page alors
+// qu'elles ne servent qu'après un clic : on ne les charge qu'à l'ouverture.
+const ReservationModal = dynamic(() => import('./ReservationModal'), { ssr: false });
+const YearlyReservationModal = dynamic(() => import('./YearlyReservationModal'), { ssr: false });
 
 interface RoomCalendarProps {
   roomId: string;
   roomName: string;
   roomCapacity: number;
   reservations?: any[];
+  /** Bornes de la fenêtre préchargée côté serveur (ISO). */
+  loadedFrom?: string;
+  loadedTo?: string;
   buildingId?: string;
 }
 
-export default function RoomCalendar({ roomId, roomName, roomCapacity, reservations: initialReservations = [], buildingId }: RoomCalendarProps) {
+export default function RoomCalendar({ roomId, roomName, roomCapacity, reservations: initialReservations = [], loadedFrom, loadedTo, buildingId }: RoomCalendarProps) {
   const { data: session } = useSession();
   // Initialiser le calendrier sur le premier jour réservable (10 jours dans le futur)
   const [currentWeek, setCurrentWeek] = useState(() => {
@@ -45,6 +52,13 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     return firstBookableDay;
   });
 
+  // Période déjà chargée : la page ne précharge qu'une fenêtre autour
+  // d'aujourd'hui, le reste est récupéré quand l'utilisateur y navigue.
+  const [loadedRange, setLoadedRange] = useState<{ from: Date; to: Date } | null>(() =>
+    loadedFrom && loadedTo ? { from: new Date(loadedFrom), to: new Date(loadedTo) } : null
+  );
+  const isFetchingRef = useRef(false);
+
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
@@ -56,16 +70,89 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   // Générer les heures de 8h à 23h (dernier créneau 23h-24h)
   const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8h → 23h, dernier créneau 23h-24h
 
-  // Rafraîchir les réservations
-  const refreshReservations = async () => {
+  /**
+   * Charge les réservations de la salle sur une période et remplace celles
+   * déjà connues sur cette même période (une annulation disparaît ainsi).
+   *
+   * Passe par /api/rooms/[id]/reservations et non /api/reservations : ce
+   * dernier ne renvoie à un non-admin que ses propres réservations, ce qui
+   * faisait disparaître celles des autres après une demande.
+   */
+  const fetchRange = async (from: Date, to: Date) => {
+    const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+
     try {
-      const response = await fetch(`/api/reservations?roomId=${roomId}`);
+      const response = await fetch(`/api/rooms/${roomId}/reservations?${params}`);
+      if (!response.ok) return false;
+
       const data = await response.json();
-      setReservations(data.reservations || []);
+      const fetched = data.reservations || [];
+      const fromTime = from.getTime();
+      const toTime = to.getTime();
+
+      setReservations(prev => {
+        const outside = prev.filter(r => {
+          const time = new Date(r.date).getTime();
+          return time < fromTime || time > toTime;
+        });
+        return [...outside, ...fetched];
+      });
+
+      return true;
     } catch (error) {
-      console.error('Erreur lors du rafraîchissement des réservations:', error);
+      console.error('Erreur lors du chargement des réservations:', error);
+      return false;
     }
   };
+
+  // Rafraîchir les réservations de la période affichée (après une demande ou
+  // une annulation).
+  const refreshReservations = async () => {
+    const range = loadedRange ?? {
+      from: subMonths(new Date(), 3),
+      to: addMonths(new Date(), 15),
+    };
+    await fetchRange(range.from, range.to);
+  };
+
+  // Compléter la fenêtre chargée quand l'utilisateur navigue au-delà.
+  useEffect(() => {
+    const visible = viewMode === 'month' ? currentMonth : currentWeek;
+    const neededFrom = startOfMonth(subMonths(visible, 1));
+    const neededTo = endOfMonth(addMonths(visible, 1));
+
+    if (
+      loadedRange &&
+      neededFrom >= loadedRange.from &&
+      neededTo <= loadedRange.to
+    ) {
+      return;
+    }
+
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    fetchRange(neededFrom, neededTo)
+      .then(ok => {
+        if (!ok) return;
+        setLoadedRange(prev => {
+          if (!prev) return { from: neededFrom, to: neededTo };
+          // Si la nouvelle période touche la précédente, la couverture est
+          // continue ; sinon on repart de la seule période chargée.
+          const contiguous = neededFrom <= prev.to && neededTo >= prev.from;
+          return contiguous
+            ? {
+                from: neededFrom < prev.from ? neededFrom : prev.from,
+                to: neededTo > prev.to ? neededTo : prev.to,
+              }
+            : { from: neededFrom, to: neededTo };
+        });
+      })
+      .finally(() => {
+        isFetchingRef.current = false;
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, viewMode, currentMonth, currentWeek, loadedRange]);
 
   // Détecte si une réservation fait partie d'un groupe (réservation annuelle)
   const isYearlyReservation = (reservation: any) => {
@@ -760,6 +847,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
       )}
 
       {/* Modale de réservation à l'année */}
+      {isYearlyModalOpen && (
       <YearlyReservationModal
         isOpen={isYearlyModalOpen}
         onClose={() => setIsYearlyModalOpen(false)}
@@ -770,6 +858,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
         onSuccess={refreshReservations}
         buildingId={buildingId}
       />
+      )}
 
       {/* Modale de confirmation d'annulation */}
       {cancelModalOpen && reservationToCancel && (

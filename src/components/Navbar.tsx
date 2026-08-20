@@ -53,7 +53,7 @@ export default function Navbar() {
             <Link href="/dashboard" className="flex items-center gap-2">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white p-0.5 ring-1 ring-slate-200 shadow-sm">
                 <Image
-                  src="/image/logo.jpg"
+                  src="/image/logo.webp"
                   alt="Blason de Chartrettes"
                   width={36}
                   height={36}

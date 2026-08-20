@@ -7,7 +7,10 @@ const nextConfig = {
   },
   images: {
     // Formats modernes : meilleures compressions servies automatiquement.
-    formats: ['image/avif', 'image/webp'],
+    formats: ['image/webp'],
+    // Les visuels changent rarement : on garde les variantes optimisées 30 jours
+    // au lieu de les recalculer (le cache est vidé à chaque redéploiement).
+    minimumCacheTTL: 2592000,
     remotePatterns: [
       {
         protocol: 'https',
