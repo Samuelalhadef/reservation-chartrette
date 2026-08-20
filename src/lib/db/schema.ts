@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, primaryKey, index } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // Users table
@@ -90,7 +90,10 @@ export const rooms = sqliteTable('rooms', {
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+}, (table) => ({
+  // Les salles sont toujours listées bâtiment par bâtiment.
+  buildingIdx: index('rooms_building_idx').on(table.buildingId),
+}));
 
 // Reservations table
 export const reservations = sqliteTable('reservations', {
@@ -124,7 +127,16 @@ export const reservations = sqliteTable('reservations', {
   conventionSignedAt: integer('convention_signed_at', { mode: 'timestamp' }),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+}, (table) => ({
+  // Calendriers et vérifications de conflits : toujours une salle + une période.
+  roomDateIdx: index('reservations_room_date_idx').on(table.roomId, table.date),
+  // « Mes réservations » et les exports par compte.
+  userDateIdx: index('reservations_user_date_idx').on(table.userId, table.date),
+  // Files d'attente et statistiques par statut.
+  statusDateIdx: index('reservations_status_date_idx').on(table.status, table.date),
+  // Réservations d'une association (conventions, arbitrages).
+  associationIdx: index('reservations_association_idx').on(table.associationId),
+}));
 
 // Convention settings (singleton row) — paramètres modifiables par les admins
 // pour personnaliser le PDF et le modal de signature (maire, mairie, année…).

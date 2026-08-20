@@ -21,6 +21,14 @@ export const client: Client = createClient({
 // Create the Drizzle instance
 export const db = drizzle(client, { schema });
 
+// Réglages SQLite + index, appliqués une fois au démarrage du serveur (voir
+// optimize.ts). Import différé pour éviter une dépendance circulaire au chargement.
+if (typeof window === 'undefined') {
+  import('./optimize')
+    .then(({ ensureDbOptimizations }) => ensureDbOptimizations())
+    .catch(error => console.warn('⚠ Optimisations SQLite non appliquées :', error));
+}
+
 // Test connection function
 export async function testConnection() {
   try {
