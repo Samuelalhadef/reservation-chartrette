@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, Users as UsersIcon, FileText, AlertCircle, CheckCircle, CalendarOff, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Calendar, Clock, Users as UsersIcon, FileText, AlertCircle, CheckCircle, CalendarOff, Sparkles, Gavel } from 'lucide-react';
 import { format, addDays, eachDayOfInterval, isSameDay, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
@@ -34,6 +34,22 @@ interface TimeSlot {
   endHour: number;
 }
 
+/** Créneau demandé qui chevauche une réservation déjà enregistrée. */
+interface Conflict {
+  date: string;
+  dateLabel: string;
+  requestedHours: string;
+  conflictingHours: string;
+  associationName?: string;
+}
+
+// Adresse de contact de la mairie (identique aux mentions légales).
+const MAIRIE_CONTACT_EMAIL = 'mairie@mairie-chartrettes.fr';
+
+function conflictAlertTitle(count: number): string {
+  return count === 1 ? 'Date déjà réservée' : `${count} dates déjà réservées`;
+}
+
 export default function YearlyReservationModal({
   isOpen,
   onClose,
@@ -64,6 +80,12 @@ export default function YearlyReservationModal({
   // Associations rattachées au compte du membre (non-admin)
   const [userAssociations, setUserAssociations] = useState<Association[]>([]);
 
+  // Conflits avec des créneaux déjà réservés dans la salle
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
+  // Demande envoyée malgré les conflits, pour arbitrage par la mairie.
+  const acceptConflictsRef = useRef(false);
+
   // Sélection hebdomadaire
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectionStart, setSelectionStart] = useState<{ day: number; hour: number } | null>(null);
@@ -82,6 +104,8 @@ export default function YearlyReservationModal({
       setTimeSlots([]);
       setExcludeSchoolHolidays(true);
       setExcludedDates([]);
+      setConflicts([]);
+      acceptConflictsRef.current = false;
       setSelectedDay(null);
       setSelectionStart(null);
       setSelectedAssociationId('');
@@ -102,6 +126,46 @@ export default function YearlyReservationModal({
     loadAssociationData(selectedAssociationId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAssociationId]);
+
+  // Sur le récapitulatif, on vérifie que la salle est bien libre sur toutes les
+  // dates générées : le demandeur est prévenu avant de signer la convention.
+  useEffect(() => {
+    if (!isOpen || step !== 4 || !startDate || !endDate || timeSlots.length === 0) return;
+
+    let cancelled = false;
+
+    const checkConflicts = async () => {
+      setIsCheckingConflicts(true);
+      try {
+        const response = await fetch('/api/reservations/yearly/check-conflicts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomId,
+            startDate,
+            endDate,
+            timeSlots,
+            excludeSchoolHolidays,
+            excludedDates: excludedDates.map(d => d.toISOString()),
+          }),
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled) setConflicts(data.conflicts || []);
+      } catch (error) {
+        console.error('Erreur lors de la vérification des conflits:', error);
+      } finally {
+        if (!cancelled) setIsCheckingConflicts(false);
+      }
+    };
+
+    checkConflicts();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, step, roomId, startDate, endDate, timeSlots, excludeSchoolHolidays, excludedDates]);
 
   const loadUserAssociations = async () => {
     try {
@@ -163,6 +227,11 @@ export default function YearlyReservationModal({
         requestBody.associationId = selectedAssociationId;
       }
 
+      // Demande maintenue malgré des créneaux déjà pris : la mairie tranchera.
+      if (acceptConflictsRef.current) {
+        requestBody.acceptConflicts = true;
+      }
+
       const response = await fetch('/api/reservations/yearly', {
         method: 'POST',
         headers: {
@@ -176,10 +245,25 @@ export default function YearlyReservationModal({
       console.log('Données reçues:', data);
 
       if (!response.ok) {
+        // Conflit détecté côté serveur (créneau réservé entre-temps) : on
+        // ramène l'utilisateur au récapitulatif avec le détail des dates.
+        if (response.status === 409 && data.conflicts) {
+          setConflicts(data.conflicts);
+          setStep(4);
+        }
         throw new Error(data.error || 'Erreur lors de la réservation');
       }
 
-      alert(`Réservation à l'année créée avec succès ! ${data.count} réservations ont été générées.`);
+      if (data.conflicts?.length > 0) {
+        alert(
+          `Demande enregistrée : ${data.count} réservations ont été générées.\n\n` +
+            `${data.conflicts.length} date(s) sont déjà réservées par un autre demandeur : ` +
+            'la mairie a été prévenue et tranchera entre les demandes. ' +
+            'Ces dates ne sont pas acquises tant que la décision n\'est pas prise.'
+        );
+      } else {
+        alert(`Réservation à l'année créée avec succès ! ${data.count} réservations ont été générées.`);
+      }
 
       if (onSuccess) {
         onSuccess();
@@ -338,6 +422,28 @@ export default function YearlyReservationModal({
       return;
     }
 
+    // Dates déjà prises : la demande est bloquée tant que le conflit n'est pas
+    // levé, sauf demande explicite d'arbitrage (bouton dédié dans l'alerte).
+    if (conflicts.length > 0) {
+      alert(
+        `${conflictAlertTitle(conflicts.length)}\n\n` +
+          conflicts
+            .map(c => `• ${c.dateLabel} : ${c.conflictingHours} déjà réservé`)
+            .join('\n') +
+          '\n\nIl y a un conflit pour réserver ce créneau : excluez ces dates à l\'étape 3, ' +
+          'contactez la mairie, ou demandez son arbitrage.'
+      );
+      return;
+    }
+
+    await startSubmission(false);
+  };
+
+  // Envoie la demande (vérification de convention incluse). Avec arbitrage, la
+  // demande est enregistrée malgré les créneaux déjà pris : la mairie tranchera.
+  const startSubmission = async (acceptConflicts: boolean) => {
+    acceptConflictsRef.current = acceptConflicts;
+
     console.log('Validation passée, setIsSubmitting(true)');
     setIsSubmitting(true);
 
@@ -359,6 +465,20 @@ export default function YearlyReservationModal({
     await submitYearlyReservation();
   };
 
+  const requestArbitration = () => {
+    const confirmed = window.confirm(
+      `${conflictAlertTitle(conflicts.length)}\n\n` +
+        conflicts.map(c => `• ${c.dateLabel} : ${c.conflictingHours} déjà réservé`).join('\n') +
+        '\n\nVotre demande sera transmise à la mairie, qui choisira entre les demandes ' +
+        'concurrentes. Ces dates ne seront pas confirmées tant que la décision ne sera pas prise.\n\n' +
+        'Envoyer la demande pour arbitrage ?'
+    );
+
+    if (!confirmed) return;
+
+    startSubmission(true);
+  };
+
   const nextStep = () => {
     if (step === 1 && (!startDate || !endDate)) {
       alert('Veuillez sélectionner les dates');
@@ -372,6 +492,19 @@ export default function YearlyReservationModal({
   };
 
   const prevStep = () => setStep(step - 1);
+
+  // Ajoute toutes les dates en conflit à la liste des exclusions : la demande
+  // porte alors uniquement sur les dates réellement libres.
+  const excludeConflictingDates = () => {
+    const toExclude = conflicts
+      .map(conflict => parseISO(conflict.date))
+      .filter(date => !excludedDates.some(ex => isSameDay(ex, date)));
+
+    if (toExclude.length === 0) return;
+
+    setExcludedDates([...excludedDates, ...toExclude]);
+    setConflicts([]);
+  };
 
   const toggleDateExclusion = (date: Date) => {
     const exists = excludedDates.some(d => isSameDay(d, date));
@@ -855,6 +988,72 @@ export default function YearlyReservationModal({
                 </div>
               </div>
 
+              {/* Alerte : créneaux déjà réservés sur la période demandée */}
+              {isCheckingConflicts && (
+                <div className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-primary-900/40 rounded-xl text-sm text-slate-600 dark:text-slate-300">
+                  <Clock className="w-5 h-5 flex-shrink-0 animate-pulse" />
+                  Vérification de la disponibilité des créneaux...
+                </div>
+              )}
+
+              {!isCheckingConflicts && conflicts.length > 0 && (
+                <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl p-4">
+                  <div className="flex gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-red-900 dark:text-red-100 mb-1">
+                        {conflictAlertTitle(conflicts.length)}
+                      </p>
+                      <p className="text-sm text-red-800 dark:text-red-200 mb-3">
+                        Il y a un conflit pour réserver ce créneau. Excluez ces dates, contactez
+                        la mairie, ou maintenez votre demande : la mairie tranchera alors entre
+                        les demandes concurrentes.
+                      </p>
+
+                      <div className="max-h-48 overflow-y-auto space-y-1 mb-3">
+                        {conflicts.map(conflict => (
+                          <p
+                            key={conflict.date}
+                            className="text-sm text-red-900 dark:text-red-100 bg-white/60 dark:bg-red-900/30 rounded-lg px-3 py-2"
+                          >
+                            <span className="font-semibold capitalize">{conflict.dateLabel}</span>{' '}
+                            — {conflict.conflictingHours} déjà réservé
+                            {conflict.associationName ? ` (${conflict.associationName})` : ''}
+                          </p>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={excludeConflictingDates}
+                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold text-sm flex items-center justify-center gap-2"
+                        >
+                          <CalendarOff className="w-4 h-4" />
+                          Exclure ces dates
+                        </button>
+                        <button
+                          type="button"
+                          onClick={requestArbitration}
+                          disabled={isSubmitting}
+                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-semibold text-sm flex items-center justify-center gap-2"
+                        >
+                          <Gavel className="w-4 h-4" />
+                          Demander l&apos;arbitrage de la mairie
+                        </button>
+                        <a
+                          href={`mailto:${MAIRIE_CONTACT_EMAIL}`}
+                          className="px-4 py-2 border-2 border-red-300 dark:border-red-700 text-red-800 dark:text-red-200 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
+                        >
+                          <FileText className="w-4 h-4" />
+                          Contacter la mairie
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <div className="bg-white dark:bg-primary-800 border-2 border-slate-200 dark:border-primary-700/60 rounded-xl p-4">
                   <h4 className="font-bold text-slate-900 dark:text-white mb-3">Période</h4>
@@ -958,10 +1157,19 @@ export default function YearlyReservationModal({
             ) : (
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isCheckingConflicts || conflicts.length > 0}
+                title={
+                  conflicts.length > 0
+                    ? 'Des créneaux sont déjà réservés : excluez ces dates ou contactez la mairie'
+                    : undefined
+                }
                 className="w-full sm:flex-1 px-6 py-3 bg-primary-700 hover:bg-primary-800 text-white rounded-xl transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Création en cours...' : 'Valider la réservation'}
+                {isSubmitting
+                  ? 'Création en cours...'
+                  : conflicts.length > 0
+                  ? 'Créneaux déjà réservés'
+                  : 'Valider la réservation'}
               </button>
             )}
           </div>

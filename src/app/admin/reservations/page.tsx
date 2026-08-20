@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, Users, CheckCircle, XCircle, MessageSquare, Repeat, ChevronDown, ChevronRight, DollarSign } from 'lucide-react';
+import { Calendar, Clock, Users, CheckCircle, XCircle, MessageSquare, Repeat, ChevronDown, ChevronRight, DollarSign, Gavel } from 'lucide-react';
 import Button from '@/components/Button';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
 import ViewToggle from '@/components/ViewToggle';
 import CalendarView from '@/components/CalendarView';
 import PaymentModal from '@/components/PaymentModal';
+import ConflictsPanel, { type ConflictGroup } from '@/components/ConflictsPanel';
 import { formatPrice } from '@/lib/pricing';
 
 interface Reservation {
@@ -39,7 +40,14 @@ export default function AdminReservationsPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'conflicts'>('pending');
+  // Créneaux demandés par plusieurs personnes, à arbitrer
+  const [conflictGroups, setConflictGroups] = useState<ConflictGroup[]>([]);
+  const [conflictsLoading, setConflictsLoading] = useState(true);
+  const [arbitrationModal, setArbitrationModal] = useState<{
+    group: ConflictGroup;
+    winnerId: string;
+  } | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [commentModal, setCommentModal] = useState<{
@@ -56,7 +64,21 @@ export default function AdminReservationsPage() {
   useEffect(() => {
     fetchReservations();
     fetchRooms();
+    fetchConflicts();
   }, []);
+
+  const fetchConflicts = async () => {
+    try {
+      const res = await fetch('/api/admin/reservation-conflicts');
+      if (!res.ok) return;
+      const data = await res.json();
+      setConflictGroups(data.conflicts || []);
+    } catch (error) {
+      console.error('Error fetching conflicts:', error);
+    } finally {
+      setConflictsLoading(false);
+    }
+  };
 
   const fetchReservations = async () => {
     try {
@@ -214,7 +236,7 @@ export default function AdminReservationsPage() {
         }
       }
 
-      await fetchReservations();
+      await Promise.all([fetchReservations(), fetchConflicts()]);
       setCommentModal(null);
       setComment('');
     } catch (error) {
@@ -223,6 +245,72 @@ export default function AdminReservationsPage() {
     } finally {
       setProcessingId(null);
     }
+  };
+
+  // Arbitrage d'un créneau disputé : la demande retenue est validée, les autres
+  // demandes en attente du même créneau sont refusées avec le motif saisi.
+  const handleArbitration = async () => {
+    if (!arbitrationModal) return;
+
+    const { group, winnerId } = arbitrationModal;
+    const losers = group.claims.filter(c => c.id !== winnerId && c.status === 'pending');
+
+    if (!comment.trim()) {
+      alert('Veuillez indiquer le motif communiqué aux demandes refusées');
+      return;
+    }
+
+    setProcessingId(winnerId);
+
+    try {
+      const approveRes = await fetch(`/api/reservations/${winnerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' }),
+      });
+
+      if (!approveRes.ok) {
+        const data = await approveRes.json();
+        alert(data.error || 'La demande retenue n\'a pas pu être validée');
+        return;
+      }
+
+      const results = await Promise.all(
+        losers.map(loser =>
+          fetch(`/api/reservations/${loser.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'rejected', adminComment: comment.trim() }),
+          })
+        )
+      );
+
+      const failed = results.filter(r => !r.ok);
+
+      if (failed.length > 0) {
+        alert(
+          `Demande retenue validée, mais ${failed.length} refus n'ont pas abouti. Traitez-les manuellement.`
+        );
+      } else {
+        alert(`Créneau arbitré : 1 demande validée, ${losers.length} refusée(s).`);
+      }
+
+      await Promise.all([fetchReservations(), fetchConflicts()]);
+      setArbitrationModal(null);
+      setComment('');
+      setConfirmationText('');
+    } catch (error) {
+      console.error('Error arbitrating conflict:', error);
+      alert('Une erreur est survenue');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Taille de la série annuelle dont fait partie une demande (0 si ponctuelle).
+  const getSeriesCount = (reservationId: string) => {
+    const reservation = reservations.find(r => r.id === reservationId);
+    return reservation ? countRelatedReservations(reservation) : 0;
   };
 
   const openCommentModal = (reservationId: string, action: 'approved' | 'rejected') => {
@@ -271,13 +359,15 @@ export default function AdminReservationsPage() {
           {/* Filter Tabs */}
           <div className="mb-6 bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60">
             <div className="flex flex-wrap gap-2 p-4">
-              {(['all', 'pending', 'approved', 'rejected'] as const).map((status) => (
+              {(['all', 'pending', 'approved', 'rejected', 'conflicts'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilter(status)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     filter === status
                       ? 'bg-primary-700 text-white'
+                      : status === 'conflicts' && conflictGroups.length > 0
+                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/50'
                       : 'bg-slate-100 dark:bg-primary-700/40 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-primary-700/60'
                   }`}
                 >
@@ -285,11 +375,26 @@ export default function AdminReservationsPage() {
                   {status === 'pending' && `En attente (${statusCounts.pending})`}
                   {status === 'approved' && `Approuvées (${statusCounts.approved})`}
                   {status === 'rejected' && `Refusées (${statusCounts.rejected})`}
+                  {status === 'conflicts' && `Conflits (${conflictGroups.length})`}
                 </button>
               ))}
             </div>
 
-        {loading ? (
+        {filter === 'conflicts' ? (
+          <ConflictsPanel
+            conflicts={conflictGroups}
+            loading={conflictsLoading}
+            processingId={processingId}
+            getSeriesCount={getSeriesCount}
+            onApprove={(reservationId) => openCommentModal(reservationId, 'approved')}
+            onReject={(reservationId) => openCommentModal(reservationId, 'rejected')}
+            onArbitrate={(group, winnerId) => {
+              setArbitrationModal({ group, winnerId });
+              setComment('');
+              setConfirmationText('');
+            }}
+          />
+        ) : loading ? (
           <div className="p-8 text-center text-slate-600 dark:text-slate-300">
             Chargement...
           </div>
@@ -776,6 +881,131 @@ export default function AdminReservationsPage() {
       )}
 
       {/* Comment Modal */}
+      {/* Arbitrage d'un créneau disputé */}
+      {arbitrationModal && (() => {
+        const { group, winnerId } = arbitrationModal;
+        const winnerClaim = group.claims.find(c => c.id === winnerId);
+        const losers = group.claims.filter(c => c.id !== winnerId && c.status === 'pending');
+        const winnerReservation = reservations.find(r => r.id === winnerId);
+        const isPaidReservation = winnerReservation
+          ? winnerReservation.totalPrice > 0 || winnerReservation.depositAmount > 0
+          : false;
+        const isConfirmationValid =
+          !isPaidReservation || confirmationText.trim().toLowerCase() === 'reservation payée';
+
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-xl max-w-md w-full p-6 border border-slate-200 dark:border-primary-700/60 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xl font-bold text-primary-800 dark:text-white mb-1 flex items-center gap-2">
+                <Gavel className="h-5 w-5" />
+                Arbitrer le créneau
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-4 capitalize">
+                {group.dateLabel} — {group.roomName} — {group.hours}
+              </p>
+
+              <div className="mb-4 p-3 bg-accent-50 dark:bg-accent-900/20 border-2 border-accent-200 dark:border-accent-700 rounded-lg">
+                <p className="text-sm font-semibold text-accent-900 dark:text-accent-100 mb-1">
+                  Demande retenue
+                </p>
+                <p className="text-sm text-accent-800 dark:text-accent-200">
+                  {winnerClaim?.userName}
+                  {winnerClaim?.associationName ? ` — ${winnerClaim.associationName}` : ''} (
+                  {winnerClaim?.hours})
+                </p>
+              </div>
+
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-700 rounded-lg">
+                <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-1">
+                  {losers.length} demande(s) refusée(s)
+                </p>
+                <ul className="text-sm text-red-800 dark:text-red-200 list-disc list-inside">
+                  {losers.map(loser => (
+                    <li key={loser.id}>
+                      {loser.userName}
+                      {loser.associationName ? ` — ${loser.associationName}` : ''}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                  Le refus supprime la demande et envoie un email au demandeur avec le motif
+                  ci-dessous.
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Motif communiqué aux demandes refusées (obligatoire)
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/30 text-slate-900 dark:text-slate-100"
+                  placeholder="Ex. : ce créneau a été attribué à une autre association, contactez la mairie pour une date de repli."
+                  required
+                />
+              </div>
+
+              {isPaidReservation && (
+                <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <span className="font-semibold text-amber-900 dark:text-amber-100">
+                      Réservation payante - Confirmation requise
+                    </span>
+                  </div>
+                  <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
+                    La demande retenue implique un paiement de{' '}
+                    <strong>
+                      {formatPrice(
+                        (winnerReservation?.totalPrice || 0) + (winnerReservation?.depositAmount || 0)
+                      )}
+                    </strong>
+                    . Tapez <strong>&ldquo;reservation payée&rdquo;</strong> pour confirmer.
+                  </p>
+                  <input
+                    type="text"
+                    value={confirmationText}
+                    onChange={(e) => setConfirmationText(e.target.value)}
+                    className={`w-full px-3 py-2 border-2 rounded-lg focus:outline-none focus:ring-2 bg-white dark:bg-primary-900/30 text-slate-900 dark:text-slate-100 ${
+                      confirmationText && !isConfirmationValid
+                        ? 'border-red-500 focus:ring-red-500'
+                        : 'border-amber-300 dark:border-amber-600 focus:ring-amber-500'
+                    }`}
+                    placeholder="reservation payée"
+                    autoComplete="off"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setArbitrationModal(null);
+                    setComment('');
+                    setConfirmationText('');
+                  }}
+                  className="flex-1"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  variant="success"
+                  onClick={handleArbitration}
+                  isLoading={processingId === winnerId}
+                  disabled={processingId !== null || !comment.trim() || !isConfirmationValid}
+                  className="flex-1"
+                >
+                  Valider l&apos;arbitrage
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {commentModal && (() => {
         const reservation = reservations.find(r => r.id === commentModal.reservationId);
         const isYearly = reservation ? isPartOfYearlyReservation(reservation) : false;

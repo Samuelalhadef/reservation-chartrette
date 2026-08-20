@@ -6,49 +6,15 @@ import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { getUserAssociationIds } from '@/lib/userAssociations';
 import { sendEmail, emailTemplates, MAIRIE_EMAIL } from '@/lib/email';
-import { eachDayOfInterval, parseISO, getDay, isSameDay } from 'date-fns';
-
-// Jours de la semaine (index 0 = dimanche, comme getDay()).
-const WEEK_DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-
-// Formate une date en jour calendaire français (heure de Paris), pour rester
-// cohérent avec la façon dont les dates sont générées (parseISO = minuit Paris).
-function formatFrDate(date: Date): string {
-  return date.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'Europe/Paris',
-  });
-}
-
-// Périodes de vacances scolaires françaises (à personnaliser selon la zone)
-const SCHOOL_HOLIDAYS_2024_2025 = [
-  { start: '2024-10-19', end: '2024-11-03' }, // Toussaint
-  { start: '2024-12-21', end: '2025-01-05' }, // Noël
-  { start: '2025-02-08', end: '2025-02-23' }, // Hiver
-  { start: '2025-04-05', end: '2025-04-21' }, // Printemps
-  { start: '2025-07-05', end: '2025-08-31' }, // Été
-];
-
-const SCHOOL_HOLIDAYS_2025_2026 = [
-  { start: '2025-10-18', end: '2025-11-02' }, // Toussaint
-  { start: '2025-12-20', end: '2026-01-04' }, // Noël
-  { start: '2026-02-07', end: '2026-02-22' }, // Hiver
-  { start: '2026-04-04', end: '2026-04-20' }, // Printemps
-  { start: '2026-07-04', end: '2026-08-31' }, // Été
-];
-
-function isSchoolHoliday(date: Date): boolean {
-  const allHolidays = [...SCHOOL_HOLIDAYS_2024_2025, ...SCHOOL_HOLIDAYS_2025_2026];
-
-  return allHolidays.some(holiday => {
-    const start = parseISO(holiday.start);
-    const end = parseISO(holiday.end);
-    return date >= start && date <= end;
-  });
-}
+import { parseISO } from 'date-fns';
+import {
+  WEEK_DAYS,
+  computeValidDates,
+  conflictErrorMessage,
+  findYearlyConflicts,
+  formatFrDate,
+  getSlotsForDate,
+} from '@/lib/yearlyReservations';
 
 export async function POST(req: NextRequest) {
   try {
@@ -69,6 +35,8 @@ export async function POST(req: NextRequest) {
       excludeSchoolHolidays,
       excludedDates,
       associationId: customAssociationId,
+      // Le demandeur a vu l'alerte de conflit et demande l'arbitrage de la mairie.
+      acceptConflicts,
     } = body;
 
     // Validation
@@ -139,32 +107,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Générer toutes les dates entre startDate et endDate
+    // Générer toutes les dates entre startDate et endDate, filtrées selon les critères
     const start = parseISO(startDate);
     const end = parseISO(endDate);
-    const allDates = eachDayOfInterval({ start, end });
-
-    // Filtrer les dates selon les critères
-    const validDates = allDates.filter(date => {
-      const dayOfWeek = getDay(date);
-
-      // Vérifier si ce jour de la semaine a des créneaux définis
-      const hasSlotsForThisDay = timeSlots.some((slot: any) => slot.day === dayOfWeek);
-      if (!hasSlotsForThisDay) return false;
-
-      // Exclure les vacances scolaires si demandé
-      if (excludeSchoolHolidays && isSchoolHoliday(date)) return false;
-
-      // Exclure les dates spécifiquement exclues
-      if (excludedDates && excludedDates.length > 0) {
-        const isExcluded = excludedDates.some((excludedDate: string) =>
-          isSameDay(parseISO(excludedDate), date)
-        );
-        if (isExcluded) return false;
-      }
-
-      return true;
+    const validDates = computeValidDates({
+      startDate,
+      endDate,
+      timeSlots,
+      excludeSchoolHolidays,
+      excludedDates,
     });
+
+    // Par défaut, aucune réservation n'est créée si une seule date entre en
+    // conflit : le demandeur doit exclure la date, contacter la mairie, ou
+    // renvoyer sa demande explicitement pour arbitrage (acceptConflicts).
+    const conflicts = await findYearlyConflicts({
+      roomId,
+      dates: validDates,
+      timeSlots,
+      includeAssociationName: session.user?.role === 'admin',
+    });
+
+    if (conflicts.length > 0 && !acceptConflicts) {
+      return NextResponse.json(
+        {
+          error: conflictErrorMessage(conflicts),
+          conflicts,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Une demande qui empiète sur un créneau déjà pris reste toujours à
+    // valider, même pour un admin : c'est l'arbitrage qui tranchera.
+    const hasConflicts = conflicts.length > 0;
 
     // Créer les réservations
     const createdReservations = [];
@@ -172,32 +148,15 @@ export async function POST(req: NextRequest) {
     const createdSlots: { date: Date; hoursLabel: string }[] = [];
 
     for (const date of validDates) {
-      const dayOfWeek = getDay(date);
+      // Créneaux de ce jour, éclatés heure par heure + libellé lisible
+      const { hourSlots: formattedTimeSlots, hoursLabel } = getSlotsForDate(timeSlots, date);
 
-      // Récupérer les créneaux pour ce jour
-      const daySlotsData = timeSlots.filter((slot: any) => slot.day === dayOfWeek);
-
-      if (daySlotsData.length === 0) continue;
-
-      // Libellé lisible des plages horaires de ce jour (ex. "10:00 - 12:00, 14:00 - 16:00")
-      const hoursLabel = daySlotsData
-        .map((slot: any) => `${slot.startHour}:00 - ${slot.endHour + 1}:00`)
-        .join(', ');
-
-      // Convertir les créneaux au format attendu
-      const formattedTimeSlots = [];
-      for (const slot of daySlotsData) {
-        for (let hour = slot.startHour; hour <= slot.endHour; hour++) {
-          formattedTimeSlots.push({
-            start: `${hour}:00`,
-            end: `${hour + 1}:00`,
-          });
-        }
-      }
+      if (formattedTimeSlots.length === 0) continue;
 
       try {
-        // Admin reservations are automatically approved
-        const reservationStatus = session.user?.role === 'admin' ? 'approved' : 'pending';
+        // Admin reservations are automatically approved, sauf demande en conflit
+        const reservationStatus =
+          session.user?.role === 'admin' && !hasConflicts ? 'approved' : 'pending';
 
         // Créer la réservation pour cette date
         const [reservation] = await db
@@ -213,7 +172,7 @@ export async function POST(req: NextRequest) {
             requiredEquipment: [],
             status: reservationStatus,
             // For admin, set review info immediately
-            ...(session.user?.role === 'admin' && {
+            ...(session.user?.role === 'admin' && !hasConflicts && {
               reviewedBy: session.user.id,
               reviewedAt: new Date(),
             }),
@@ -230,7 +189,7 @@ export async function POST(req: NextRequest) {
 
     // Un seul email récapitulatif listant tous les horaires réservés.
     if (createdReservations.length > 0 && user.email) {
-      const isApproved = session.user?.role === 'admin';
+      const isApproved = session.user?.role === 'admin' && !hasConflicts;
 
       // Période (bornes demandées), au format français.
       const periodLabel = `du ${formatFrDate(start)} au ${formatFrDate(end)}`;
@@ -252,6 +211,17 @@ export async function POST(req: NextRequest) {
         )
         .join('');
 
+      // Dates disputées : elles apparaissent en tête de l'email et signalent à
+      // la mairie qu'un arbitrage est attendu.
+      const conflictsListHtml = hasConflicts
+        ? conflicts
+            .map(
+              conflict =>
+                `<li><span style="text-transform: capitalize;">${conflict.dateLabel}</span> — ${conflict.conflictingHours} déjà réservé (demande : ${conflict.requestedHours})</li>`
+            )
+            .join('')
+        : undefined;
+
       const html = emailTemplates.yearlyReservationSubmitted(
         user.name,
         room[0].name,
@@ -260,9 +230,12 @@ export async function POST(req: NextRequest) {
         createdReservations.length,
         weeklySummaryHtml,
         datesListHtml,
-        isApproved
+        isApproved,
+        conflictsListHtml
       );
-      const subject = 'Demande de réservation à l\'année reçue';
+      const subject = hasConflicts
+        ? 'Demande de réservation à l\'année reçue — arbitrage requis'
+        : 'Demande de réservation à l\'année reçue';
 
       // 1) Copie au demandeur
       await sendEmail({ to: user.email, subject, html });
@@ -278,7 +251,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       count: createdReservations.length,
-      message: `${createdReservations.length} réservations créées avec succès`,
+      message: hasConflicts
+        ? `${createdReservations.length} réservations enregistrées — ${conflicts.length} date(s) en conflit soumises à l'arbitrage de la mairie`
+        : `${createdReservations.length} réservations créées avec succès`,
+      conflicts: hasConflicts ? conflicts : undefined,
       reservations: createdReservations,
     });
   } catch (error) {
