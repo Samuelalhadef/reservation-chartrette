@@ -141,6 +141,86 @@ async function getTransporter(): Promise<Transporter> {
   return oauthTransporter.transport;
 }
 
+// --- Habillage des messages -------------------------------------------------
+// Tous les e-mails partent dans un gabarit commun portant le logo. Trois
+// contraintes propres au courrier électronique dictent la mise en forme :
+//
+//   - la mise en page passe par des <table> et des styles en ligne : Outlook
+//     ignore flex, grid et la plupart des feuilles de style ;
+//   - le logo est un PNG, pas le WebP du site : Outlook ne lit pas le WebP ;
+//   - beaucoup de clients bloquent les images par défaut, donc le bandeau reste
+//     lisible sans elle — le nom du service y figure en toutes lettres.
+//
+// L'habillage est appliqué à l'envoi (voir deliver) et non dans chaque gabarit :
+// les routes « contact » et « mot de passe oublié » composent leur HTML à la
+// main et en bénéficient ainsi sans modification.
+const APP_URL = (process.env.NEXTAUTH_URL || 'https://chartrettes-reservation-salle.com').replace(/\/+$/, '');
+const LOGO_URL = `${APP_URL}/image/logo-email.png`;
+
+/** Bleu ardoise et teal du design system « Élégant municipal ». */
+const BRAND_PRIMARY = '#1e3a5f';
+
+/**
+ * Enveloppe un contenu HTML dans le gabarit de marque.
+ *
+ * Les messages qui composent déjà un document complet (doctype présent) sont
+ * laissés intacts : ils portent leur propre en-tête.
+ */
+export function applyEmailLayout(content: string): string {
+  if (/<!DOCTYPE/i.test(content) || /<html[\s>]/i.test(content)) return content;
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${FROM_NAME}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f1f5f9; font-family:Arial, Helvetica, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f1f5f9; padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; background-color:#ffffff; border-radius:8px; overflow:hidden;">
+
+          <tr>
+            <td style="background-color:${BRAND_PRIMARY}; padding:20px 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-right:14px; vertical-align:middle;">
+                    <img src="${LOGO_URL}" width="48" height="48" alt=""
+                         style="display:block; width:48px; height:48px; border:0; border-radius:6px;">
+                  </td>
+                  <td style="vertical-align:middle;">
+                    <span style="color:#ffffff; font-size:17px; font-weight:bold; letter-spacing:0.2px;">${FROM_NAME}</span><br>
+                    <span style="color:#b9cbe4; font-size:12px;">Commune de Chartrettes</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:32px; color:#334155; font-size:15px; line-height:1.6;">
+${content}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background-color:#f8fafc; border-top:1px solid #e2e8f0; padding:20px 32px; color:#64748b; font-size:12px; line-height:1.6;">
+              Message automatique du service de réservation des salles communales.<br>
+              Une réponse à ce message arrive directement à la mairie (${MAIRIE_EMAIL}).<br>
+              <a href="${APP_URL}" style="color:${BRAND_PRIMARY};">${APP_URL.replace(/^https?:\/\//, '')}</a>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 // --- Quota quotidien et file d'attente ------------------------------------
 // Le fournisseur d'envoi plafonne le nombre de messages par jour (100 sur
 // l'offre gratuite de Resend). Au-delà, il rejette les envois : sans garde-fou,
@@ -252,7 +332,8 @@ async function deliver(options: EmailOptions) {
     replyTo: options.replyTo || MAIRIE_EMAIL,
     to: options.to,
     subject: options.subject,
-    html: options.html,
+    // Habillage commun : logo et pied de page, sur tous les envois.
+    html: applyEmailLayout(options.html),
     text: options.text,
     attachments: options.attachments,
   });
@@ -413,7 +494,7 @@ export async function sendEmail({ to, subject, html, text, attachments, replyTo 
 export const emailTemplates = {
   reservationSubmitted: (userName: string, roomName: string, date: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2563eb;">Demande de réservation reçue</h2>
+      <h2 style="color: #1e3a5f;">Demande de réservation reçue</h2>
       <p>Bonjour ${userName},</p>
       <p>Nous avons bien reçu votre demande de réservation pour :</p>
       <ul>
@@ -441,7 +522,7 @@ export const emailTemplates = {
     conflictsListHtml?: string
   ) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2563eb;">Demande de réservation à l'année reçue</h2>
+      <h2 style="color: #1e3a5f;">Demande de réservation à l'année reçue</h2>
       <p>Bonjour ${userName},</p>
       <p>Nous avons bien reçu votre demande de réservation à l'année pour :</p>
       <ul>
@@ -451,12 +532,12 @@ export const emailTemplates = {
         <li><strong>Nombre de créneaux réservés :</strong> ${count}</li>
       </ul>
 
-      <h3 style="color: #2563eb; margin-top: 24px;">Créneaux hebdomadaires</h3>
+      <h3 style="color: #1e3a5f; margin-top: 24px;">Créneaux hebdomadaires</h3>
       <ul>
         ${weeklySummaryHtml}
       </ul>
 
-      <h3 style="color: #2563eb; margin-top: 24px;">Détail de toutes les dates réservées</h3>
+      <h3 style="color: #1e3a5f; margin-top: 24px;">Détail de toutes les dates réservées</h3>
       <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
         <thead>
           <tr style="background-color: #f3f4f6;">
@@ -507,7 +588,7 @@ export const emailTemplates = {
     adminComment?: string
   ) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: ${decision === 'approved' ? '#16a34a' : '#dc2626'};">
+      <h2 style="color: ${decision === 'approved' ? '#059669' : '#dc2626'};">
         ${decision === 'approved' ? 'Réservations approuvées' : 'Demande de réservation refusée'}
       </h2>
       <p>Bonjour ${userName},</p>
@@ -527,7 +608,7 @@ export const emailTemplates = {
         ? `<p><strong>${decision === 'approved' ? 'Message de la mairie' : 'Motif du refus'} :</strong><br/>${adminComment}</p>`
         : ''}
 
-      <h3 style="color: #2563eb; margin-top: 24px;">Détail des dates concernées</h3>
+      <h3 style="color: #1e3a5f; margin-top: 24px;">Détail des dates concernées</h3>
       <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
         <thead>
           <tr style="background-color: #f3f4f6;">
@@ -549,7 +630,7 @@ export const emailTemplates = {
 
   reservationApproved: (userName: string, roomName: string, date: string, timeSlots: string, adminComment?: string, hasConvention?: boolean) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #16a34a;">Réservation approuvée</h2>
+      <h2 style="color: #059669;">Réservation approuvée</h2>
       <p>Bonjour ${userName},</p>
       <p>Excellente nouvelle ! Votre réservation a été approuvée :</p>
       <ul>
@@ -586,7 +667,7 @@ export const emailTemplates = {
 
   reservationReminder: (userName: string, roomName: string, date: string, timeSlots: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2563eb;">Rappel de réservation</h2>
+      <h2 style="color: #1e3a5f;">Rappel de réservation</h2>
       <p>Bonjour ${userName},</p>
       <p>Ceci est un rappel concernant votre réservation qui approche :</p>
       <ul>
@@ -601,7 +682,7 @@ export const emailTemplates = {
 
   associationRequestSubmitted: (userName: string, associationName: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2563eb;">Demande d'ajout d'association reçue</h2>
+      <h2 style="color: #1e3a5f;">Demande d'ajout d'association reçue</h2>
       <p>Bonjour ${userName},</p>
       <p>Nous avons bien reçu votre demande d'ajout de l'association "${associationName}".</p>
       <p>Un administrateur va examiner votre demande. Vous recevrez une notification dès que votre association sera validée.</p>
@@ -611,7 +692,7 @@ export const emailTemplates = {
 
   associationApproved: (userName: string, associationName: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #16a34a;">Association approuvée</h2>
+      <h2 style="color: #059669;">Association approuvée</h2>
       <p>Bonjour ${userName},</p>
       <p>Bonne nouvelle ! L'association "${associationName}" a été approuvée.</p>
       <p>Vous pouvez maintenant effectuer des réservations de salles.</p>
@@ -646,8 +727,11 @@ export const emailTemplates = {
 
               <!-- Header -->
               <tr>
-                <td style="background-color: #2563eb; padding: 30px 40px; text-align: center;">
+                <td style="background-color: #1e3a5f; padding: 30px 40px; text-align: center;">
+                  <img src="${LOGO_URL}" width="56" height="56" alt=""
+                       style="display:block; margin:0 auto 14px auto; width:56px; height:56px; border:0; border-radius:8px;">
                   <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">Bienvenue !</h1>
+                  <p style="margin:6px 0 0 0; color:#b9cbe4; font-size:13px;">Réservation de salles &mdash; Commune de Chartrettes</p>
                 </td>
               </tr>
 
@@ -669,7 +753,7 @@ export const emailTemplates = {
                   <!-- Code Box -->
                   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 30px 0;">
                     <tr>
-                      <td style="background-color: #2563eb; padding: 30px; text-align: center;">
+                      <td style="background-color: #1e3a5f; padding: 30px; text-align: center;">
                         <p style="margin: 0 0 15px 0; color: #ffffff; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;">
                           CODE DE VÉRIFICATION
                         </p>
