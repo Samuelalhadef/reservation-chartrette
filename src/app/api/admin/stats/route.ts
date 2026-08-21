@@ -39,6 +39,11 @@ export async function GET(req: NextRequest) {
 
     const dateFormat = period === 'year' ? '%Y-%m' : '%Y-%m-%d';
 
+    // Les dates sont stockées en SECONDES (drizzle, mode 'timestamp'), pas en
+    // millisecondes : comparer à Date.getTime() ne renvoyait jamais aucune
+    // ligne dès qu'une période était sélectionnée.
+    const startSeconds = Math.floor(startDate.getTime() / 1000);
+
     // Toutes ces requêtes sont indépendantes : on les exécute en parallèle
     // (auparavant exécutées en série, ce qui multipliait les allers-retours DB).
     const [
@@ -71,7 +76,7 @@ export async function GET(req: NextRequest) {
         SELECT r.name as roomName, COUNT(res.id) as count
         FROM reservations res
         LEFT JOIN rooms r ON res.room_id = r.id
-        WHERE res.date >= ${startDate.getTime()} AND res.status IN ('approved', 'pending')
+        WHERE res.date >= ${startSeconds} AND res.status IN ('approved', 'pending')
         GROUP BY res.room_id, r.name
         ORDER BY count DESC
         LIMIT 10
@@ -81,17 +86,17 @@ export async function GET(req: NextRequest) {
         SELECT a.name as associationName, COUNT(res.id) as count
         FROM reservations res
         LEFT JOIN associations a ON res.association_id = a.id
-        WHERE res.date >= ${startDate.getTime()} AND res.status IN ('approved', 'pending')
+        WHERE res.date >= ${startSeconds} AND res.status IN ('approved', 'pending')
         GROUP BY res.association_id, a.name
         ORDER BY count DESC
         LIMIT 10
       `),
       // Réservations dans le temps
       client.execute(`
-        SELECT strftime('${dateFormat}', datetime(date / 1000, 'unixepoch')) as _id, COUNT(*) as count
+        SELECT strftime('${dateFormat}', datetime(date, 'unixepoch', 'localtime')) as _id, COUNT(*) as count
         FROM reservations
-        WHERE date >= ${startDate.getTime()}
-        GROUP BY strftime('${dateFormat}', datetime(date / 1000, 'unixepoch'))
+        WHERE date >= ${startSeconds}
+        GROUP BY strftime('${dateFormat}', datetime(date, 'unixepoch', 'localtime'))
         ORDER BY _id ASC
       `),
       // Taux d'acceptation

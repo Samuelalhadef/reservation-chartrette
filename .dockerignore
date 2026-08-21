@@ -28,3 +28,13 @@ coverage
 Dockerfile
 .dockerignore
 docker-compose.yml
+
+# Dépendances imbriquées : `node_modules` seul ne couvre que la racine.
+**/node_modules
+
+# Outillage hors application (générateur du guide PDF, docs, scripts ponctuels)
+guide-build
+docs
+scripts
+/*.pdf
+associations_*.json
