@@ -3,13 +3,15 @@ import nodemailer from 'nodemailer';
 // --- Adresses ---------------------------------------------------------------
 // Deux adresses distinctes, avec deux rôles différents :
 //
-// FROM_ADDRESS (var. EMAIL_FROM) : adresse technique d'expédition. C'est le
-//   service informatique de la mairie qui porte la boîte SMTP, donc tous les
-//   mails de l'application partent de là — confirmations de réservation,
-//   codes de vérification, notifications d'approbation/refus.
-//   Attention : le serveur SMTP réécrit le From vers le compte authentifié
-//   (EMAIL_SERVER_USER) si cette adresse n'est pas la sienne ou un de ses alias
-//   autorisés. EMAIL_FROM doit donc correspondre au compte configuré.
+// FROM_ADDRESS (var. EMAIL_FROM) : adresse technique d'expédition de tous les
+//   mails de l'application — confirmations de réservation, codes de
+//   vérification, notifications d'approbation/refus.
+//   Elle porte le domaine du service de réservation, et non celui de la mairie :
+//   l'envoi passe par Resend, qui n'accepte que des domaines vérifiés chez lui,
+//   et la zone mairie-chartrettes.fr n'est pas administrée par le projet.
+//   Attention : un relais SMTP réécrit ou rejette le From si le domaine n'est
+//   pas un de ceux qu'il a validés. EMAIL_FROM doit donc rester sur un domaine
+//   vérifié côté relais.
 //
 // MAIRIE_EMAIL (var. EMAIL_ADMIN) : contact métier. Destinataire des
 //   notifications admin (formulaire de contact, demandes de réservation à
@@ -23,7 +25,7 @@ export const MAIRIE_EMAIL =
   process.env.EMAIL_ADMIN?.trim() || 'animateur.culturel@mairie-chartrettes.fr';
 
 const FROM_ADDRESS =
-  process.env.EMAIL_FROM?.trim() || 'serviceinformatique@mairie-chartrettes.fr';
+  process.env.EMAIL_FROM?.trim() || 'reservation@chartrettes-reservation-salle.com';
 const FROM_NAME = process.env.EMAIL_FROM_NAME?.trim() || 'Réservation Chartrettes';
 
 /** En-tête From complet, ex : "Réservation Chartrettes" <adresse@exemple.fr> */
