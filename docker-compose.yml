@@ -48,6 +48,13 @@ services:
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-}
       # Contact métier : destinataire des notifications admin + Reply-To
       EMAIL_ADMIN: ${EMAIL_ADMIN:-}
+      # --- OAuth2 Microsoft 365 ---
+      # Les Security Defaults du tenant refusent l'auth par mot de passe (535
+      # 5.7.139). Renseigner ces trois variables active XOAUTH2 ; EMAIL_SERVER_PASSWORD
+      # devient alors inutile.
+      EMAIL_OAUTH_TENANT_ID: ${EMAIL_OAUTH_TENANT_ID:-}
+      EMAIL_OAUTH_CLIENT_ID: ${EMAIL_OAUTH_CLIENT_ID:-}
+      EMAIL_OAUTH_CLIENT_SECRET: ${EMAIL_OAUTH_CLIENT_SECRET:-}
     networks:
       - cloudflared-net
       - default

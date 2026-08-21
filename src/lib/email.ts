@@ -30,23 +30,111 @@ const FROM_NAME = process.env.EMAIL_FROM_NAME?.trim() || 'Réservation Chartrett
 export const EMAIL_FROM = `"${FROM_NAME}" <${FROM_ADDRESS}>`;
 
 // --- Transport SMTP ---------------------------------------------------------
+// Deux modes d'authentification, choisis selon la configuration présente :
+//
+//   OAuth2 (client credentials) dès que EMAIL_OAUTH_TENANT_ID / _CLIENT_ID /
+//     _CLIENT_SECRET sont renseignés. C'est le mode imposé par Microsoft 365 :
+//     les « Security Defaults » du tenant refusent l'authentification par mot de
+//     passe (535 5.7.139), et Microsoft désactive de toute façon l'auth basique
+//     SMTP par défaut fin décembre 2026.
+//
+//   Mot de passe (EMAIL_SERVER_PASSWORD) sinon, pour un SMTP classique.
+//
 // Port 465 (SSL implicite) par défaut : évite les timeouts observés en 587
-// (STARTTLS). Surchargeable via EMAIL_SERVER_PORT si le serveur de la mairie
-// n'expose que 587.
+// (STARTTLS). Microsoft 365 n'écoute en revanche que sur 587 et 25, il faut donc
+// y poser explicitement EMAIL_SERVER_PORT=587.
 const SMTP_PORT = Number(process.env.EMAIL_SERVER_PORT) || 465;
 
-const transporter = nodemailer.createTransport({
+const OAUTH_TENANT_ID = process.env.EMAIL_OAUTH_TENANT_ID?.trim();
+const OAUTH_CLIENT_ID = process.env.EMAIL_OAUTH_CLIENT_ID?.trim();
+const OAUTH_CLIENT_SECRET = process.env.EMAIL_OAUTH_CLIENT_SECRET?.trim();
+const USE_OAUTH = Boolean(OAUTH_TENANT_ID && OAUTH_CLIENT_ID && OAUTH_CLIENT_SECRET);
+
+const SMTP_OPTIONS = {
   host: process.env.EMAIL_SERVER_HOST || 'smtp.gmail.com',
   port: SMTP_PORT,
   secure: SMTP_PORT === 465, // SSL implicite en 465, STARTTLS sinon
+  connectionTimeout: 10000, // 10 secondes
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
+};
+
+type Transporter = ReturnType<typeof nodemailer.createTransport>;
+
+const passwordTransporter: Transporter = nodemailer.createTransport({
+  ...SMTP_OPTIONS,
   auth: {
     user: process.env.EMAIL_SERVER_USER,
     pass: process.env.EMAIL_SERVER_PASSWORD,
   },
-  connectionTimeout: 10000, // 10 secondes
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
 });
+
+// Entra ID délivre un jeton valable ~1 h. On le garde en cache et on le renouvelle
+// une minute avant l'échéance, plutôt que de rappeler le serveur d'autorisation à
+// chaque envoi.
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
+async function getAccessToken(): Promise<string> {
+  if (cachedToken && cachedToken.expiresAt > Date.now()) {
+    return cachedToken.value;
+  }
+
+  const response = await fetch(
+    `https://login.microsoftonline.com/${OAUTH_TENANT_ID}/oauth2/v2.0/token`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: OAUTH_CLIENT_ID!,
+        client_secret: OAUTH_CLIENT_SECRET!,
+        // Portée SMTP d'Exchange Online — ce n'est pas celle de Microsoft Graph.
+        scope: 'https://outlook.office365.com/.default',
+        grant_type: 'client_credentials',
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      `Jeton OAuth2 refusé (${response.status}) : ${data.error_description || data.error}`
+    );
+  }
+
+  cachedToken = {
+    value: data.access_token,
+    expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+  };
+
+  return cachedToken.value;
+}
+
+// Le jeton fait partie des options du transport : on ne le reconstruit que quand
+// le jeton lui-même a changé.
+let oauthTransporter: { token: string; transport: Transporter } | null = null;
+
+async function getTransporter(): Promise<Transporter> {
+  if (!USE_OAUTH) return passwordTransporter;
+
+  const accessToken = await getAccessToken();
+
+  if (!oauthTransporter || oauthTransporter.token !== accessToken) {
+    oauthTransporter = {
+      token: accessToken,
+      transport: nodemailer.createTransport({
+        ...SMTP_OPTIONS,
+        auth: {
+          type: 'OAuth2',
+          user: process.env.EMAIL_SERVER_USER,
+          accessToken,
+        },
+      }),
+    };
+  }
+
+  return oauthTransporter.transport;
+}
 
 interface EmailAttachment {
   filename: string;
@@ -71,6 +159,7 @@ export async function sendEmail({ to, subject, html, text, attachments, replyTo 
   const isDev = process.env.NODE_ENV === 'development';
 
   try {
+    const transporter = await getTransporter();
     const info = await transporter.sendMail({
       from: EMAIL_FROM,
       // Les réponses des associations doivent arriver à la mairie, même si
