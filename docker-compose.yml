@@ -48,6 +48,9 @@ services:
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-}
       # Contact métier : destinataire des notifications admin + Reply-To
       EMAIL_ADMIN: ${EMAIL_ADMIN:-}
+      # Plafond quotidien du fournisseur : au-delà, les e-mails sont mis en
+      # file d'attente et repartent le lendemain.
+      EMAIL_DAILY_LIMIT: ${EMAIL_DAILY_LIMIT:-100}
       # --- OAuth2 Microsoft 365 ---
       # Les Security Defaults du tenant refusent l'auth par mot de passe (535
       # 5.7.139). Renseigner ces trois variables active XOAUTH2 ; EMAIL_SERVER_PASSWORD
