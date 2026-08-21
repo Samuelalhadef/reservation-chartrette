@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { Calendar, Users, Building2, Clock, CheckCircle, TrendingUp, BarChart3 } from 'lucide-react';
+import { Calendar, Users, Building2, Clock, CheckCircle, TrendingUp, BarChart3, Mail } from 'lucide-react';
 
 // Chart.js n'est chargé que côté client, à la demande (hors du bundle initial).
 const Pie = dynamic(() => import('@/components/charts/PieChart'), {
@@ -30,14 +30,31 @@ interface Stats {
   topAssociations: { associationName: string; count: number }[];
 }
 
+interface EmailQuotaStatus {
+  limit: number;
+  used: number;
+  remaining: number;
+  pendingCount: number;
+  oldestPendingAt: string | null;
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('all');
+  const [emailQuota, setEmailQuota] = useState<EmailQuotaStatus | null>(null);
 
   useEffect(() => {
     fetchStats();
   }, [period]);
+
+  // Indépendant de la période : le quota est toujours celui de la journée.
+  useEffect(() => {
+    fetch('/api/admin/email-quota')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => setEmailQuota(data?.error ? null : data))
+      .catch(() => setEmailQuota(null));
+  }, []);
 
   const fetchStats = async () => {
     try {
@@ -199,6 +216,26 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Alerte quota e-mails : messages retenus faute de quota */}
+      {emailQuota && emailQuota.pendingCount > 0 && (
+        <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+          <div className="flex items-start">
+            <Mail className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 mr-3 shrink-0" />
+            <div>
+              <h3 className="font-semibold text-amber-800 dark:text-amber-300">
+                Quota d'envoi quotidien atteint
+              </h3>
+              <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                {emailQuota.pendingCount} e-mail(s) n'ont pas pu être envoyés aujourd'hui : la
+                limite de {emailQuota.limit} messages par jour est atteinte. Ils sont conservés et
+                partiront automatiquement demain, dès que le compteur sera réinitialisé.
+                Aucune action n'est nécessaire.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6">
@@ -262,6 +299,59 @@ export default function AdminDashboard() {
           </p>
         </div>
       </div>
+
+      {/* Quota d'envoi d'e-mails */}
+      {emailQuota && (
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-card border border-slate-200 dark:border-primary-700/60 p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center">
+                <Mail className="h-5 w-5 mr-2 text-primary-700 dark:text-accent-300" />
+                Quota d'envoi d'e-mails
+              </h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Confirmations, codes de vérification et notifications. Le compteur se
+                réinitialise chaque nuit.
+              </p>
+            </div>
+            <p className="text-3xl font-bold text-slate-900 dark:text-white tabular-nums shrink-0">
+              {emailQuota.used}
+              <span className="text-lg font-medium text-slate-500 dark:text-slate-400">
+                {' / '}
+                {emailQuota.limit}
+              </span>
+            </p>
+          </div>
+
+          <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-primary-900/60 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                emailQuota.remaining === 0
+                  ? 'bg-red-500'
+                  : emailQuota.used / emailQuota.limit >= 0.8
+                    ? 'bg-amber-500'
+                    : 'bg-accent-600'
+              }`}
+              style={{
+                width: `${Math.min(100, Math.round((emailQuota.used / emailQuota.limit) * 100))}%`,
+              }}
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <span className="text-slate-600 dark:text-slate-300">
+              {emailQuota.remaining > 0
+                ? `${emailQuota.remaining} envoi(s) restant(s) aujourd'hui`
+                : "Plus d'envoi possible aujourd'hui"}
+            </span>
+            {emailQuota.pendingCount > 0 && (
+              <span className="font-medium text-amber-700 dark:text-amber-400">
+                {emailQuota.pendingCount} en attente, envoi demain
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

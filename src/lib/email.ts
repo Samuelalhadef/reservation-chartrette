@@ -1,4 +1,7 @@
 import nodemailer from 'nodemailer';
+import { db, client } from '@/lib/db';
+import { emailQueue } from '@/lib/db/schema';
+import { and, asc, eq } from 'drizzle-orm';
 
 // --- Adresses ---------------------------------------------------------------
 // Deux adresses distinctes, avec deux rôles différents :
@@ -138,6 +141,189 @@ async function getTransporter(): Promise<Transporter> {
   return oauthTransporter.transport;
 }
 
+// --- Quota quotidien et file d'attente ------------------------------------
+// Le fournisseur d'envoi plafonne le nombre de messages par jour (100 sur
+// l'offre gratuite de Resend). Au-delà, il rejette les envois : sans garde-fou,
+// une confirmation de réservation ou un code de vérification serait purement
+// perdu. On compte donc les envois de la journée et on met les suivants de côté
+// en base ; ils repartent seuls quand le compteur repart à zéro, le lendemain.
+const DAILY_LIMIT = Number(process.env.EMAIL_DAILY_LIMIT) || 100;
+
+/**
+ * Journée de comptage, en UTC.
+ *
+ * C'est à minuit UTC que le fournisseur remet son compteur à zéro. Compter en
+ * heure de Paris rouvrirait le quota à 22 h UTC, soit deux heures avant lui, et
+ * les envois de cette fenêtre seraient rejetés.
+ */
+function quotaDay(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Réserve un envoi sur le quota du jour.
+ *
+ * L'incrément et le test sont faits dans la même instruction SQL : deux requêtes
+ * simultanées ne peuvent pas lire le même compteur et le dépasser toutes les
+ * deux. On réserve avant d'envoyer, quitte à rendre le crédit si l'envoi échoue.
+ */
+async function reserveQuota(): Promise<boolean> {
+  const day = quotaDay();
+  const result = await client.execute({
+    sql: `INSERT INTO email_quota (day, sent) VALUES (?, 1)
+          ON CONFLICT(day) DO UPDATE SET sent = sent + 1
+          WHERE email_quota.sent < ?
+          RETURNING sent`,
+    args: [day, DAILY_LIMIT],
+  });
+  return result.rows.length > 0;
+}
+
+/** Rend le crédit réservé quand l'envoi a finalement échoué. */
+async function releaseQuota(): Promise<void> {
+  await client.execute({
+    sql: `UPDATE email_quota SET sent = MAX(sent - 1, 0) WHERE day = ?`,
+    args: [quotaDay()],
+  });
+}
+
+/** Nombre d'envois déjà consommés aujourd'hui. */
+async function sentToday(): Promise<number> {
+  const result = await client.execute({
+    sql: 'SELECT sent FROM email_quota WHERE day = ?',
+    args: [quotaDay()],
+  });
+  return Number(result.rows[0]?.sent ?? 0);
+}
+
+/** État du quota et de la file, pour l'affichage administrateur. */
+export async function getEmailQuotaStatus() {
+  const [used, pending] = await Promise.all([
+    sentToday(),
+    client.execute("SELECT COUNT(*) AS n, MIN(created_at) AS oldest FROM email_queue WHERE status = 'pending'"),
+  ]);
+
+  const pendingCount = Number(pending.rows[0]?.n ?? 0);
+  const oldest = pending.rows[0]?.oldest;
+
+  return {
+    limit: DAILY_LIMIT,
+    used,
+    remaining: Math.max(DAILY_LIMIT - used, 0),
+    pendingCount,
+    // Les dates sont stockées en secondes, comme partout dans le schéma.
+    oldestPendingAt: oldest ? new Date(Number(oldest) * 1000).toISOString() : null,
+  };
+}
+
+/** Sérialise les pièces jointes pour les stocker en base (contenu en base64). */
+function serializeAttachments(attachments?: EmailAttachment[]): string | null {
+  if (!attachments?.length) return null;
+  return JSON.stringify(
+    attachments.map(a => ({
+      filename: a.filename,
+      contentType: a.contentType,
+      content: Buffer.isBuffer(a.content)
+        ? a.content.toString('base64')
+        : a.encoding === 'base64'
+          ? a.content
+          : Buffer.from(a.content).toString('base64'),
+      encoding: 'base64' as const,
+    }))
+  );
+}
+
+function deserializeAttachments(raw: string | null): EmailAttachment[] | undefined {
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw) as EmailAttachment[];
+  } catch {
+    return undefined;
+  }
+}
+
+/** Envoi effectif, sans gestion de quota : utilisé par sendEmail et par la purge. */
+async function deliver(options: EmailOptions) {
+  const transporter = await getTransporter();
+  return transporter.sendMail({
+    from: EMAIL_FROM,
+    // Les réponses des associations doivent arriver à la mairie, même si
+    // l'expéditeur technique est une adresse noreply.
+    replyTo: options.replyTo || MAIRIE_EMAIL,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+    text: options.text,
+    attachments: options.attachments,
+  });
+}
+
+let flushing = false;
+
+/**
+ * Vide la file tant qu'il reste du quota.
+ *
+ * Appelée à chaque envoi et périodiquement (voir src/instrumentation.ts), pour
+ * que la file reparte même un jour sans activité sur le site.
+ */
+export async function flushEmailQueue(): Promise<{ sent: number; remaining: number }> {
+  if (flushing) return { sent: 0, remaining: 0 };
+  flushing = true;
+  let sent = 0;
+
+  try {
+    while (true) {
+      const [next] = await db
+        .select()
+        .from(emailQueue)
+        .where(eq(emailQueue.status, 'pending'))
+        .orderBy(asc(emailQueue.createdAt))
+        .limit(1);
+
+      if (!next) break;
+      if (!(await reserveQuota())) break; // quota épuisé, on réessaiera demain
+
+      try {
+        await deliver({
+          to: next.to,
+          subject: next.subject,
+          html: next.html,
+          text: next.body ?? undefined,
+          replyTo: next.replyTo ?? undefined,
+          attachments: deserializeAttachments(next.attachments),
+        });
+        await db
+          .update(emailQueue)
+          .set({ status: 'sent', sentAt: new Date(), attempts: next.attempts + 1 })
+          .where(eq(emailQueue.id, next.id));
+        sent++;
+      } catch (error) {
+        await releaseQuota();
+        const attempts = next.attempts + 1;
+        // Trois échecs : on cesse de réessayer, sinon un destinataire invalide
+        // bloquerait indéfiniment la tête de file.
+        await db
+          .update(emailQueue)
+          .set({
+            attempts,
+            status: attempts >= 3 ? 'failed' : 'pending',
+            lastError: String((error as Error)?.message ?? error).slice(0, 500),
+          })
+          .where(eq(emailQueue.id, next.id));
+        if (attempts < 3) break; // erreur probablement transitoire : on stoppe la purge
+      }
+    }
+  } finally {
+    flushing = false;
+  }
+
+  const status = await getEmailQuotaStatus();
+  if (sent > 0) {
+    console.log(`📤 File d'attente : ${sent} e-mail(s) envoyé(s), ${status.pendingCount} en attente.`);
+  }
+  return { sent, remaining: status.pendingCount };
+}
+
 interface EmailAttachment {
   filename: string;
   /** Contenu binaire (Buffer) ou base64 si encoding fourni */
@@ -160,24 +346,53 @@ export async function sendEmail({ to, subject, html, text, attachments, replyTo 
   // En développement local, si l'email échoue, on log simplement
   const isDev = process.env.NODE_ENV === 'development';
 
+  // Les messages mis de côté un jour de saturation repartent dès qu'il y a du
+  // quota. Volontairement non attendu : la réponse à l'utilisateur ne doit pas
+  // dépendre du temps de purge.
+  void flushEmailQueue().catch(error =>
+    console.warn("⚠ Purge de la file d'attente impossible :", error)
+  );
+
+  // Le comptage ne doit jamais empêcher un envoi : si la base est indisponible,
+  // on envoie quand même plutôt que de bloquer un code de vérification.
+  let reserved: boolean;
   try {
-    const transporter = await getTransporter();
-    const info = await transporter.sendMail({
-      from: EMAIL_FROM,
-      // Les réponses des associations doivent arriver à la mairie, même si
-      // l'expéditeur technique est une adresse noreply.
-      replyTo: replyTo || MAIRIE_EMAIL,
-      to,
-      subject,
-      html,
-      text,
-      attachments,
-    });
+    reserved = await reserveQuota();
+  } catch (error) {
+    console.warn('⚠ Quota indisponible, envoi direct :', error);
+    reserved = true;
+  }
+
+  if (!reserved) {
+    try {
+      await db.insert(emailQueue).values({
+        to,
+        subject,
+        html,
+        body: text,
+        replyTo: replyTo || MAIRIE_EMAIL,
+        attachments: serializeAttachments(attachments),
+      });
+      console.warn(
+        `⏳ Quota quotidien de ${DAILY_LIMIT} e-mails atteint — message pour ${to} mis en attente, il partira demain.`
+      );
+      return { success: true, queued: true, messageId: null };
+    } catch (error) {
+      console.error("❌ Impossible de mettre l'e-mail en file d'attente :", error);
+      return { success: false, queued: false, error };
+    }
+  }
+
+  try {
+    const info = await deliver({ to, subject, html, text, attachments, replyTo });
 
     console.log('✅ Email envoyé avec succès:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    return { success: true, queued: false, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Erreur lors de l\'envoi de l\'email:', error);
+    // L'envoi a échoué : le crédit réservé est rendu, sinon le quota se
+    // consommerait sur des messages jamais partis.
+    await releaseQuota().catch(() => {});
+    console.error("❌ Erreur lors de l'envoi de l'email:", error);
 
     // En développement, on simule le succès et on log l'email
     if (isDev) {
@@ -187,10 +402,10 @@ export async function sendEmail({ to, subject, html, text, attachments, replyTo 
       console.log('HTML:', html.substring(0, 200) + '...');
       console.log('\n');
 
-      return { success: true, messageId: 'dev-mode-' + Date.now() };
+      return { success: true, queued: false, messageId: 'dev-mode-' + Date.now() };
     }
 
-    return { success: false, error };
+    return { success: false, queued: false, error };
   }
 }
 

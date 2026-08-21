@@ -25,12 +25,38 @@ const PRAGMAS = [
   'PRAGMA cache_size = -64000',
 ];
 
+// Le schéma n'étant poussé qu'à la première installation, une table ajoutée
+// après coup n'existerait jamais sur la base de production. On la crée donc ici,
+// de façon idempotente, au même titre que les index.
+const TABLES = [
+  `CREATE TABLE IF NOT EXISTS email_quota (
+     day TEXT PRIMARY KEY,
+     sent INTEGER NOT NULL DEFAULT 0
+   )`,
+  `CREATE TABLE IF NOT EXISTS email_queue (
+     id TEXT PRIMARY KEY,
+     "to" TEXT NOT NULL,
+     subject TEXT NOT NULL,
+     html TEXT NOT NULL,
+     body TEXT,
+     reply_to TEXT,
+     attachments TEXT,
+     status TEXT NOT NULL DEFAULT 'pending',
+     attempts INTEGER NOT NULL DEFAULT 0,
+     last_error TEXT,
+     created_at INTEGER NOT NULL,
+     sent_at INTEGER
+   )`,
+];
+
 const INDEXES = [
   'CREATE INDEX IF NOT EXISTS reservations_room_date_idx ON reservations (room_id, date)',
   'CREATE INDEX IF NOT EXISTS reservations_user_date_idx ON reservations (user_id, date)',
   'CREATE INDEX IF NOT EXISTS reservations_status_date_idx ON reservations (status, date)',
   'CREATE INDEX IF NOT EXISTS reservations_association_idx ON reservations (association_id)',
   'CREATE INDEX IF NOT EXISTS rooms_building_idx ON rooms (building_id)',
+  // La purge de la file relit uniquement les envois encore en attente.
+  'CREATE INDEX IF NOT EXISTS email_queue_status_idx ON email_queue (status, created_at)',
 ];
 
 let applied: Promise<void> | null = null;
@@ -45,6 +71,15 @@ async function apply(): Promise<void> {
       } catch (error) {
         console.warn(`⚠ PRAGMA ignoré (${pragma}) :`, error);
       }
+    }
+  }
+
+  // Avant les index : l'index de la file porte sur une table créée ici.
+  for (const statement of TABLES) {
+    try {
+      await client.execute(statement);
+    } catch (error) {
+      console.warn('⚠ Table non créée :', error);
     }
   }
 

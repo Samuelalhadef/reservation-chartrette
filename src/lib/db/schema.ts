@@ -152,6 +152,33 @@ export const conventionSettings = sqliteTable('convention_settings', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
+// Envois d'e-mails comptabilisés par journée, pour ne pas dépasser le quota
+// quotidien du fournisseur. La clé est une date UTC 'YYYY-MM-DD' : c'est sur
+// minuit UTC que le fournisseur remet son compteur à zéro, pas sur minuit à
+// Paris — compter en heure locale rouvrirait un quota deux heures trop tôt.
+export const emailQuota = sqliteTable('email_quota', {
+  day: text('day').primaryKey(),
+  sent: integer('sent').notNull().default(0),
+});
+
+// E-mails mis de côté parce que le quota du jour était épuisé. Ils repartent
+// automatiquement dès que le compteur se remet à zéro, donc le lendemain.
+export const emailQueue = sqliteTable('email_queue', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  to: text('to').notNull(),
+  subject: text('subject').notNull(),
+  html: text('html').notNull(),
+  body: text('body'),
+  replyTo: text('reply_to'),
+  /** Pièces jointes sérialisées en JSON, contenu encodé en base64. */
+  attachments: text('attachments'),
+  status: text('status', { enum: ['pending', 'sent', 'failed'] }).notNull().default('pending'),
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+  sentAt: integer('sent_at', { mode: 'timestamp' }),
+});
+
 // Type exports for use in the application
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -172,3 +199,8 @@ export type Reservation = typeof reservations.$inferSelect;
 export type NewReservation = typeof reservations.$inferInsert;
 
 export type ConventionSettings = typeof conventionSettings.$inferSelect;
+
+export type EmailQuota = typeof emailQuota.$inferSelect;
+
+export type QueuedEmail = typeof emailQueue.$inferSelect;
+export type NewQueuedEmail = typeof emailQueue.$inferInsert;
