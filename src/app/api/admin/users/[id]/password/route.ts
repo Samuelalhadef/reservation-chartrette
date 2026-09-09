@@ -24,9 +24,28 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Deux refus bien distincts : « personne n'est connecté » se répare en se
+    // reconnectant, « vous n'êtes pas admin » non. Les confondre sous un seul
+    // « Non autorisé » ne dit pas à l'administrateur quoi faire.
     const session = (await getServerSession(authOptions)) as any;
-    if (!session || session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+
+    if (!session?.user) {
+      console.warn(
+        '[admin/password] session absente — cookies reçus :',
+        req.cookies.getAll().map((c) => c.name).join(', ') || 'aucun'
+      );
+      return NextResponse.json(
+        { error: 'Votre session a expiré. Rechargez la page, reconnectez-vous, puis réessayez.' },
+        { status: 401 }
+      );
+    }
+
+    if (session.user.role !== 'admin') {
+      console.warn('[admin/password] rôle insuffisant :', session.user.role);
+      return NextResponse.json(
+        { error: 'Action réservée aux administrateurs.' },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;
