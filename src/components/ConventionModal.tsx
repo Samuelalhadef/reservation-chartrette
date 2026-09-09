@@ -4,6 +4,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, PenTool, FileText, Building2, Shield, Calendar, Clock, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import {
+  buildPunctualConventionSections,
+  conventionImportantNotice,
+  conventionObject,
+} from '@/lib/conventionText';
 
 export interface ConventionSignerData {
   /** Nom de l'association (si réservation pour une asso) ou nom du signataire (particulier) */
@@ -35,7 +40,7 @@ export interface MairieSettings {
 }
 
 const DEFAULT_MAIRIE: MairieSettings = {
-  mayorName: 'Pascal Gros',
+  mayorName: 'Fabrice Bargeault',
   mayorTitle: 'Le Maire',
   mairieName: 'LA MAIRIE DE CHARTRETTES',
   mairieAddressLine1: '37 rue Georges Clemenceau',
@@ -142,6 +147,7 @@ export default function ConventionModal({
 
   const currentDate = new Date().toLocaleDateString('fr-FR');
   const isAssoc = signerData.signerType === 'association';
+  const sections = buildPunctualConventionSections(cfg);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
@@ -253,81 +259,41 @@ export default function ConventionModal({
             {/* Objet */}
             <div className="bg-white p-4 rounded-xl border border-slate-200">
               <h4 className="font-bold text-slate-900 mb-2">Objet de la convention</h4>
-              <p className="text-slate-600 text-xs leading-relaxed">
-                La présente convention a pour objet la mise à disposition ponctuelle d&apos;une salle
-                municipale et de son matériel, dans les conditions énoncées ci-après.
-              </p>
+              <p className="text-slate-600 text-xs leading-relaxed">{conventionObject('ponctuelle')}</p>
             </div>
 
-            {/* TITRE 1 */}
-            <div className="bg-primary-700 text-white p-3 rounded-xl">
-              <h3 className="font-bold">TITRE 1 – ENGAGEMENTS DE LA VILLE</h3>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 1 – Mise à disposition</h4>
-                <p className="text-slate-600 text-xs leading-relaxed">
-                  La mise à disposition est consentie à titre précaire, révocable et gracieux
-                  (article L.2125-1 du Code Général de la Propriété des Personnes Publiques)
-                  pour le créneau précisé ci-dessus uniquement.
-                </p>
+            {/* TITRE 1 / 2 / 3 — texte canonique partagé avec le PDF */}
+            {sections.map((section) => (
+              <div key={section.title} className="space-y-3">
+                <div className="bg-primary-700 text-white p-3 rounded-xl">
+                  <h3 className="font-bold">{section.title}</h3>
+                </div>
+                {section.articles.map((article) => (
+                  <div key={article.title}>
+                    <h4 className="font-bold text-slate-900 mb-1 text-sm">{article.title}</h4>
+                    {article.paragraphs?.map((paragraph, index) => (
+                      <p key={index} className="text-slate-600 text-xs leading-relaxed mb-1">
+                        {paragraph}
+                      </p>
+                    ))}
+                    {article.bulletsIntro && (
+                      <p className="text-slate-600 text-xs mb-1">{article.bulletsIntro}</p>
+                    )}
+                    {article.bullets && (
+                      <ul className="space-y-1 text-slate-600 text-xs pl-4">
+                        {article.bullets.map((bullet, index) => (
+                          <li key={index}>• {bullet}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div>
-                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 2 – Équipements</h4>
-                <p className="text-slate-600 text-xs leading-relaxed">
-                  Les équipements présents (mobilier, sanitaires, vestiaires, matériel sportif)
-                  sont mis à disposition en l&apos;état et doivent être restitués propres et intacts.
-                </p>
-              </div>
-            </div>
-
-            {/* TITRE 2 */}
-            <div className="bg-primary-700 text-white p-3 rounded-xl">
-              <h3 className="font-bold">TITRE 2 – ENGAGEMENTS DE L&apos;OCCUPANT</h3>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 1 – Obligations</h4>
-                <p className="text-slate-600 text-xs mb-1">L&apos;occupant s&apos;engage à :</p>
-                <ul className="space-y-1 text-slate-600 text-xs pl-4">
-                  <li>• Respecter le règlement intérieur de la salle</li>
-                  <li>• Utiliser la salle uniquement pour l&apos;activité déclarée</li>
-                  <li>• Assurer la surveillance des participants pendant toute la durée du créneau</li>
-                  <li>• Ne pas concéder l&apos;usage de la salle à un tiers</li>
-                  <li>• Vérifier la fermeture des accès et l&apos;extinction des lumières en partant</li>
-                  <li>• Laisser les locaux propres et signaler tout dégât</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 2 – Assurance</h4>
-                <p className="text-slate-600 text-xs leading-relaxed">
-                  L&apos;occupant déclare disposer d&apos;une assurance responsabilité civile couvrant
-                  l&apos;activité organisée dans la salle.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 3 – Responsabilité</h4>
-                <p className="text-slate-600 text-xs leading-relaxed">
-                  L&apos;occupant assume la responsabilité des dommages causés aux locaux et au
-                  matériel pendant la durée de la mise à disposition.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-bold text-slate-900 mb-1 text-sm">Article 4 – Engagement républicain</h4>
-                <p className="text-slate-600 text-xs leading-relaxed">
-                  Conformément au décret n°2021-1947, l&apos;occupant s&apos;engage à respecter les
-                  principes de la République : laïcité, liberté de conscience, égalité,
-                  non-discrimination, dignité humaine.
-                </p>
-              </div>
-            </div>
+            ))}
 
             <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl">
               <p className="font-bold text-amber-900 text-xs mb-1">⚠️ IMPORTANT</p>
-              <p className="text-amber-800 text-xs">
-                En l&apos;absence de signature de la présente convention, la réservation ne peut être
-                validée. La mise à disposition est strictement limitée au créneau réservé.
-              </p>
+              <p className="text-amber-800 text-xs">{conventionImportantNotice('ponctuelle')}</p>
             </div>
 
             <div className="bg-slate-100 p-4 rounded-xl text-center border border-slate-300">

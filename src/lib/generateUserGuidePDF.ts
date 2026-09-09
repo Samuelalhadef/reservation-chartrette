@@ -93,7 +93,7 @@ const CONTENT: Block[] = [
     'Vérifiez le récapitulatif du tarif (prix, caution, total).',
     'Cliquez sur « Réserver ».',
   ] },
-  { kind: 'note', text: "Délai à respecter : une réservation doit être faite au moins 7 jours à l'avance. Vous ne pouvez pas réserver pour une date passée." },
+  { kind: 'note', text: "Délai à respecter : une réservation doit être faite au moins 10 jours à l'avance. Vous ne pouvez pas réserver pour une date passée." },
   { kind: 'p', text: "Votre demande est envoyée à la mairie pour validation. Vous recevrez un email dès qu'elle sera traitée." },
 
   { kind: 'section', n: 7, title: 'Signer la convention' },
@@ -153,7 +153,7 @@ const CONTENT: Block[] = [
   { kind: 'sub', title: 'Pourquoi ma réservation est-elle « En attente » ?' },
   { kind: 'p', text: "Toute réservation est soumise à la validation de la mairie. Vous recevrez un email dès qu'elle sera approuvée ou refusée." },
   { kind: 'sub', title: 'Quel délai pour réserver ?' },
-  { kind: 'p', text: "Au minimum 7 jours avant la date souhaitée. Les réservations pour une date passée sont impossibles." },
+  { kind: 'p', text: "Au minimum 10 jours avant la date souhaitée. Les réservations pour une date passée sont impossibles." },
   { kind: 'sub', title: 'Comment annuler une réservation ?' },
   { kind: 'p', text: "Contactez la mairie via le bouton d'aide. Pour les salles municipales, l'annulation doit intervenir au moins 15 jours à l'avance, faute de quoi le montant reste dû." },
 ];

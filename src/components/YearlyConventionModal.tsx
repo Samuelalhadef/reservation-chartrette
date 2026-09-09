@@ -4,6 +4,28 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, FileText, Download, CheckCircle, PenTool } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import {
+  buildYearlyConventionSections,
+  conventionImportantNotice,
+  conventionObject,
+  conventionPreamble,
+  conventionTitle,
+  type ConventionTextSettings,
+} from '@/lib/conventionText';
+
+/**
+ * Repli utilisé tant que /api/convention-settings n'a pas répondu (ou en cas
+ * d'erreur) : ce sont les valeurs par défaut de la mairie de Chartrettes.
+ */
+const DEFAULT_MAIRIE: ConventionTextSettings = {
+  mayorName: 'Fabrice Bargeault',
+  mayorTitle: 'Le Maire',
+  mairieName: 'LA MAIRIE DE CHARTRETTES',
+  mairieAddressLine1: '37 rue Georges Clemenceau',
+  mairieAddressLine2: '77590 CHARTRETTES',
+  mairiePhone: '01.60.69.65.01',
+  conventionYear: '2025-2026',
+};
 
 interface YearlyConventionModalProps {
   isOpen: boolean;
@@ -42,6 +64,25 @@ export default function YearlyConventionModal({
   const [isSigning, setIsSigning] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
+  // Maire, adresse et saison sont paramétrables côté admin : on les relit à
+  // chaque ouverture pour que le texte signé porte les bonnes mentions.
+  const [cfg, setCfg] = useState<ConventionTextSettings>(DEFAULT_MAIRIE);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetch('/api/convention-settings')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.settings) setCfg({ ...DEFAULT_MAIRIE, ...data.settings });
+      })
+      .catch(() => {
+        /* on garde les valeurs par défaut */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -153,6 +194,7 @@ export default function YearlyConventionModal({
   };
 
   const weekDays = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  const sections = buildYearlyConventionSections(cfg);
 
   return (
     <div
@@ -182,224 +224,123 @@ export default function YearlyConventionModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {/* Document de convention */}
+          {/* Document de convention — format officiel de la convention papier */}
           <div className="bg-slate-50 dark:bg-primary-900/40 rounded-xl p-6 border-2 border-slate-200 dark:border-primary-700/60 mb-6">
             <div className="prose dark:prose-invert max-w-none">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4 text-center">
-                CONVENTION D'UTILISATION DES SALLES MUNICIPALES
+              <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 text-center">
+                {conventionTitle(cfg, 'annuelle')}
               </h3>
-              <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-4 text-center">
-                ANNÉE SCOLAIRE 2025-2026
-              </h4>
 
               <div className="space-y-4 text-sm text-slate-600 dark:text-slate-300">
-                <p className="font-semibold">
-                  La présente convention a pour objectif de préciser les conditions de mise à disposition des salles et matériel de l'Espace Culturel Renée Wanner et de la salle des Vergers. Elle regroupe les modalités de réservations, d'utilisations des salles et du matériel mis à disposition, ainsi que les contreparties éventuellement négociées avec la collectivité.
-                </p>
+                {conventionPreamble(cfg).map((paragraph, index) => (
+                  <p key={index}>{paragraph}</p>
+                ))}
 
-                <p className="font-semibold">
-                  L'association doit obligatoirement se conformer au règlement d'utilisation des salles municipales de la ville de Chartrettes, partie intégrante de cette convention.
-                </p>
-
-                <div className="mt-6 mb-6">
-                  <p className="font-bold text-center text-base">Il a été convenu ce qui suit</p>
-                </div>
-
-                <div className="bg-primary-50 dark:bg-accent-500/10 p-4 rounded space-y-2">
-                  <p className="font-bold">Entre</p>
-                  <p><strong>ASSOCIATION :</strong> {associationData.name}</p>
-                  <p><strong>OBJET SOCIAL :</strong> {reservationDetails.reason}</p>
-                  <p><strong>Adresse :</strong> {associationData.address || 'À compléter'}</p>
-                  <p><strong>Représentée par :</strong> {associationData.contactName}</p>
-                  <p className="text-xs italic mt-2">Fonction : Président</p>
-                </div>
-
-                <div className="bg-primary-50 dark:bg-accent-500/10 p-4 rounded space-y-2">
-                  <p className="font-bold">Et</p>
-                  <p><strong>LA MAIRIE DE CHARTRETTES</strong></p>
-                  <p>37 rue Georges Clemenceau</p>
-                  <p>77590 CHARTRETTES</p>
-                  <p>01.60.69.65.01 – 06 23 26 95 98</p>
-                  <p className="mt-2">Représentée par Pascal GROS – Maire</p>
-                </div>
-
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 1 : DURÉE ET RENOUVELLEMENT</h4>
-                  <p>
-                    La commune décide de soutenir l'association dans la poursuite de ses objectifs sociaux et statutaires en mettant gratuitement à sa disposition les locaux désignés à l'article 4 de la présente Convention. Elle est faite à titre précaire et révocable à tout moment pour des motifs d'intérêt général. La commune peut temporairement annuler la mise à disposition sans préavis ni dédommagement.
-                  </p>
-                  <p>Il est expressément convenu :</p>
-                  <p>
-                    Que si l'association cessait d'avoir besoin des locaux ou les occupait de manière insuffisante ou ne bénéficie plus des autorisations et agréments nécessaires à son activité, cette mise à disposition deviendrait automatiquement caduque.
-                  </p>
-                  <p>
-                    Que la mise à disposition des locaux est subordonnée au respect, par l'association, des obligations fixées par la présente convention.
-                  </p>
-                  <p>
-                    Cette présente convention est établie ce jour et prendra fin le 30 août 2026.
-                  </p>
-                  <p className="font-semibold">
-                    La convention est à renouveler à chaque nouvelle année scolaire. Les créneaux attribués pour une saison ne sont pas garantis pour la saison suivante.
-                  </p>
-                </section>
-
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 2 : TARIFICATION</h4>
-                  <p>
-                    GRATUITE pour les associations Chartrettoises pour l'utilisation de l'ensemble des salles attribuées annuellement par la présente convention.
-                  </p>
-                </section>
-
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 3 : CARACTÉRISTIQUES DU MATÉRIEL</h4>
-                  <p>
-                    Se référer à l'ANNEXE joint à la présente convention.
-                  </p>
-                </section>
-
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 4 : DESTINATION ET DÉSIGNATION DES LOCAUX MIS À DISPOSITION</h4>
-                  <p>
-                    Les locaux seront utilisés par l'association à usage exclusif de l'association pour la réalisation de son objet social et pour les activités déclarées. Il est à ce sujet expressément convenu que tout changement à cette destination, qui ne serait pas autorisé par la commune au préalable, entraînerait la résiliation immédiate de la présente convention.
-                  </p>
-                  <p>
-                    L'association s'engage, en outre, à solliciter les autorisations et agréments nécessaires à l'organisation de ses activités et/ou des manifestations en lien avec son objet social. L'association est considérée comme l'organisateur au sens légal de l'ensemble des activités et manifestations.
-                  </p>
-                  <p>
-                    L'association s'engage à fournir, un bilan et un compte de résultat conformes au plan comptable en vigueur, certifiés conformes par le président au plus tard 6 mois après la clôture de l'exercice, que l'association reçoive ou non des subventions en numéraire de la collectivité.
-                  </p>
-                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded mt-2">
-                    <p className="font-bold">À {reservationDetails.roomName} :</p>
-                    <p className="font-semibold mt-2">Créneaux attribués :</p>
-                    <ul className="list-disc pl-6 space-y-1 mt-1">
-                      {reservationDetails.timeSlots.map((slot: any, index: number) => (
-                        <li key={index}>
-                          {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-xs mt-2">Période : du {format(parseISO(reservationDetails.startDate), 'dd/MM/yyyy', { locale: fr })} au {format(parseISO(reservationDetails.endDate), 'dd/MM/yyyy', { locale: fr })}</p>
+                {/* Parties contractantes */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="bg-primary-50 dark:bg-accent-500/10 p-4 rounded space-y-1">
+                    <p className="font-bold">ENTRE :</p>
+                    <p className="font-bold">{cfg.mairieName}</p>
+                    <p>{cfg.mairieAddressLine1}</p>
+                    <p>{cfg.mairieAddressLine2}</p>
+                    <p>{cfg.mairiePhone}</p>
+                    <p className="mt-2">
+                      Représentée par {cfg.mayorTitle.toLowerCase()}, {cfg.mayorName}
+                    </p>
+                    <p className="text-xs italic mt-2">D'une part,</p>
                   </div>
-                </section>
+                  <div className="bg-primary-50 dark:bg-accent-500/10 p-4 rounded space-y-1">
+                    <p className="font-bold">ET :</p>
+                    <p className="font-bold">L'association : {associationData.name}</p>
+                    <p>Ayant son siège social à : {associationData.address || 'À compléter'}</p>
+                    <p>Représentée par son Président : {associationData.contactName}</p>
+                    {associationData.contactPhone && <p>Téléphone : {associationData.contactPhone}</p>}
+                    {associationData.contactEmail && <p>Mail : {associationData.contactEmail}</p>}
+                    {reservationDetails.reason && <p>Objet social : {reservationDetails.reason}</p>}
+                    <p className="text-xs italic mt-2">Désignée ci-après « l'occupant »</p>
+                    <p className="text-xs italic">D'autre part.</p>
+                  </div>
+                </div>
 
+                <p>Par la présente convention, il a été convenu et arrêté ce qui suit :</p>
+
+                {/* Objet */}
                 <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 5 : PROPRIÉTÉ DU MATÉRIEL</h4>
-                  <p>
-                    Il est parfaitement entendu entre les parties que la présente convention de mise à disposition n'entraîne aucun transfert de propriété du matériel visé à l'article 3.
-                  </p>
-                  <p>
-                    Le transport des matériels prévus pour les manifestations extérieures est à la charge de l'association sauf accord particulier avec la municipalité.
-                  </p>
-                  <p>
-                    Les matériels propres aux associations ne peuvent être entreposés que dans les locaux prévus à cet effet.
-                  </p>
+                  <h4 className="font-bold text-base text-slate-900 dark:text-white">Objet de la convention</h4>
+                  <p>{conventionObject('annuelle')}</p>
                 </section>
 
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 6 : FERMETURE DES ÉQUIPEMENTS</h4>
-                  <p>
-                    Chaque association est responsable de la fermeture de l'équipement utilisé. Ainsi chaque professeur doit fermer la salle et les espaces annexes (vestiaires, placards, porte de secours claquées) après chaque utilisation afin d'éviter tout problème d'intrusion et de détérioration du matériel.
+                {/* Créneaux attribués — annexe de la convention */}
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded">
+                  <p className="font-bold text-slate-900 dark:text-white">
+                    Annexe — Créneaux attribués : {reservationDetails.roomName}
                   </p>
-                  <p>
-                    Le rideau de fer à l'espace culturel Renée Wanner, ainsi que le portillon d'accès PMR, doivent être verrouillés par la dernière association utilisatrice selon le planning. En cas de difficulté des professeurs, ces derniers doivent en priorité contacter le Président de l'association ou son représentant qui devra intervenir.
+                  <ul className="list-disc pl-6 space-y-1 mt-2">
+                    {reservationDetails.timeSlots.map((slot: any, index: number) => (
+                      <li key={index}>
+                        {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs mt-2">
+                    Période : du {format(parseISO(reservationDetails.startDate), 'dd/MM/yyyy', { locale: fr })} au{' '}
+                    {format(parseISO(reservationDetails.endDate), 'dd/MM/yyyy', { locale: fr })} (hors vacances
+                    scolaires et jours fériés)
                   </p>
-                  <p>
-                    En cas d'absence, tout professeur responsable de la fermeture doit le signaler le plus tôt possible au Président de l'association qui se chargera d'organiser la fermeture.
-                  </p>
-                  <p className="font-semibold">
-                    Aucun équipement ne doit rester ouvert la nuit.
-                  </p>
-                  <p>
-                    L'association est responsable des dommages occasionnés en cas de non-respect des procédures de fermeture des équipements.
-                  </p>
-                  <p className="text-sm">
-                    En cas d'urgence, astreinte technique : 06 23 26 95 99
-                  </p>
-                </section>
+                </div>
 
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 7 : CESSION ET TRANSFERT DE RESPONSABILITÉ</h4>
-                  <p>
-                    Il est expressément rappelé que la présente convention est strictement réservée à servir l'objet de la seule association signataire ; que les droits et avantages ne pourront en aucun cas être cédés à un quelconque tiers sans l'accord préalable et écrit du Maire.
-                  </p>
-                  <p>
-                    L'association s'engage à respecter et faire respecter le règlement en vigueur dans les locaux utilisés.
-                  </p>
-                  <p>
-                    La présente convention étant consentie « intuitu personae » et en considération des objectifs statutaires de l'association. Toute cession de droits en résultant est interdite. De même, l'association s'interdit de sous-louer tout ou partie des locaux et, plus généralement, d'en conférer la jouissance totale ou partielle à un tiers, même temporairement.
-                  </p>
-                </section>
+                {/* TITRE 1 / 2 / 3 — texte canonique partagé avec le PDF */}
+                {sections.map((section) => (
+                  <div key={section.title} className="space-y-3">
+                    <h4 className="font-bold text-base text-slate-900 dark:text-white border-b-2 border-primary-700 dark:border-accent-500 pb-1">
+                      {section.title}
+                    </h4>
+                    {section.articles.map((article) => (
+                      <section key={article.title} className="space-y-2">
+                        <h5 className="font-bold text-slate-900 dark:text-white">{article.title}</h5>
+                        {article.paragraphs?.map((paragraph, index) => (
+                          <p key={index}>{paragraph}</p>
+                        ))}
+                        {article.bulletsIntro && <p>{article.bulletsIntro}</p>}
+                        {article.bullets && (
+                          <ul className="list-disc pl-6 space-y-1">
+                            {article.bullets.map((bullet, index) => (
+                              <li key={index}>{bullet}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </section>
+                    ))}
+                  </div>
+                ))}
 
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 8 : ORGANISATION D'ÉVÉNEMENTS</h4>
-                  <p>
-                    Les associations peuvent organiser des évènements et se voir attribuer des salles supplémentaires à ces occasions.
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3 rounded-r">
+                  <p className="font-bold text-yellow-900 dark:text-yellow-100 text-xs mb-1">IMPORTANT</p>
+                  <p className="text-yellow-800 dark:text-yellow-200 text-xs">
+                    {conventionImportantNotice('annuelle')}
                   </p>
-                  <p>
-                    Dans la mesure du possible, ces demandes doivent être effectuées et arbitrées lors de la réunion annuelle d'attribution des salles. Si ce n'est pas le cas, les demandes seront honorées en fonction des disponibilités des salles et des impératifs de la municipalité. Une convention spécifique sera dans ce cas établie.
-                  </p>
-                  <p>
-                    La collectivité se réserve le droit de ne plus mettre à disposition les salles supplémentaires pour les évènements associatifs si l'association ne respecte pas les conditions d'utilisations des locaux.
-                  </p>
-                </section>
+                </div>
 
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 9 : COMMUNICATION</h4>
-                  <p>
-                    L'association ayant recours à la mise à disposition de salle ou de matériel devra faire figurer le logo de la Mairie sur les publications concernant le ou les événements auquel aura servi cette mise à disposition. L'association présentera à la ville, en amont de sa publication, la maquette du moyen de communication utilisé.
-                  </p>
-                  <p>
-                    L'association peut utiliser les présentoirs présents dans le hall de l'Espace culturel, afin de déposer des flyers en lien avec les activités et manifestations proposées.
-                  </p>
-                  <p>
-                    L'association pourra également demander aux services municipaux de mettre en avant un évènement particulier via les supports numériques de la ville (réseaux sociaux, site Internet, Application Mobile, TV du hall de l'Espace culturel, panneau numérique du parvis de la mairie). Ceci à condition d'avoir informé les services municipaux à minima 1 mois avant.
-                  </p>
-                  <p>
-                    L'affichage sur les panneaux municipaux est à la charge des associations, après validation du support et son contenu par la Mairie.
-                  </p>
-                </section>
-
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 10 : DÉSISTEMENT ET DÉFAILLANCE</h4>
-                  <p>
-                    Au cas où des difficultés surviendraient entre les deux partenaires à propos de la présente convention, celles-ci s'engagent à d'abord coopérer pleinement avec diligence et bonne foi en vue de trouver une solution amiable au litige.
-                  </p>
-                  <p>
-                    En cas de non-respect, de la part de l'association, des divers engagements mentionnés dans la présente convention et dans le règlement d'utilisation des salles municipales, celle-ci se trouverait suspendue ou annulée de plein droit.
-                  </p>
-                </section>
-
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 11 : OBLIGATIONS SANITAIRES</h4>
-                  <p>
-                    En cas d'épisode sanitaire impliquant des mesures de prévention spécifiques, l'association s'engage à appliquer strictement les mesures préconisées par les autorités sanitaires, municipales et fédérales. Le non-respect de ces mesures expose l'utilisateur à un arrêt de son activité dans ces locaux. Ces mesures sont susceptibles d'impacter les conditions d'utilisation définies dans la présente convention et dans le règlement d'utilisation des salles municipales (nombre de personnes par salle, accès certains locaux, etc…)
-                  </p>
-                </section>
-
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">ARTICLE 12 : SIGNATURE DU CONTRAT D'ENGAGEMENT RÉPUBLICAIN</h4>
-                  <p>
-                    L'association s'engage à signer le « contrat d'engagement républicain » joint à la présente Convention (Décret n° 2021-1947 du 31 décembre 2021 pris pour l'application de l'article 10-1 de la loi N° 2000-321 du 12 avril 2000 et approuvant le contrat d'engagement républicain des associations et fondations bénéficiant de subventions publiques ou d'un agrément de l'État).
-                  </p>
-                </section>
-
+                {/* Signatures */}
                 <div className="mt-8 pt-4 border-t border-slate-300 dark:border-primary-700/60">
                   <div className="bg-primary-50 dark:bg-accent-500/10 p-4 rounded">
                     <p className="font-bold text-center text-slate-900 dark:text-white mb-3">
-                      L'Association {associationData.name}
+                      L'association {associationData.name}
                     </p>
                     <p className="font-semibold text-center text-slate-900 dark:text-white mb-3">
                       Représentée par son Président M/Mme {associationData.contactName}
                     </p>
                     <p className="font-bold text-center text-slate-900 dark:text-white uppercase">
-                      ATTESTE AVOIR PRIS CONNAISSANCE DES CLAUSES DE LA PRÉSENTE CONVENTION ET DU RÈGLEMENT D'UTILISATION DES SALLES DE LA VILLE DE CHARTRETTES ET S'ENGAGE À EN RESPECTER TOUTES LES DISPOSITIONS
+                      Atteste avoir pris connaissance des clauses de la présente convention et du règlement
+                      d'utilisation des salles de la ville de Chartrettes et s'engage à en respecter toutes les
+                      dispositions
                     </p>
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-300 text-center mt-4">
                     Fait à Chartrettes, le {format(new Date(), 'dd MMMM yyyy', { locale: fr })}
                   </p>
                   <p className="text-sm text-slate-500 dark:text-slate-300 text-center italic mt-2">
-                    Signature précédée de la mention « lu et approuvé » - « Le Président »
+                    Signature précédée de la mention « lu et approuvé » — « Le Président »
                   </p>
                 </div>
               </div>

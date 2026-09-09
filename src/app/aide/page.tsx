@@ -100,7 +100,7 @@ const sections: Section[] = [
           <li>Vérifiez le récapitulatif du tarif (prix, caution, total).</li>
           <li>Cliquez sur « Réserver ».</li>
         </ol>
-        <Callout>Une réservation doit être faite au moins <strong>7 jours à l'avance</strong>. Les dates passées sont impossibles. Votre demande est ensuite envoyée à la mairie pour validation.</Callout>
+        <Callout>Une réservation doit être faite au moins <strong>10 jours à l'avance</strong>. Les dates passées sont impossibles. Votre demande est ensuite envoyée à la mairie pour validation.</Callout>
       </>
     ),
   },
@@ -189,7 +189,7 @@ const sections: Section[] = [
         <h4>Pourquoi ma réservation est-elle « En attente » ?</h4>
         <p>Toute réservation est soumise à la validation de la mairie. Vous recevrez un email dès le traitement.</p>
         <h4>Quel délai pour réserver ?</h4>
-        <p>Au minimum 7 jours avant la date souhaitée. Les dates passées sont impossibles.</p>
+        <p>Au minimum 10 jours avant la date souhaitée. Les dates passées sont impossibles.</p>
         <h4>Comment annuler une réservation ?</h4>
         <p>Contactez la mairie via le bouton d'aide. Pour les salles municipales, l'annulation doit intervenir au moins 15 jours à l'avance.</p>
       </>

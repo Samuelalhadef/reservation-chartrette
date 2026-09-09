@@ -1,4 +1,8 @@
 import { jsPDF } from 'jspdf';
+import {
+  buildPunctualConventionSections,
+  conventionImportantNotice,
+} from '@/lib/conventionText';
 
 /**
  * Données nécessaires pour générer le PDF de convention d'une réservation ponctuelle.
@@ -55,7 +59,7 @@ export interface ConventionPdfSettings {
 }
 
 const DEFAULT_PDF_SETTINGS: ConventionPdfSettings = {
-  mayorName: 'Pascal Gros',
+  mayorName: 'Fabrice Bargeault',
   mayorTitle: 'Le Maire',
   mairieName: 'LA MAIRIE DE CHARTRETTES',
   mairieAddressLine1: '37 rue Georges Clemenceau',
@@ -123,6 +127,7 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   let y = MARGIN;
   const cfg: ConventionPdfSettings = { ...DEFAULT_PDF_SETTINGS, ...(data.settings || {}) };
+  const sections = buildPunctualConventionSections(cfg);
 
   const ensureSpace = (needed: number) => {
     if (y + needed > PAGE_H - MARGIN) {
@@ -330,59 +335,45 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
     y += 2;
   };
 
-  // -------------- TITRE 1 --------------
-  drawTitle('TITRE 1 — ENGAGEMENTS DE LA VILLE');
-  drawArticle(
-    'Article 1 — Mise à disposition',
-    'La mise à disposition est consentie à titre précaire, révocable et gracieux (article L.2125-1 du Code Général de la Propriété des Personnes Publiques) pour le créneau précisé ci-dessus uniquement.'
-  );
-  drawArticle(
-    'Article 2 — Équipements',
-    "Les équipements présents (mobilier, sanitaires, vestiaires, matériel sportif) sont mis à disposition en l'état et doivent être restitués propres et intacts."
-  );
-
-  // -------------- TITRE 2 --------------
-  drawTitle("TITRE 2 — ENGAGEMENTS DE L'OCCUPANT");
-
-  ensureSpace(8);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9.5);
-  pdf.setTextColor(...SLATE_900);
-  pdf.text("Article 1 — Obligations", MARGIN, y);
-  y += 4.5;
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...SLATE_600);
-  pdf.text("L'occupant s'engage à :", MARGIN, y);
-  y += 4.5;
-  drawBulletList([
-    "Respecter le règlement intérieur de la salle",
-    "Utiliser la salle uniquement pour l'activité déclarée",
-    "Assurer la surveillance des participants pendant toute la durée du créneau",
-    "Ne pas concéder l'usage de la salle à un tiers",
-    "Vérifier la fermeture des accès et l'extinction des lumières en partant",
-    "Laisser les locaux propres et signaler tout dégât",
-  ]);
-
-  drawArticle(
-    'Article 2 — Assurance',
-    "L'occupant déclare disposer d'une assurance responsabilité civile couvrant l'activité organisée dans la salle."
-  );
-  drawArticle(
-    'Article 3 — Responsabilité',
-    "L'occupant assume la responsabilité des dommages causés aux locaux et au matériel pendant la durée de la mise à disposition."
-  );
-  drawArticle(
-    'Article 4 — Engagement républicain',
-    "Conformément au décret n°2021-1947, l'occupant s'engage à respecter les principes de la République : laïcité, liberté de conscience, égalité, non-discrimination, dignité humaine."
-  );
+  // -------------- Corps de la convention (texte canonique partagé) --------------
+  for (const section of sections) {
+    drawTitle(section.title);
+    for (const article of section.articles) {
+      const body = (article.paragraphs || []).join('\n\n');
+      if (body) {
+        drawArticle(article.title, body);
+      } else {
+        ensureSpace(8);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(9.5);
+        pdf.setTextColor(...SLATE_900);
+        pdf.text(article.title, MARGIN, y);
+        y += 4.5;
+      }
+      if (article.bulletsIntro) {
+        ensureSpace(6);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(...SLATE_600);
+        pdf.text(article.bulletsIntro, MARGIN, y);
+        y += 4.5;
+      }
+      if (article.bullets) drawBulletList(article.bullets);
+    }
+  }
 
   // -------------- Encart attention --------------
-  ensureSpace(18);
+  // Le cadre est dimensionné sur le texte réellement rendu (police 8),
+  // sinon un avertissement long déborde de la boîte.
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  const noticeLines = pdf.splitTextToSize(conventionImportantNotice('ponctuelle'), CONTENT_W - 6);
+  const noticeBoxH = 8 + noticeLines.length * 4;
+  ensureSpace(noticeBoxH + 4);
   pdf.setFillColor(...AMBER_50);
   pdf.setDrawColor(...AMBER_700);
   pdf.setLineWidth(0.5);
-  pdf.roundedRect(MARGIN, y, CONTENT_W, 14, 1.5, 1.5, 'FD');
+  pdf.roundedRect(MARGIN, y, CONTENT_W, noticeBoxH, 1.5, 1.5, 'FD');
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
   pdf.setTextColor(...AMBER_700);
@@ -390,13 +381,9 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
   pdf.setTextColor(...SLATE_600);
-  const importantLines = pdf.splitTextToSize(
-    "En l'absence de signature de la présente convention, la réservation ne peut être validée. La mise à disposition est strictement limitée au créneau réservé.",
-    CONTENT_W - 6
-  );
-  pdf.text(importantLines, MARGIN + 3, y + 10);
+  pdf.text(noticeLines, MARGIN + 3, y + 10);
   pdf.setLineWidth(0.2);
-  y += 18;
+  y += noticeBoxH + 4;
 
   // -------------- Signature zone --------------
   ensureSpace(70);

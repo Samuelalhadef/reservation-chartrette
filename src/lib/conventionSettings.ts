@@ -17,7 +17,7 @@ export interface ConventionSettingsPayload {
 }
 
 export const DEFAULT_CONVENTION_SETTINGS: ConventionSettingsPayload = {
-  mayorName: 'Pascal Gros',
+  mayorName: 'Fabrice Bargeault',
   mayorTitle: 'Le Maire',
   mairieName: 'LA MAIRIE DE CHARTRETTES',
   mairieAddressLine1: '37 rue Georges Clemenceau',

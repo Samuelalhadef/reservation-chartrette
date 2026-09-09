@@ -79,7 +79,7 @@ const STATUS_ORDER: Record<ConventionStatus, number> = {
 };
 
 const SETTINGS_FIELDS: Array<{ key: string; label: string; hint?: string }> = [
-  { key: 'mayorName', label: 'Nom du maire', hint: 'Ex: Pascal Gros' },
+  { key: 'mayorName', label: 'Nom du maire', hint: 'Ex: Fabrice Bargeault' },
   { key: 'mayorTitle', label: 'Titre', hint: 'Le Maire / La Maire' },
   { key: 'mairieName', label: 'Nom officiel de la mairie', hint: 'LA MAIRIE DE CHARTRETTES' },
   { key: 'mairieAddressLine1', label: 'Adresse (ligne 1)', hint: '37 rue Georges Clemenceau' },

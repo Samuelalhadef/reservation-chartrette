@@ -142,7 +142,7 @@ export const reservations = sqliteTable('reservations', {
 // pour personnaliser le PDF et le modal de signature (maire, mairie, année…).
 export const conventionSettings = sqliteTable('convention_settings', {
   id: text('id').primaryKey(), // toujours 'singleton'
-  mayorName: text('mayor_name').notNull().default('Pascal Gros'),
+  mayorName: text('mayor_name').notNull().default('Fabrice Bargeault'),
   mayorTitle: text('mayor_title').notNull().default('Le Maire'),
   mairieName: text('mairie_name').notNull().default('LA MAIRIE DE CHARTRETTES'),
   mairieAddressLine1: text('mairie_address_line1').notNull().default('37 rue Georges Clemenceau'),

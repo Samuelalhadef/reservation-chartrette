@@ -12,7 +12,7 @@ Selon le type d'utilisateur (associations non Chartrettoise, comités et fédér
 37 rue Georges Clemenceau
 77590 CHARTRETTES
 01.60.69.65.01
-Représentée par son Maire, Monsieur Pascal Gros
+Représentée par son Maire, Monsieur Fabrice Bargeault
 
 D'une part,
 
@@ -61,9 +61,9 @@ L'occupation est également **INTERDITE** en dehors des jours et créneaux allou
 
 Par le terme « équipements sportifs municipaux » il faut entendre les terrains (ex infrastructures situées aux Vergers) et salles dédiées à la pratique sportive, mais également les installations liées et intégrées aux équipements : vestiaires, sanitaires, stockage, espaces de réception (hall), salle de réunion, bureaux, infirmerie.
 
-Toute demande de créneau ponctuel complémentaire devra faire l'objet d'une demande **VIA LE LOGICIEL DE RESERVATION DES SALLES MUNICIPALES**, au minimum **1 mois**.
+Toute demande de créneau ponctuel complémentaire devra faire l'objet d'une demande **VIA LE LOGICIEL DE RESERVATION DES SALLES MUNICIPALES**, au minimum **10 jours** avant la date souhaitée.
 
-Il en sera de même pour toutes mises à disposition relevant de l'organisation d'événement à caractère sportif. La demande devra être transmise à la ville de CHARTRETTES au minimum **2 mois avant la date de l'évènement** via le site de réservation des salles.
+Il en sera de même pour toutes mises à disposition relevant de l'organisation d'événement à caractère sportif. La demande devra être transmise à la ville de CHARTRETTES au minimum **10 jours avant la date de l'évènement** via le site de réservation des salles.
 
 La collectivité se réserve le droit de modifier, en cas de besoin, les créneaux de mise à disposition dans le cas d'une organisation d'événements à son initiative. Dans ce cas, l'occupant sera informé de cette modification dans les meilleurs délais.
 
@@ -140,7 +140,7 @@ La programmation est effective un mois maximum. Ainsi chaque détenteur doit se 
 
 **Pour les programmations ponctuelles**
 
-En dehors des demandes hebdomadaires, chaque demande devra être effectuée 1 mois à l'avance. En dehors de ces délais, les demandes seront honorées en fonction des disponibilités du service. Il est donc impératif d'anticiper vos demandes ponctuelles afin de garantir leurs faisabilités.
+En dehors des demandes hebdomadaires, chaque demande devra être effectuée 10 jours à l'avance. En dehors de ces délais, les demandes seront honorées en fonction des disponibilités du service. Il est donc impératif d'anticiper vos demandes ponctuelles afin de garantir leurs faisabilités.
 
 Chaque programmation sera effective pour la durée d'utilisation.
 
@@ -186,7 +186,7 @@ S'agissant d'une convention comportant usage de dépendance du domaine public, t
 <tr>
 <td width="50%" valign="top">
 <strong>Pour la Ville de CHARTRETTES</strong><br/>
-<strong>Pascal GROS</strong><br/>
+<strong>Fabrice BARGEAULT</strong><br/>
 Maire de CHARTRETTES<br/><br/><br/><br/>
 <em>Signature et cachet :</em><br/><br/><br/><br/><br/><br/>
 </td>
@@ -239,7 +239,7 @@ Complexe Sportif François Combourieu, 5 ter rue des écoles – 77590 Chartrett
 <tr>
 <td width="50%" valign="top">
 <strong>Pour la Ville de CHARTRETTES</strong><br/>
-<strong>Pascal GROS</strong><br/>
+<strong>Fabrice BARGEAULT</strong><br/>
 Maire de CHARTRETTES<br/><br/><br/><br/>
 <em>Signature et cachet :</em><br/><br/><br/><br/><br/><br/>
 </td>
@@ -325,7 +325,7 @@ L'association s'engage à respecter le drapeau tricolore, l'hymne national, et l
 <tr>
 <td width="50%" valign="top">
 <strong>Pour la Ville de CHARTRETTES</strong><br/>
-<strong>Pascal GROS</strong><br/>
+<strong>Fabrice BARGEAULT</strong><br/>
 Maire de CHARTRETTES<br/><br/><br/><br/>
 <em>Signature et cachet :</em><br/><br/><br/><br/><br/><br/>
 </td>

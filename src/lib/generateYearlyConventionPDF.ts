@@ -1,4 +1,9 @@
 import { jsPDF } from 'jspdf';
+import {
+  buildYearlyConventionSections,
+  conventionImportantNotice,
+  conventionObject,
+} from '@/lib/conventionText';
 
 /**
  * Données nécessaires pour générer le PDF de la convention ANNUELLE d'une
@@ -36,7 +41,7 @@ export interface YearlyConventionPdfSettings {
 }
 
 const DEFAULT_PDF_SETTINGS: YearlyConventionPdfSettings = {
-  mayorName: 'Pascal Gros',
+  mayorName: 'Fabrice Bargeault',
   mayorTitle: 'Le Maire',
   mairieName: 'LA MAIRIE DE CHARTRETTES',
   mairieAddressLine1: '37 rue Georges Clemenceau',
@@ -92,6 +97,7 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   let y = MARGIN;
   const cfg: YearlyConventionPdfSettings = { ...DEFAULT_PDF_SETTINGS, ...(data.settings || {}) };
+  const sections = buildYearlyConventionSections(cfg);
 
   const ensureSpace = (needed: number) => {
     if (y + needed > PAGE_H - MARGIN) {
@@ -207,10 +213,7 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(...SLATE_900);
-  const objLines = pdf.splitTextToSize(
-    `La présente convention règle la mise à disposition régulière de salles municipales au profit de l'association, pour ses activités habituelles durant la saison ${cfg.conventionYear}, selon le planning convenu avec la commune.`,
-    CONTENT_W - 8
-  );
+  const objLines = pdf.splitTextToSize(conventionObject('annuelle'), CONTENT_W - 8);
   pdf.text(objLines, MARGIN + 4, y + 12);
   y += 28;
 
@@ -255,60 +258,45 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
     y += 2;
   };
 
-  // -------------- TITRE 1 --------------
-  drawTitle('TITRE 1 — ENGAGEMENTS DE LA VILLE');
-  drawArticle(
-    'Article 1 — Mise à disposition',
-    `La mise à disposition est consentie à titre précaire, révocable et gracieux (article L.2125-1 du Code Général de la Propriété des Personnes Publiques) pour les créneaux réguliers convenus durant la saison ${cfg.conventionYear}.`
-  );
-  drawArticle(
-    'Article 2 — Équipements',
-    "Les équipements présents (mobilier, sanitaires, vestiaires, matériel) sont mis à disposition en l'état et doivent être restitués propres et intacts après chaque utilisation."
-  );
-
-  // -------------- TITRE 2 --------------
-  drawTitle("TITRE 2 — ENGAGEMENTS DE L'OCCUPANT");
-
-  ensureSpace(8);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9.5);
-  pdf.setTextColor(...SLATE_900);
-  pdf.text('Article 1 — Obligations', MARGIN, y);
-  y += 4.5;
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...SLATE_600);
-  pdf.text("L'association s'engage à :", MARGIN, y);
-  y += 4.5;
-  drawBulletList([
-    'Respecter le règlement intérieur des salles utilisées',
-    "Utiliser les salles uniquement pour les activités déclarées",
-    'Assurer la surveillance des participants pendant toute la durée des créneaux',
-    "Ne pas concéder l'usage des salles à un tiers",
-    'Vérifier la fermeture des accès et l\'extinction des lumières en partant',
-    'Laisser les locaux propres et signaler tout dégât',
-    'Respecter le planning convenu et prévenir la commune en cas de non-utilisation',
-  ]);
-
-  drawArticle(
-    'Article 2 — Assurance',
-    "L'association déclare disposer d'une assurance responsabilité civile couvrant l'ensemble de ses activités dans les salles mises à disposition."
-  );
-  drawArticle(
-    'Article 3 — Responsabilité',
-    "L'association assume la responsabilité des dommages causés aux locaux et au matériel pendant la durée de la mise à disposition."
-  );
-  drawArticle(
-    'Article 4 — Engagement républicain',
-    "Conformément au décret n°2021-1947, l'association s'engage à respecter les principes de la République : laïcité, liberté de conscience, égalité, non-discrimination, dignité humaine."
-  );
+  // -------------- Corps de la convention (texte canonique partagé) --------------
+  for (const section of sections) {
+    drawTitle(section.title);
+    for (const article of section.articles) {
+      const body = (article.paragraphs || []).join('\n\n');
+      if (body) {
+        drawArticle(article.title, body);
+      } else {
+        ensureSpace(8);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(9.5);
+        pdf.setTextColor(...SLATE_900);
+        pdf.text(article.title, MARGIN, y);
+        y += 4.5;
+      }
+      if (article.bulletsIntro) {
+        ensureSpace(6);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(...SLATE_600);
+        pdf.text(article.bulletsIntro, MARGIN, y);
+        y += 4.5;
+      }
+      if (article.bullets) drawBulletList(article.bullets);
+    }
+  }
 
   // -------------- Encart attention --------------
-  ensureSpace(18);
+  // Le cadre est dimensionné sur le texte réellement rendu (police 8),
+  // sinon un avertissement long déborde de la boîte.
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  const noticeLines = pdf.splitTextToSize(conventionImportantNotice('annuelle'), CONTENT_W - 6);
+  const noticeBoxH = 8 + noticeLines.length * 4;
+  ensureSpace(noticeBoxH + 4);
   pdf.setFillColor(...AMBER_50);
   pdf.setDrawColor(...AMBER_700);
   pdf.setLineWidth(0.5);
-  pdf.roundedRect(MARGIN, y, CONTENT_W, 14, 1.5, 1.5, 'FD');
+  pdf.roundedRect(MARGIN, y, CONTENT_W, noticeBoxH, 1.5, 1.5, 'FD');
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(9);
   pdf.setTextColor(...AMBER_700);
@@ -316,13 +304,9 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
   pdf.setTextColor(...SLATE_600);
-  const importantLines = pdf.splitTextToSize(
-    "La présente convention vaut pour l'ensemble des réservations régulières de la saison. Toute manifestation exceptionnelle fait l'objet d'une convention ponctuelle spécifique.",
-    CONTENT_W - 6
-  );
-  pdf.text(importantLines, MARGIN + 3, y + 10);
+  pdf.text(noticeLines, MARGIN + 3, y + 10);
   pdf.setLineWidth(0.2);
-  y += 18;
+  y += noticeBoxH + 4;
 
   // -------------- Signatures --------------
   ensureSpace(70);
