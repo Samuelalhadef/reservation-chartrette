@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { associations, reservations, rooms, users } from '@/lib/db/schema';
 import { and, eq, isNotNull } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
+import { getAssociationSchedule } from '@/lib/conventionSlots';
 
 /**
  * GET /api/user/documents
@@ -90,6 +91,7 @@ export async function GET() {
         .limit(1);
 
       if (association && association.yearlyConventionSignedAt) {
+        const schedule = await getAssociationSchedule(association.id);
         documents.push({
           id: `a:${association.id}-yearly`,
           type: 'yearly-convention',
@@ -100,6 +102,7 @@ export async function GET() {
           associationPresident: association.contactName,
           signatureUrl: association.yearlyConventionSignature,
           validatedAt: association.yearlyConventionValidatedAt,
+          schedule,
         });
       }
     }

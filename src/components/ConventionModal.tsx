@@ -147,7 +147,17 @@ export default function ConventionModal({
 
   const currentDate = new Date().toLocaleDateString('fr-FR');
   const isAssoc = signerData.signerType === 'association';
-  const sections = buildPunctualConventionSections(cfg);
+  const sections = buildPunctualConventionSections(
+    cfg,
+    reservationContext
+      ? {
+          roomName: reservationContext.roomName,
+          dateLabel: format(reservationContext.date, 'EEEE d MMMM yyyy', { locale: fr }),
+          // Même formatage que le PDF (pas de flèche : absente de l'encodage jsPDF).
+          hoursLabel: `${reservationContext.startHour}:00 - ${reservationContext.endHour + 1}:00`,
+        }
+      : {}
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">

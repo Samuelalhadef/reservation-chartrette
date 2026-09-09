@@ -85,7 +85,7 @@ export function requestKey(row: {
 }
 
 /** Jour de la semaine du jour calendaire parisien (0 = dimanche). */
-function parisWeekDay(date: Date): number {
+export function parisWeekDay(date: Date): number {
   return new Date(`${parisDayKey(date)}T12:00:00Z`).getUTCDay();
 }
 

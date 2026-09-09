@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { getConventionSettings } from '@/lib/conventionSettings';
+import { getAssociationSchedule } from '@/lib/conventionSlots';
 import { getMairieSignatureDataUrl } from '@/lib/mairieSignature';
 import { generateYearlyConventionPDF } from '@/lib/generateYearlyConventionPDF';
 
@@ -72,9 +73,10 @@ export async function POST(req: NextRequest) {
     // Générer le PDF (2 signatures) et l'envoyer par email
     let emailSent = false;
     try {
-      const [settings, mairieSignature] = await Promise.all([
+      const [settings, mairieSignature, schedule] = await Promise.all([
         getConventionSettings(),
         getMairieSignatureDataUrl(),
+        getAssociationSchedule(associationId),
       ]);
 
       const pdf = generateYearlyConventionPDF({
@@ -90,6 +92,7 @@ export async function POST(req: NextRequest) {
         mairieSignature,
         mairieValidatedAt: validatedAt,
         settings,
+        schedule,
       });
 
       const recipient = association.contactEmail;

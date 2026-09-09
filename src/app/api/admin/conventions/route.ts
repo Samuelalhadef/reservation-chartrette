@@ -5,6 +5,7 @@ import { associations, reservations, rooms, users } from '@/lib/db/schema';
 import { and, eq, isNotNull, isNull, ne, or } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { isMairieAssociationName } from '@/lib/mairieAssociation';
+import { getSchedulesForAssociations } from '@/lib/conventionSlots';
 
 /**
  * GET /api/admin/conventions
@@ -93,6 +94,12 @@ export async function GET() {
       )
       .orderBy(associations.yearlyConventionSignedAt);
 
+    // Créneaux attribués (salle / jour / horaires / période) : ils forment
+    // l'annexe de la convention annuelle, récupérés en une requête pour tout le lot.
+    const schedules = await getSchedulesForAssociations(
+      annuelles.map(a => a.associationId)
+    );
+
     const items = [
       ...ponctuelles.map(p => {
         // Réservation saisie par un admin au nom d'une association : la convention
@@ -140,6 +147,7 @@ export async function GET() {
         associationAddress: a.associationAddress,
         associationPresident: a.contactName,
         validatedAt: a.validatedAt,
+        schedule: schedules.get(a.associationId) ?? null,
       })),
     ];
 

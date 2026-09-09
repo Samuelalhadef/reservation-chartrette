@@ -117,7 +117,8 @@ function fmtTimeRange(slots: Array<{ start: string; end: string }>): string {
   if (!slots || slots.length === 0) return '—';
   const first = slots[0].start;
   const last = slots[slots.length - 1].end;
-  return `${first} → ${last}`;
+  // Pas de flèche ici : Helvetica/WinAnsi ne la contient pas et jsPDF la rend en « ! ».
+  return `${first} - ${last}`;
 }
 
 /**
@@ -127,7 +128,11 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   let y = MARGIN;
   const cfg: ConventionPdfSettings = { ...DEFAULT_PDF_SETTINGS, ...(data.settings || {}) };
-  const sections = buildPunctualConventionSections(cfg);
+  const sections = buildPunctualConventionSections(cfg, {
+    roomName: data.reservation.roomName,
+    dateLabel: fmtDate(data.reservation.date),
+    hoursLabel: fmtTimeRange(data.reservation.timeSlots),
+  });
 
   const ensureSpace = (needed: number) => {
     if (y + needed > PAGE_H - MARGIN) {

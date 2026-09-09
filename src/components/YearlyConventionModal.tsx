@@ -194,7 +194,12 @@ export default function YearlyConventionModal({
   };
 
   const weekDays = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-  const sections = buildYearlyConventionSections(cfg);
+  const periodLabel = `du ${format(parseISO(reservationDetails.startDate), 'd MMMM yyyy', { locale: fr })} au ${format(parseISO(reservationDetails.endDate), 'd MMMM yyyy', { locale: fr })}`;
+  const slotLabels = (reservationDetails.timeSlots || []).map(
+    (slot: any) =>
+      `${reservationDetails.roomName} (${weekDays[slot.day]} ${slot.startHour}:00 - ${slot.endHour + 1}:00)`
+  );
+  const sections = buildYearlyConventionSections(cfg, { periodLabel, slotLabels });
 
   return (
     <div

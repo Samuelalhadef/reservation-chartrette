@@ -4,6 +4,7 @@ import {
   conventionImportantNotice,
   conventionObject,
 } from '@/lib/conventionText';
+import type { ConventionSchedule } from '@/lib/conventionSlots';
 
 /**
  * Données nécessaires pour générer le PDF de la convention ANNUELLE d'une
@@ -28,6 +29,12 @@ export interface YearlyConventionPdfData {
   mairieValidatedAt?: Date | string | null;
   /** Paramètres personnalisables (maire, mairie, année). */
   settings?: Partial<YearlyConventionPdfSettings>;
+  /**
+   * Créneaux effectivement réservés (salle, jour, horaires, période). Ils
+   * alimentent l'article « Durée » et le tableau d'annexe, pour que la
+   * convention dise noir sur blanc ce qui est réservé et sur quelle période.
+   */
+  schedule?: ConventionSchedule | null;
 }
 
 export interface YearlyConventionPdfSettings {
@@ -97,7 +104,14 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   let y = MARGIN;
   const cfg: YearlyConventionPdfSettings = { ...DEFAULT_PDF_SETTINGS, ...(data.settings || {}) };
-  const sections = buildYearlyConventionSections(cfg);
+  const schedule = data.schedule ?? null;
+  const slotLabels = (schedule?.slots || []).map(
+    (slot) => `${slot.roomName} (${slot.dayLabel} ${slot.hoursLabel})`
+  );
+  const sections = buildYearlyConventionSections(cfg, {
+    periodLabel: schedule?.periodLabel ?? null,
+    slotLabels,
+  });
 
   const ensureSpace = (needed: number) => {
     if (y + needed > PAGE_H - MARGIN) {
@@ -216,6 +230,81 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
   const objLines = pdf.splitTextToSize(conventionObject('annuelle'), CONTENT_W - 8);
   pdf.text(objLines, MARGIN + 4, y + 12);
   y += 28;
+
+  // -------------- Annexe : créneaux attribués --------------
+  // Reprend le tableau (Jour / Horaires / Installation) de la convention papier.
+  if (schedule && schedule.slots.length > 0) {
+    ensureSpace(20);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.setTextColor(...PRIMARY);
+    pdf.text('CRÉNEAUX ATTRIBUÉS', MARGIN, y);
+    y += 5;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8.5);
+    pdf.setTextColor(...SLATE_600);
+    pdf.text(
+      `Période ${schedule.periodLabel} inclus — hors vacances scolaires et jours fériés.`,
+      MARGIN,
+      y
+    );
+    y += 5;
+
+    // Colonnes : Installation | Jour | Horaires | Période du créneau | Séances
+    const colW = [CONTENT_W * 0.3, CONTENT_W * 0.14, CONTENT_W * 0.2, CONTENT_W * 0.26, CONTENT_W * 0.1];
+    const colX = colW.reduce<number[]>((acc, w, i) => {
+      acc.push(i === 0 ? MARGIN : acc[i - 1] + colW[i - 1]);
+      return acc;
+    }, []);
+    const headers = ['Installation sportive', 'Jour', 'Horaires', 'Période', 'Séances'];
+    const rowH = 7;
+
+    const drawHeader = () => {
+      pdf.setFillColor(...PRIMARY);
+      pdf.rect(MARGIN, y, CONTENT_W, rowH, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      pdf.setTextColor(255, 255, 255);
+      headers.forEach((header, i) => pdf.text(header, colX[i] + 2, y + 4.8));
+      y += rowH;
+    };
+
+    drawHeader();
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    schedule.slots.forEach((slot, index) => {
+      if (y + rowH > PAGE_H - MARGIN) {
+        pdf.addPage();
+        y = MARGIN;
+        drawHeader();
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+      }
+      if (index % 2 === 1) {
+        pdf.setFillColor(...SLATE_100);
+        pdf.rect(MARGIN, y, CONTENT_W, rowH, 'F');
+      }
+      pdf.setDrawColor(...SLATE_300);
+      pdf.rect(MARGIN, y, CONTENT_W, rowH, 'S');
+      pdf.setTextColor(...SLATE_900);
+      const cells = [
+        slot.roomName,
+        slot.dayLabel,
+        slot.hoursLabel,
+        `${fmtShortDate(slot.firstDate)} au ${fmtShortDate(slot.lastDate)}`,
+        String(slot.occurrences),
+      ];
+      cells.forEach((cell, i) => {
+        const [line] = pdf.splitTextToSize(cell, colW[i] - 4);
+        pdf.text(line, colX[i] + 2, y + 4.8);
+      });
+      y += rowH;
+    });
+
+    y += 6;
+  }
 
   // -------------- Helpers articles --------------
   const drawTitle = (text: string) => {

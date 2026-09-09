@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import type { ConventionSchedule } from '@/lib/conventionSlots';
 import {
   User,
   Mail,
@@ -44,6 +45,8 @@ interface Document {
   reservationId?: string;
   // Annuelle
   validatedAt?: string | null;
+  /** Créneaux attribués (salle / jour / horaires / période) — annexe du PDF. */
+  schedule?: ConventionSchedule | null;
 }
 
 interface UserData {
@@ -280,6 +283,7 @@ export default function ProfilePage() {
         mairieSignature,
         mairieValidatedAt: doc.validatedAt || undefined,
         settings: mairieSettings,
+        schedule: doc.schedule,
       });
       const safeName = doc.associationName.replace(/\s+/g, '_');
       pdf.save(`convention_annuelle_${safeName}.pdf`);

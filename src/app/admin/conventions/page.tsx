@@ -16,6 +16,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import type { ConventionSchedule } from '@/lib/conventionSlots';
 import { fr } from 'date-fns/locale';
 
 type ConventionType = 'ponctuelle' | 'annuelle';
@@ -43,6 +44,8 @@ interface ConventionItem {
   reservationStatus?: string;
   // Annuelle only
   validatedAt?: string | Date | null;
+  /** Créneaux attribués (salle / jour / horaires / période) — annexe du PDF. */
+  schedule?: ConventionSchedule | null;
 }
 
 type TypeFilter = 'all' | ConventionType;
@@ -300,6 +303,7 @@ export default function AdminConventionsPage() {
         mairieSignature,
         mairieValidatedAt: item.validatedAt || undefined,
         settings,
+        schedule: item.schedule,
       });
       const safeName = item.associationName.replace(/\s+/g, '_');
       pdf.save(`convention_annuelle_${safeName}.pdf`);

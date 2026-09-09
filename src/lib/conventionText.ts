@@ -181,17 +181,43 @@ function dispositionsDiverses(): ConventionArticle[] {
 /*  Conventions complètes                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Détail concret de ce qui est réservé, injecté dans l'article « Durée » pour
+ * que la convention porte noir sur blanc la salle, les jours et la période.
+ */
+export interface YearlyConventionScope {
+  /** « du 8 septembre 2025 au 10 juillet 2026 ». */
+  periodLabel?: string | null;
+  /** « Gymnase (Lundi 18:00 - 21:00) », une entrée par créneau. */
+  slotLabels?: string[];
+}
+
 /** Convention ANNUELLE : mise à disposition régulière sur toute la saison. */
-export function buildYearlyConventionSections(cfg: ConventionTextSettings): ConventionSection[] {
+export function buildYearlyConventionSections(
+  cfg: ConventionTextSettings,
+  scope: YearlyConventionScope = {}
+): ConventionSection[] {
+  const dureeParagraphs = [
+    scope.periodLabel
+      ? `La présente convention, et ses annexes, est conclue et acceptée pour la période ${scope.periodLabel} inclus (saison ${cfg.conventionYear}), selon les créneaux attribués ci-dessous et rappelés en annexe.`
+      : `La présente convention, et ses annexes, est conclue et acceptée pour la saison ${cfg.conventionYear}, selon les créneaux attribués en annexe de la convention.`,
+  ];
+  if (scope.slotLabels && scope.slotLabels.length > 0) {
+    dureeParagraphs.push(
+      `Salles et créneaux réservés : ${scope.slotLabels.join(' ; ')} (hors vacances scolaires et jours fériés).`
+    );
+  }
+  dureeParagraphs.push(
+    "Elle est à renouveler à chaque nouvelle année scolaire : les créneaux attribués pour une saison ne sont pas garantis pour la saison suivante."
+  );
+
   return [
     {
       title: 'TITRE 1 – LES ENGAGEMENTS DE LA VILLE DE CHARTRETTES',
       articles: [
         {
           title: 'Article 1 – Durée',
-          paragraphs: [
-            `La présente convention, et ses annexes, est conclue et acceptée pour la saison ${cfg.conventionYear}, selon les créneaux attribués en annexe de la convention. Elle est à renouveler à chaque nouvelle année scolaire : les créneaux attribués pour une saison ne sont pas garantis pour la saison suivante.`,
-          ],
+          paragraphs: dureeParagraphs,
         },
         {
           title: 'Article 2 – Conditions de mise à disposition – redevance',
@@ -218,8 +244,25 @@ export function buildYearlyConventionSections(cfg: ConventionTextSettings): Conv
   ];
 }
 
+/** Ce qui est réservé, repris tel quel dans l'article « Durée ». */
+export interface PunctualConventionScope {
+  roomName?: string | null;
+  /** « mardi 14 octobre 2025 ». */
+  dateLabel?: string | null;
+  /** « 18:00 - 21:00 ». */
+  hoursLabel?: string | null;
+}
+
 /** Convention PONCTUELLE : un créneau unique, réservé via le logiciel. */
-export function buildPunctualConventionSections(cfg: ConventionTextSettings): ConventionSection[] {
+export function buildPunctualConventionSections(
+  cfg: ConventionTextSettings,
+  scope: PunctualConventionScope = {}
+): ConventionSection[] {
+  const objet =
+    scope.roomName && scope.dateLabel && scope.hoursLabel
+      ? `Salle réservée : ${scope.roomName}. Date : le ${scope.dateLabel}. Créneau horaire : ${scope.hoursLabel}.`
+      : null;
+
   return [
     {
       title: 'TITRE 1 – LES ENGAGEMENTS DE LA VILLE DE CHARTRETTES',
@@ -227,7 +270,9 @@ export function buildPunctualConventionSections(cfg: ConventionTextSettings): Co
         {
           title: 'Article 1 – Durée',
           paragraphs: [
-            `La présente convention est conclue et acceptée pour le seul créneau précisé ci-dessus, au titre de la saison ${cfg.conventionYear}. Elle prend fin à l'issue de ce créneau.`,
+            objet ||
+              `La présente convention est conclue et acceptée pour le seul créneau précisé ci-dessus, au titre de la saison ${cfg.conventionYear}.`,
+            `La présente convention est conclue pour ce seul créneau, au titre de la saison ${cfg.conventionYear}, et prend fin à l'issue de celui-ci.`,
             `La demande a été transmise via le logiciel de réservation des salles municipales, au minimum ${RESERVATION_NOTICE_DAYS} jours avant la date réservée, délai nécessaire à son instruction par la commune.`,
           ],
         },
