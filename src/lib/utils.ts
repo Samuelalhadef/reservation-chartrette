@@ -34,6 +34,26 @@ export function formatTimeSlot(start: string, end: string): string {
   return `${start} - ${end}`;
 }
 
+/** "8:30" -> 8.5 — les créneaux peuvent porter des minutes depuis le mode 30 min. */
+export function parseHourFraction(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h + (m || 0) / 60;
+}
+
+/** 8.5 -> "8:30", 8 -> "8:00" — même style que les créneaux stockés ("10:00"). */
+export function formatHourLabel(hour: number): string {
+  const h = Math.floor(hour);
+  const m = Math.round((hour - h) * 60);
+  return `${h}:${m.toString().padStart(2, '0')}`;
+}
+
+/** 1.5 -> "1h30", 2 -> "2h" */
+export function formatDurationLabel(hours: number): string {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
+}
+
 export function isDateBlocked(date: Date, blockedDates: { startDate: Date; endDate: Date }[]): boolean {
   return blockedDates.some((blocked) => {
     const blockStart = new Date(blocked.startDate);

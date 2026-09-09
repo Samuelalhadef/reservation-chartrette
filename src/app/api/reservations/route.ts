@@ -5,7 +5,7 @@ import { reservations, rooms, users, associations } from '@/lib/db/schema';
 import { eq, and, gte, lt, inArray, sql } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { sendEmail, emailTemplates } from '@/lib/email';
-import { formatDate, formatTimeSlot } from '@/lib/utils';
+import { formatDate, formatTimeSlot, parseHourFraction } from '@/lib/utils';
 import { calculateReservationPrice } from '@/lib/pricing';
 import { getUserAssociationIds } from '@/lib/userAssociations';
 import { isMairieAssociationName } from '@/lib/mairieAssociation';
@@ -339,10 +339,11 @@ export async function POST(req: NextRequest) {
     for (const conflict of conflicts) {
       for (const existingSlot of conflict.timeSlots as any) {
         for (const newSlot of data.timeSlots) {
-          const existingStart = parseInt(existingSlot.start.split(':')[0]);
-          const existingEnd = parseInt(existingSlot.end.split(':')[0]);
-          const newStart = parseInt(newSlot.start.split(':')[0]);
-          const newEnd = parseInt(newSlot.end.split(':')[0]);
+          // Fractions d'heure : les créneaux peuvent démarrer à la demi-heure.
+          const existingStart = parseHourFraction(existingSlot.start);
+          const existingEnd = parseHourFraction(existingSlot.end);
+          const newStart = parseHourFraction(newSlot.start);
+          const newEnd = parseHourFraction(newSlot.end);
 
           if (
             (newStart >= existingStart && newStart < existingEnd) ||

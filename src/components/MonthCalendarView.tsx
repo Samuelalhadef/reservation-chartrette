@@ -14,6 +14,7 @@ import {
   isToday,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseHourFraction } from '@/lib/utils';
 
 interface Reservation {
   id: string;
@@ -88,9 +89,7 @@ export default function MonthCalendarView({
     let totalHours = 0;
     for (const r of dayRes) {
       for (const slot of r.timeSlots || []) {
-        const start = parseInt(slot.start.split(':')[0]);
-        const end = parseInt(slot.end.split(':')[0]);
-        totalHours += end - start;
+        totalHours += parseHourFraction(slot.end) - parseHourFraction(slot.start);
       }
     }
 

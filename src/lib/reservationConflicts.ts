@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { formatHourLabel, parseHourFraction } from '@/lib/utils';
 import { db } from '@/lib/db';
 import { reservations, rooms, users, associations } from '@/lib/db/schema';
 import { and, gte, inArray, eq } from 'drizzle-orm';
@@ -33,7 +34,8 @@ export function formatFrDate(date: Date): string {
 }
 
 export function slotBounds(slot: HourSlot): [number, number] {
-  return [parseInt(slot.start.split(':')[0], 10), parseInt(slot.end.split(':')[0], 10)];
+  // Fractions d'heure (10.5 = 10:30) : les créneaux peuvent faire 30 minutes.
+  return [parseHourFraction(slot.start), parseHourFraction(slot.end)];
 }
 
 export function slotsOverlap(a: HourSlot, b: HourSlot): boolean {
@@ -62,7 +64,7 @@ export function formatHourRanges(slots: HourSlot[]): string {
     }
   }
 
-  return ranges.map(([start, end]) => `${start}:00 - ${end}:00`).join(', ');
+  return ranges.map(([start, end]) => `${formatHourLabel(start)} - ${formatHourLabel(end)}`).join(', ');
 }
 
 /**

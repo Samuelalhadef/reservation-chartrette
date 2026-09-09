@@ -9,6 +9,7 @@ import {
   conventionImportantNotice,
   conventionObject,
 } from '@/lib/conventionText';
+import { formatHourLabel } from '@/lib/utils';
 
 export interface ConventionSignerData {
   /** Nom de l'association (si réservation pour une asso) ou nom du signataire (particulier) */
@@ -27,6 +28,8 @@ export interface ReservationContext {
   date: Date;
   startHour: number;
   endHour: number;
+  /** Durée d'un créneau en heures (1 ou 0.5) ; endHour est le début du dernier créneau. */
+  slotStep?: number;
 }
 
 export interface MairieSettings {
@@ -154,7 +157,7 @@ export default function ConventionModal({
           roomName: reservationContext.roomName,
           dateLabel: format(reservationContext.date, 'EEEE d MMMM yyyy', { locale: fr }),
           // Même formatage que le PDF (pas de flèche : absente de l'encodage jsPDF).
-          hoursLabel: `${reservationContext.startHour}:00 - ${reservationContext.endHour + 1}:00`,
+          hoursLabel: `${formatHourLabel(reservationContext.startHour)} - ${formatHourLabel(reservationContext.endHour + (reservationContext.slotStep ?? 1))}`,
         }
       : {}
   );
@@ -218,7 +221,7 @@ export default function ConventionModal({
                     <div>
                       <p className="text-slate-500">Créneau</p>
                       <p className="font-semibold text-slate-900">
-                        {reservationContext.startHour}:00 → {reservationContext.endHour + 1}:00
+                        {formatHourLabel(reservationContext.startHour)} → {formatHourLabel(reservationContext.endHour + (reservationContext.slotStep ?? 1))}
                       </p>
                     </div>
                   </div>

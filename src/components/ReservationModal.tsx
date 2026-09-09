@@ -7,6 +7,7 @@ import { fr } from 'date-fns/locale';
 import { useSession } from 'next-auth/react';
 import ConventionModal, { ConventionSignerData, MairieSettings } from './ConventionModal';
 import { formatPrice, getDurationTypeLabel, getUserTypeLabel } from '@/lib/pricing';
+import { formatHourLabel, formatDurationLabel } from '@/lib/utils';
 import type { PricingResult } from '@/lib/pricing';
 import { isMairieAssociationName } from '@/lib/mairieAssociation';
 
@@ -25,6 +26,8 @@ interface ReservationModalProps {
   date: Date;
   startHour: number;
   endHour: number;
+  /** Durée d'un créneau en heures (1 ou 0.5). endHour est le début du dernier créneau. */
+  slotStep?: number;
   roomId: string;
   roomName: string;
   roomCapacity: number;
@@ -39,6 +42,7 @@ export default function ReservationModal({
   date,
   startHour,
   endHour,
+  slotStep = 1,
   roomId,
   roomName,
   roomCapacity,
@@ -200,8 +204,8 @@ export default function ReservationModal({
     setIsLoadingPrice(true);
     try {
       const timeSlots: { start: string; end: string }[] = [];
-      for (let hour = startHour; hour <= endHour; hour++) {
-        timeSlots.push({ start: `${hour}:00`, end: `${hour + 1}:00` });
+      for (let hour = startHour; hour <= endHour; hour += slotStep) {
+        timeSlots.push({ start: formatHourLabel(hour), end: formatHourLabel(hour + slotStep) });
       }
 
       const pricingPromises = selectedRoomIds.map(async (roomIdToPrice) => {
@@ -281,7 +285,7 @@ export default function ReservationModal({
           setShowConvention(false);
         }}
         signerData={signerData}
-        reservationContext={{ roomName, date, startHour, endHour }}
+        reservationContext={{ roomName, date, startHour, endHour, slotStep }}
         mairie={mairieSettings}
       />
     );
@@ -321,8 +325,8 @@ export default function ReservationModal({
       }
 
       const timeSlots: { start: string; end: string }[] = [];
-      for (let hour = startHour; hour <= endHour; hour++) {
-        timeSlots.push({ start: `${hour}:00`, end: `${hour + 1}:00` });
+      for (let hour = startHour; hour <= endHour; hour += slotStep) {
+        timeSlots.push({ start: formatHourLabel(hour), end: formatHourLabel(hour + slotStep) });
       }
 
       const reservationPromises = selectedRoomIds.map(async (roomIdToReserve) => {
@@ -383,7 +387,8 @@ export default function ReservationModal({
     }
   };
 
-  const numberOfSlots = endHour - startHour + 1;
+  // Durée totale en heures (le dernier créneau finit à endHour + slotStep).
+  const totalDuration = endHour + slotStep - startHour;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
@@ -423,8 +428,8 @@ export default function ReservationModal({
                 <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-primary-700 flex-shrink-0" />
                 <div>
                   <p className="text-xs text-slate-900">Horaire</p>
-                  <p className="font-bold text-sm sm:text-base text-slate-900">{startHour}:00 - {endHour + 1}:00</p>
-                  <p className="text-xs text-primary-700 mt-1">{numberOfSlots} heure{numberOfSlots > 1 ? 's' : ''}</p>
+                  <p className="font-bold text-sm sm:text-base text-slate-900">{formatHourLabel(startHour)} - {formatHourLabel(endHour + slotStep)}</p>
+                  <p className="text-xs text-primary-700 mt-1">{formatDurationLabel(totalDuration)}</p>
                 </div>
               </div>
             </div>
@@ -650,7 +655,7 @@ export default function ReservationModal({
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-600">Durée</span>
-                        <span className="font-semibold text-slate-900">{pricing.hourCount} heure{pricing.hourCount > 1 ? 's' : ''}</span>
+                        <span className="font-semibold text-slate-900">{formatDurationLabel(pricing.hourCount)}</span>
                       </div>
                       <div className="border-t border-accent-200 my-2" />
                       <div className="flex justify-between text-base">

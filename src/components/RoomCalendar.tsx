@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Calendar, Repeat, LayoutGrid, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, CheckCircle, XCircle, Calendar, Repeat, LayoutGrid, CalendarDays, Clock } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, addWeeks, subWeeks, addMonths, subMonths, isToday, isSameDay, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { formatHourLabel, parseHourFraction } from '@/lib/utils';
 import MonthCalendarView from './MonthCalendarView';
 
 // Les modales représentent l'essentiel du JavaScript de cette page alors
@@ -46,6 +47,8 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   });
   const [isYearlyModalOpen, setIsYearlyModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
+  // Pas de la grille : 1 h par défaut, 0.5 pour réserver à la demi-heure.
+  const [slotStep, setSlotStep] = useState<1 | 0.5>(1);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const firstBookableDay = new Date();
     firstBookableDay.setDate(firstBookableDay.getDate() + 10);
@@ -67,8 +70,16 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const goToNextWeek = () => setCurrentWeek(addWeeks(currentWeek, 1));
   const goToToday = () => setCurrentWeek(new Date());
 
-  // Générer les heures de 8h à 23h (dernier créneau 23h-24h)
-  const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8h → 23h, dernier créneau 23h-24h
+  // Générer les créneaux de 8h à 23h (dernier créneau finit à 24h), au pas
+  // choisi : heures entières ou demi-heures (8, 8.5, 9…).
+  const hours = Array.from({ length: 16 / slotStep }, (_, i) => 8 + i * slotStep);
+
+  // Changer de pas invalide la sélection en cours (les bornes ne coïncident plus).
+  const changeSlotStep = (step: 1 | 0.5) => {
+    setSlotStep(step);
+    setSelectedSlots(null);
+    setSelectionStart(null);
+  };
 
   /**
    * Charge les réservations de la salle sur une période et remplace celles
@@ -191,9 +202,10 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
       if (isSameDay(resDate, day)) {
         const timeSlots = reservation.timeSlots || [];
         for (const slot of timeSlots) {
-          const slotStart = parseInt(slot.start.split(':')[0]);
-          const slotEnd = parseInt(slot.end.split(':')[0]);
-          if (hour >= slotStart && hour < slotEnd) {
+          const slotStart = parseHourFraction(slot.start);
+          const slotEnd = parseHourFraction(slot.end);
+          // La case [hour, hour + slotStep) est occupée dès qu'elle chevauche le créneau.
+          if (hour < slotEnd && hour + slotStep > slotStart) {
             return reservation;
           }
         }
@@ -370,6 +382,33 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                 Semaine
               </button>
             </div>
+            {/* Toggle pas de réservation : à l'heure ou à la demi-heure */}
+            <div className="flex bg-white/20 rounded-lg p-0.5 backdrop-blur-sm">
+              <button
+                onClick={() => changeSlotStep(1)}
+                title="Réserver par créneaux d'une heure"
+                className={`px-3 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                  slotStep === 1
+                    ? 'bg-white text-primary-700 shadow-md'
+                    : 'text-white hover:bg-white/10'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                1h
+              </button>
+              <button
+                onClick={() => changeSlotStep(0.5)}
+                title="Réserver par créneaux de 30 minutes"
+                className={`px-3 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                  slotStep === 0.5
+                    ? 'bg-white text-primary-700 shadow-md'
+                    : 'text-white hover:bg-white/10'
+                }`}
+              >
+                <Clock className="w-4 h-4" />
+                30 min
+              </button>
+            </div>
             <button
               onClick={() => setIsYearlyModalOpen(true)}
               className="px-4 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg transition-colors font-semibold shadow-lg hover:shadow-xl flex items-center gap-2 justify-center"
@@ -458,7 +497,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                 <div
                   className="text-center py-4 text-sm font-bold text-slate-600 dark:text-slate-300 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-primary-900/40 dark:to-primary-800/40 rounded-lg flex items-center justify-center"
                 >
-                  {hour}:00
+                  {formatHourLabel(hour)}
                 </div>
                 {weekDays.map((day) => {
                   const today = isToday(day);
@@ -480,7 +519,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                       onClick={() => handleSlotClick(day, hour)}
                       disabled={(isReserved && !isOwnReservation) || isRejectedReservation || isOutOfRange}
                       className={`
-                        min-h-[70px] p-3 rounded-xl border-2 transition-all duration-200 relative group
+                        ${slotStep === 0.5 ? 'min-h-[48px] p-2' : 'min-h-[70px] p-3'} rounded-xl border-2 transition-all duration-200 relative group
                         ${isOutOfRange
                           ? 'border-slate-300 dark:border-primary-700/60 bg-slate-100 dark:bg-primary-900/40 cursor-not-allowed opacity-50'
                           : isRejectedReservation
@@ -517,7 +556,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                           : selectionStartSlot
                           ? 'Début de sélection'
                           : 'Réserver'
-                      } le ${format(day, 'dd/MM/yyyy')} à ${hour}:00`}
+                      } le ${format(day, 'dd/MM/yyyy')} à ${formatHourLabel(hour)}`}
                     >
                       <div className={`text-xs font-medium transition-colors ${
                         isOutOfRange
@@ -685,7 +724,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
                       ? 'text-white'
                       : 'text-slate-900 dark:text-white'
                   }`}>
-                    {hour}:00
+                    {formatHourLabel(hour)}
                   </div>
                 </div>
                 <div className="flex-1 text-left">
@@ -801,10 +840,10 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
               </div>
               <div className="flex-1">
                 <p className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">
-                  {selectedSlots.endHour - selectedSlots.startHour + 1} créneau(x) sélectionné(s)
+                  {Math.round((selectedSlots.endHour - selectedSlots.startHour) / slotStep) + 1} créneau(x) sélectionné(s)
                 </p>
                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                  De {selectedSlots.startHour}:00 à {selectedSlots.endHour + 1}:00
+                  De {formatHourLabel(selectedSlots.startHour)} à {formatHourLabel(selectedSlots.endHour + slotStep)}
                 </p>
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   {format(selectedSlots.date, 'EEEE d MMMM yyyy', { locale: fr })}
@@ -837,6 +876,7 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
           date={selectedSlots.date}
           startHour={selectedSlots.startHour}
           endHour={selectedSlots.endHour}
+          slotStep={slotStep}
           roomId={roomId}
           roomName={roomName}
           roomCapacity={roomCapacity}

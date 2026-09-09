@@ -42,8 +42,13 @@ export function getDurationType(hourCount: number): DurationType {
 export function calculateHourCount(timeSlots: { start: string; end: string }[]): number {
   if (!timeSlots || timeSlots.length === 0) return 0;
 
-  // Chaque créneau représente 1 heure
-  return timeSlots.length;
+  // Durée réelle des créneaux : ils peuvent faire 1 h ou 30 min selon le mode
+  // de réservation choisi dans le calendrier.
+  const toMinutes = (time: string) => {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + (m || 0);
+  };
+  return timeSlots.reduce((sum, slot) => sum + (toMinutes(slot.end) - toMinutes(slot.start)), 0) / 60;
 }
 
 /**

@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { reservations, associations } from '@/lib/db/schema';
 import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { eachDayOfInterval, getDay, isSameDay, parseISO } from 'date-fns';
+import { parseHourFraction } from '@/lib/utils';
 import {
   BLOCKING_STATUSES,
   formatFrDate,
@@ -287,7 +288,9 @@ export async function getWeeklyOccupancy(params: {
     };
 
     for (const slot of slots) {
-      const [start, end] = [slot.start, slot.end].map(h => parseInt(h.split(':')[0], 10));
+      // Un créneau de 30 min marque toute la case horaire qu'il touche.
+      const start = Math.floor(parseHourFraction(slot.start));
+      const end = Math.ceil(parseHourFraction(slot.end));
       for (let hour = start; hour < end; hour++) {
         const key = `${dayOfWeek}|${hour}`;
         const cell = cells.get(key) ?? { day: dayOfWeek, hour, approved: 0, pending: 0, dates: [] };
