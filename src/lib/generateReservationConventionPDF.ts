@@ -2,7 +2,10 @@ import { jsPDF } from 'jspdf';
 import {
   buildPunctualConventionSections,
   conventionImportantNotice,
+  conventionObject,
+  conventionTitle,
 } from '@/lib/conventionText';
+import { createConventionDoc, fmtLongDate, fmtShortDate } from '@/lib/conventionPdfLayout';
 
 /**
  * Données nécessaires pour générer le PDF de convention d'une réservation ponctuelle.
@@ -39,11 +42,13 @@ export interface ConventionPdfData {
   /**
    * Signature du maire en base64 (data:image/png;base64,...).
    * Présente uniquement quand la convention a été validée par l'administration :
-   * dans ce cas elle s'affiche dans la case « Pour la Mairie ».
+   * dans ce cas elle s'affiche dans la case « Pour la Ville ».
    */
   mairieSignature?: string | null;
   /** Date de validation par la mairie (affichée sous la signature du maire). */
   mairieValidatedAt?: Date | string | null;
+  /** Blason de la commune (data URL) affiché en tête du document. */
+  logo?: string | null;
   // Paramètres personnalisables (maire, mairie, année). Si absent → defaults Chartrettes.
   settings?: Partial<ConventionPdfSettings>;
 }
@@ -68,423 +73,134 @@ const DEFAULT_PDF_SETTINGS: ConventionPdfSettings = {
   conventionYear: '2025-2026',
 };
 
-const PAGE_W = 210;
-const PAGE_H = 297;
-const MARGIN = 18;
-const CONTENT_W = PAGE_W - MARGIN * 2;
-
-/**
- * Insère une signature dans un cadre en préservant ses proportions
- * (centrée horizontalement, alignée en bas du cadre).
- */
-function addSignatureImage(pdf: jsPDF, dataUrl: string, boxX: number, boxY: number, boxW: number, boxH: number) {
-  const maxW = boxW - 12;
-  const maxH = 22;
-  let drawW = maxW;
-  let drawH = maxH;
-  try {
-    const props = pdf.getImageProperties(dataUrl);
-    const scale = Math.min(maxW / props.width, maxH / props.height);
-    drawW = props.width * scale;
-    drawH = props.height * scale;
-  } catch {
-    // proportions inconnues → cadre max
-  }
-  pdf.addImage(dataUrl, 'PNG', boxX + (boxW - drawW) / 2, boxY + boxH - drawH - 5, drawW, drawH, undefined, 'FAST');
-}
-
-// Palette
-const PRIMARY: [number, number, number] = [30, 58, 95]; // primary-700
-const ACCENT: [number, number, number] = [5, 150, 105]; // accent-600
-const SLATE_900: [number, number, number] = [15, 23, 42];
-const SLATE_600: [number, number, number] = [71, 85, 105];
-const SLATE_300: [number, number, number] = [203, 213, 225];
-const SLATE_100: [number, number, number] = [241, 245, 249];
-const AMBER_50: [number, number, number] = [255, 251, 235];
-const AMBER_700: [number, number, number] = [180, 83, 9];
-
-function fmtDate(d: Date | string): string {
-  const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-function fmtShortDate(d: Date | string): string {
-  const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toLocaleDateString('fr-FR');
-}
-
+/** Bornes du créneau réservé. Pas de flèche : absente de l'encodage jsPDF. */
 function fmtTimeRange(slots: Array<{ start: string; end: string }>): string {
   if (!slots || slots.length === 0) return '—';
-  const first = slots[0].start;
-  const last = slots[slots.length - 1].end;
-  // Pas de flèche ici : Helvetica/WinAnsi ne la contient pas et jsPDF la rend en « ! ».
-  return `${first} - ${last}`;
+  return `${slots[0].start} - ${slots[slots.length - 1].end}`;
 }
 
 /**
  * Génère le PDF complet de la convention pour une réservation ponctuelle.
  */
 export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF {
-  const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
-  let y = MARGIN;
   const cfg: ConventionPdfSettings = { ...DEFAULT_PDF_SETTINGS, ...(data.settings || {}) };
+  const isAssoc = data.signer.type === 'association' && Boolean(data.association);
+  const hoursLabel = fmtTimeRange(data.reservation.timeSlots);
   const sections = buildPunctualConventionSections(cfg, {
     roomName: data.reservation.roomName,
-    dateLabel: fmtDate(data.reservation.date),
-    hoursLabel: fmtTimeRange(data.reservation.timeSlots),
+    dateLabel: fmtLongDate(data.reservation.date),
+    hoursLabel,
   });
 
-  const ensureSpace = (needed: number) => {
-    if (y + needed > PAGE_H - MARGIN) {
-      pdf.addPage();
-      y = MARGIN;
-    }
-  };
+  const doc = createConventionDoc();
 
-  // -------------- En-tête (bandeau coloré) --------------
-  pdf.setFillColor(...PRIMARY);
-  pdf.rect(0, 0, PAGE_W, 34, 'F');
-  pdf.setFillColor(...ACCENT);
-  pdf.rect(0, 34, PAGE_W, 1.5, 'F');
-
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(18);
-  pdf.text('Convention de mise à disposition', MARGIN, 16);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(10);
-  pdf.text("Salle municipale — Commune de Chartrettes", MARGIN, 23);
-  pdf.setFontSize(8);
-  pdf.text(`Réservation ponctuelle — Saison ${cfg.conventionYear}`, MARGIN, 29);
-
-  y = 44;
-
-  // -------------- Référence + date --------------
-  pdf.setTextColor(...SLATE_600);
-  pdf.setFontSize(8);
-  pdf.text(`Document généré le ${fmtShortDate(new Date())}`, PAGE_W - MARGIN, 16, { align: 'right' });
-  pdf.text(`Signée le ${fmtShortDate(data.signedAt)}`, PAGE_W - MARGIN, 21, { align: 'right' });
+  // -------------- En-tête à blason --------------
+  doc.letterhead({
+    logo: data.logo,
+    settings: cfg,
+    eyebrow: `Réservation ponctuelle — saison ${cfg.conventionYear}`,
+    title: conventionTitle(cfg, 'ponctuelle'),
+    reference: [
+      `Document généré le ${fmtShortDate(new Date())}`,
+      `Signée le ${fmtShortDate(data.signedAt)}`,
+      data.mairieValidatedAt ? `Validée le ${fmtShortDate(data.mairieValidatedAt)}` : '',
+    ].filter(Boolean),
+  });
 
   // -------------- Parties contractantes --------------
-  pdf.setTextColor(...SLATE_900);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(11);
-  pdf.text('PARTIES CONTRACTANTES', MARGIN, y);
-  y += 5;
+  const occupantLines = isAssoc
+    ? [
+        data.association?.address ? `Siège social : ${data.association.address}` : '',
+        `Représentée par : ${data.signer.name}`,
+        data.signer.email ? `Courriel : ${data.signer.email}` : '',
+        data.signer.phone ? `Téléphone : ${data.signer.phone}` : '',
+        "Désignée ci-après « l'occupant »",
+      ]
+    : [
+        data.signer.address ? `Adresse : ${data.signer.address}` : '',
+        data.signer.email ? `Courriel : ${data.signer.email}` : '',
+        data.signer.phone ? `Téléphone : ${data.signer.phone}` : '',
+        "Désigné ci-après « l'occupant »",
+      ];
 
-  const partyBoxH = 38;
-  const halfW = (CONTENT_W - 5) / 2;
-
-  // Mairie (gauche)
-  pdf.setDrawColor(...SLATE_300);
-  pdf.setFillColor(...SLATE_100);
-  pdf.roundedRect(MARGIN, y, halfW, partyBoxH, 2, 2, 'FD');
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...PRIMARY);
-  pdf.text('ENTRE :', MARGIN + 3, y + 5);
-  pdf.setTextColor(...SLATE_900);
-  pdf.text(cfg.mairieName, MARGIN + 3, y + 11);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(...SLATE_600);
-  pdf.text(cfg.mairieAddressLine1, MARGIN + 3, y + 16);
-  pdf.text(cfg.mairieAddressLine2, MARGIN + 3, y + 20);
-  pdf.text(cfg.mairiePhone, MARGIN + 3, y + 24);
-  pdf.text(`Représentée par ${cfg.mayorTitle.toLowerCase()},`, MARGIN + 3, y + 30);
-  pdf.text(cfg.mayorName, MARGIN + 3, y + 34);
-
-  // Occupant (droite)
-  const rightX = MARGIN + halfW + 5;
-  pdf.setFillColor(232, 240, 253); // primary-50
-  pdf.setDrawColor(...PRIMARY);
-  pdf.roundedRect(rightX, y, halfW, partyBoxH, 2, 2, 'FD');
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...PRIMARY);
-  pdf.text('ET :', rightX + 3, y + 5);
-
-  pdf.setTextColor(...SLATE_900);
-  pdf.setFontSize(9);
-  let occupantY = y + 11;
-  if (data.signer.type === 'association' && data.association) {
-    pdf.text(`L'association : ${data.association.name}`, rightX + 3, occupantY);
-    occupantY += 5;
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    pdf.setTextColor(...SLATE_600);
-    if (data.association.address) {
-      const lines = pdf.splitTextToSize(`Siège : ${data.association.address}`, halfW - 6);
-      pdf.text(lines, rightX + 3, occupantY);
-      occupantY += lines.length * 4;
+  doc.parties(
+    {
+      heading: 'Entre',
+      title: cfg.mairieName,
+      lines: [
+        cfg.mairieAddressLine1,
+        cfg.mairieAddressLine2,
+        `Tél. ${cfg.mairiePhone}`,
+        `Représentée par ${cfg.mayorTitle.toLowerCase()}, ${cfg.mayorName}`,
+        "Désignée ci-après « la commune »",
+      ],
+    },
+    {
+      heading: 'Et',
+      title: isAssoc ? `L'association ${data.association?.name}` : data.signer.name,
+      lines: occupantLines.filter(Boolean),
     }
-    pdf.text(`Représentée par : ${data.signer.name}`, rightX + 3, occupantY);
-    occupantY += 4;
-    if (data.signer.email) {
-      pdf.text(`Email : ${data.signer.email}`, rightX + 3, occupantY);
-      occupantY += 4;
-    }
-    if (data.signer.phone) {
-      pdf.text(`Tél : ${data.signer.phone}`, rightX + 3, occupantY);
-    }
-  } else {
-    pdf.text(data.signer.name, rightX + 3, occupantY);
-    occupantY += 5;
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    pdf.setTextColor(...SLATE_600);
-    if (data.signer.address) {
-      const lines = pdf.splitTextToSize(`Adresse : ${data.signer.address}`, halfW - 6);
-      pdf.text(lines, rightX + 3, occupantY);
-      occupantY += lines.length * 4;
-    }
-    if (data.signer.email) {
-      pdf.text(`Email : ${data.signer.email}`, rightX + 3, occupantY);
-      occupantY += 4;
-    }
-    if (data.signer.phone) {
-      pdf.text(`Tél : ${data.signer.phone}`, rightX + 3, occupantY);
-    }
-  }
+  );
 
-  y += partyBoxH + 5;
+  // -------------- Objet : ce qui est réservé --------------
+  doc.highlightBox('Objet de la convention', [conventionObject('ponctuelle')]);
 
-  pdf.setFont('helvetica', 'italic');
-  pdf.setFontSize(8);
-  pdf.setTextColor(...SLATE_600);
-  pdf.text('Désigné ci-après « l\'occupant ».', MARGIN, y);
-  y += 8;
-
-  // -------------- Détails de la réservation --------------
-  ensureSpace(38);
-  pdf.setFillColor(236, 253, 245); // accent-50
-  pdf.setDrawColor(...ACCENT);
-  pdf.roundedRect(MARGIN, y, CONTENT_W, 32, 2, 2, 'FD');
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(10);
-  pdf.setTextColor(...ACCENT);
-  pdf.text('OBJET — RÉSERVATION PONCTUELLE', MARGIN + 4, y + 6);
-
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...SLATE_900);
-  pdf.text(`Salle : `, MARGIN + 4, y + 13);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text(data.reservation.roomName, MARGIN + 18, y + 13);
-
-  pdf.setFont('helvetica', 'normal');
-  pdf.text(`Date : `, MARGIN + 4, y + 19);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text(fmtDate(data.reservation.date), MARGIN + 18, y + 19);
-
-  pdf.setFont('helvetica', 'normal');
-  pdf.text(`Créneau : `, MARGIN + 4, y + 25);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text(fmtTimeRange(data.reservation.timeSlots), MARGIN + 22, y + 25);
-
-  if (data.reservation.estimatedParticipants) {
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Participants : `, PAGE_W / 2, y + 25);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`${data.reservation.estimatedParticipants} personnes`, PAGE_W / 2 + 25, y + 25);
-  }
-
+  doc.sectionTitle('Mise à disposition consentie');
+  doc.table(
+    [
+      { header: 'Salle', width: 0.32 },
+      { header: 'Date', width: 0.28 },
+      { header: 'Créneau horaire', width: 0.22 },
+      { header: 'Participants', width: 0.18, align: 'right' },
+    ],
+    [
+      [
+        data.reservation.roomName,
+        fmtLongDate(data.reservation.date),
+        hoursLabel,
+        data.reservation.estimatedParticipants
+          ? `${data.reservation.estimatedParticipants} personnes`
+          : '—',
+      ],
+    ]
+  );
   if (data.reservation.reason) {
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    pdf.setTextColor(...SLATE_600);
-    const reasonLines = pdf.splitTextToSize(`Motif : ${data.reservation.reason}`, CONTENT_W - 8);
-    pdf.text(reasonLines, MARGIN + 4, y + 30);
+    doc.paragraph(`Motif de la réservation : ${data.reservation.reason}`);
   }
-
-  y += 38;
-
-  // -------------- Helpers articles --------------
-  const drawTitle = (text: string) => {
-    ensureSpace(10);
-    pdf.setFillColor(...PRIMARY);
-    pdf.roundedRect(MARGIN, y, CONTENT_W, 7, 1.5, 1.5, 'F');
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
-    pdf.setTextColor(255, 255, 255);
-    pdf.text(text, MARGIN + 3, y + 5);
-    y += 10;
-  };
-
-  const drawArticle = (title: string, body: string) => {
-    ensureSpace(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(9.5);
-    pdf.setTextColor(...SLATE_900);
-    pdf.text(title, MARGIN, y);
-    y += 4.5;
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(...SLATE_600);
-    const lines = pdf.splitTextToSize(body, CONTENT_W);
-    ensureSpace(lines.length * 4.2 + 3);
-    pdf.text(lines, MARGIN, y);
-    y += lines.length * 4.2 + 4;
-  };
-
-  const drawBulletList = (items: string[]) => {
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(...SLATE_600);
-    for (const item of items) {
-      const wrapped = pdf.splitTextToSize(`• ${item}`, CONTENT_W - 4);
-      ensureSpace(wrapped.length * 4.2 + 1);
-      pdf.text(wrapped, MARGIN + 2, y);
-      y += wrapped.length * 4.2 + 1;
-    }
-    y += 2;
-  };
 
   // -------------- Corps de la convention (texte canonique partagé) --------------
   for (const section of sections) {
-    drawTitle(section.title);
+    doc.sectionTitle(section.title);
     for (const article of section.articles) {
-      const body = (article.paragraphs || []).join('\n\n');
-      if (body) {
-        drawArticle(article.title, body);
-      } else {
-        ensureSpace(8);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9.5);
-        pdf.setTextColor(...SLATE_900);
-        pdf.text(article.title, MARGIN, y);
-        y += 4.5;
-      }
-      if (article.bulletsIntro) {
-        ensureSpace(6);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9);
-        pdf.setTextColor(...SLATE_600);
-        pdf.text(article.bulletsIntro, MARGIN, y);
-        y += 4.5;
-      }
-      if (article.bullets) drawBulletList(article.bullets);
+      doc.articleTitle(article.title);
+      for (const text of article.paragraphs || []) doc.paragraph(text);
+      if (article.bulletsIntro) doc.paragraph(article.bulletsIntro);
+      if (article.bullets) doc.bullets(article.bullets);
     }
   }
 
-  // -------------- Encart attention --------------
-  // Le cadre est dimensionné sur le texte réellement rendu (police 8),
-  // sinon un avertissement long déborde de la boîte.
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(8);
-  const noticeLines = pdf.splitTextToSize(conventionImportantNotice('ponctuelle'), CONTENT_W - 6);
-  const noticeBoxH = 8 + noticeLines.length * 4;
-  ensureSpace(noticeBoxH + 4);
-  pdf.setFillColor(...AMBER_50);
-  pdf.setDrawColor(...AMBER_700);
-  pdf.setLineWidth(0.5);
-  pdf.roundedRect(MARGIN, y, CONTENT_W, noticeBoxH, 1.5, 1.5, 'FD');
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...AMBER_700);
-  pdf.text('IMPORTANT', MARGIN + 3, y + 5);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(...SLATE_600);
-  pdf.text(noticeLines, MARGIN + 3, y + 10);
-  pdf.setLineWidth(0.2);
-  y += noticeBoxH + 4;
+  doc.notice('Important', conventionImportantNotice('ponctuelle'));
 
-  // -------------- Signature zone --------------
-  ensureSpace(70);
-  y += 4;
-
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...SLATE_900);
-  pdf.text(`Fait à Chartrettes, le ${fmtShortDate(data.signedAt)}.`, MARGIN, y);
-  y += 8;
-
-  const sigBoxW = (CONTENT_W - 8) / 2;
-  const sigBoxH = 50;
-
-  // Mairie (gauche) — non signée électroniquement
-  pdf.setDrawColor(...SLATE_300);
-  pdf.setFillColor(255, 255, 255);
-  pdf.roundedRect(MARGIN, y, sigBoxW, sigBoxH, 2, 2, 'FD');
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...PRIMARY);
-  pdf.text('Pour la Mairie', MARGIN + 3, y + 6);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(...SLATE_600);
-  pdf.text(cfg.mayorTitle, MARGIN + 3, y + 11);
-  pdf.text(cfg.mayorName, MARGIN + 3, y + 16);
-
-  // Signature du maire (si la convention a été validée par la mairie)
-  let mairieSigned = false;
-  try {
-    if (data.mairieSignature && data.mairieSignature.startsWith('data:image/')) {
-      addSignatureImage(pdf, data.mairieSignature, MARGIN, y, sigBoxW, sigBoxH);
-      mairieSigned = true;
+  // -------------- Signatures --------------
+  doc.signatures(
+    `Fait à Chartrettes, le ${fmtLongDate(data.signedAt)}.`,
+    {
+      heading: 'Pour la Ville de Chartrettes',
+      lines: [cfg.mayorName, cfg.mayorTitle],
+      signature: data.mairieSignature,
+      caption: `Validée le ${fmtShortDate(data.mairieValidatedAt ?? data.signedAt)}`,
+      placeholder: 'Signature et cachet',
+    },
+    {
+      heading: "Pour l'occupant",
+      lines: [data.signer.name, isAssoc ? data.association?.name || '' : ''].filter(Boolean),
+      signature: data.signature,
+      caption: `Signée électroniquement le ${fmtShortDate(data.signedAt)}`,
+      highlighted: true,
     }
-  } catch (e) {
-    // image invalide → on retombe sur la mention manuelle
-  }
+  );
 
-  if (mairieSigned) {
-    pdf.setFontSize(7);
-    pdf.setTextColor(...PRIMARY);
-    const valDate = data.mairieValidatedAt ?? data.signedAt;
-    pdf.text(`Validée le ${fmtShortDate(valDate)}`, MARGIN + sigBoxW / 2, y + sigBoxH - 1, { align: 'center' });
-  } else {
-    pdf.setFontSize(7);
-    pdf.setTextColor(...SLATE_300);
-    pdf.text('— Signature manuelle —', MARGIN + sigBoxW / 2, y + sigBoxH - 4, { align: 'center' });
-  }
+  doc.footer(`${cfg.mairieName} — Convention de mise à disposition, saison ${cfg.conventionYear}`);
 
-  // Occupant (droite) — signature électronique
-  const rX = MARGIN + sigBoxW + 8;
-  pdf.setDrawColor(...ACCENT);
-  pdf.setLineWidth(0.5);
-  pdf.setFillColor(255, 255, 255);
-  pdf.roundedRect(rX, y, sigBoxW, sigBoxH, 2, 2, 'FD');
-  pdf.setLineWidth(0.2);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(9);
-  pdf.setTextColor(...ACCENT);
-  pdf.text("L'occupant", rX + 3, y + 6);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(8);
-  pdf.setTextColor(...SLATE_900);
-  pdf.text(data.signer.name, rX + 3, y + 11);
-  if (data.association && data.signer.type === 'association') {
-    pdf.setTextColor(...SLATE_600);
-    const al = pdf.splitTextToSize(data.association.name, sigBoxW - 6);
-    pdf.text(al, rX + 3, y + 15);
-  }
-
-  // Image signature au centre-bas de la box
-  try {
-    if (data.signature && data.signature.startsWith('data:image/')) {
-      addSignatureImage(pdf, data.signature, rX, y, sigBoxW, sigBoxH);
-    }
-  } catch (e) {
-    // Si l'image n'est pas valide, on l'ignore silencieusement
-  }
-
-  pdf.setFontSize(7);
-  pdf.setTextColor(...ACCENT);
-  pdf.text(`Signée électroniquement le ${fmtShortDate(data.signedAt)}`, rX + sigBoxW / 2, y + sigBoxH - 1, { align: 'center' });
-
-  y += sigBoxH + 6;
-
-  // -------------- Pied de page --------------
-  const totalPages = pdf.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    pdf.setPage(i);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(7);
-    pdf.setTextColor(...SLATE_600);
-    pdf.text(`${cfg.mairieName} — Convention de mise à disposition (saison ${cfg.conventionYear})`, MARGIN, PAGE_H - 8);
-    pdf.text(`Page ${i} / ${totalPages}`, PAGE_W - MARGIN, PAGE_H - 8, { align: 'right' });
-  }
-
-  return pdf;
+  return doc.pdf;
 }

@@ -4,7 +4,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { sendEmail, emailTemplates } from '@/lib/email';
 import { formatDate, formatTimeSlot } from '@/lib/utils';
 import { getConventionSettings } from '@/lib/conventionSettings';
-import { getMairieSignatureDataUrl } from '@/lib/mairieSignature';
+import { getMairieLogoDataUrl, getMairieSignatureDataUrl } from '@/lib/mairieAssets';
 import { generateReservationConventionPDF } from '@/lib/generateReservationConventionPDF';
 import { formatFrDate, formatHourRanges, type HourSlot } from '@/lib/reservationConflicts';
 
@@ -131,9 +131,10 @@ export async function decideSingleReservation({
       reservation.conventionSignature &&
       reservation.conventionSignature.startsWith('data:image/')
     ) {
-      const [settings, mairieSignature] = await Promise.all([
+      const [settings, mairieSignature, logo] = await Promise.all([
         getConventionSettings(),
         getMairieSignatureDataUrl(),
+        getMairieLogoDataUrl(),
       ]);
 
       const isAssoc = !!user.associationId && !!association?.name;
@@ -169,6 +170,7 @@ export async function decideSingleReservation({
         mairieSignature,
         mairieValidatedAt: new Date(),
         settings,
+        logo,
       });
 
       const pdfBase64 = pdf.output('datauristring').split(',')[1];

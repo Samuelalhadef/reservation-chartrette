@@ -12,6 +12,7 @@ import {
   conventionTitle,
   type ConventionTextSettings,
 } from '@/lib/conventionText';
+import ConventionLetterhead from './ConventionLetterhead';
 
 /**
  * Repli utilisé tant que /api/convention-settings n'a pas répondu (ou en cas
@@ -232,9 +233,11 @@ export default function YearlyConventionModal({
           {/* Document de convention — format officiel de la convention papier */}
           <div className="bg-slate-50 dark:bg-primary-900/40 rounded-xl p-6 border-2 border-slate-200 dark:border-primary-700/60 mb-6">
             <div className="prose dark:prose-invert max-w-none">
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 text-center">
-                {conventionTitle(cfg, 'annuelle')}
-              </h3>
+              <ConventionLetterhead
+                settings={cfg}
+                eyebrow={`Convention annuelle — saison ${cfg.conventionYear}`}
+                title={conventionTitle(cfg, 'annuelle')}
+              />
 
               <div className="space-y-4 text-sm text-slate-600 dark:text-slate-300">
                 {conventionPreamble(cfg).map((paragraph, index) => (

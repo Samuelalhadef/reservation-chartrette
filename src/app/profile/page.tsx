@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import type { ConventionSchedule } from '@/lib/conventionSlots';
+import { fetchImageDataUrl, MAIRIE_LOGO_URL, MAIRIE_SIGNATURE_URL } from '@/lib/imageDataUrl';
 import {
   User,
   Mail,
@@ -189,23 +190,8 @@ export default function ProfilePage() {
     }
   };
 
-  // Charge la signature du maire (image publique) et la convertit en data URL
-  // pour l'injecter dans le PDF. Mise en cache via une variable de module.
-  const fetchSignatureDataUrl = async (): Promise<string | null> => {
-    try {
-      const res = await fetch('/image/signature-maire.png');
-      if (!res.ok) return null;
-      const blob = await res.blob();
-      return await new Promise<string | null>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
-    } catch {
-      return null;
-    }
-  };
+  // Signature du maire, chargée à la demande (mise en cache par l'helper).
+  const fetchSignatureDataUrl = () => fetchImageDataUrl(MAIRIE_SIGNATURE_URL);
 
   const downloadSignature = (doc: Document) => {
     if (!doc.signatureUrl) return;
@@ -222,13 +208,14 @@ export default function ProfilePage() {
         '@/lib/generateReservationConventionPDF'
       );
       // La signature du maire n'apparaît que si la réservation est approuvée.
-      let mairieSignature: string | null = null;
-      if (doc.reservationStatus === 'approved') {
-        mairieSignature = await fetchSignatureDataUrl();
-      }
+      const [mairieSignature, logo] = await Promise.all([
+        doc.reservationStatus === 'approved' ? fetchSignatureDataUrl() : Promise.resolve(null),
+        fetchImageDataUrl(MAIRIE_LOGO_URL),
+      ]);
       const isAssoc = !!userData.associationId && doc.associationName && doc.associationName !== 'Particulier';
       const pdf = generateReservationConventionPDF({
         mairieSignature,
+        logo,
         mairieValidatedAt: doc.signedAt,
         signer: {
           name: userData.name,
@@ -270,7 +257,10 @@ export default function ProfilePage() {
     try {
       const { generateYearlyConventionPDF } = await import('@/lib/generateYearlyConventionPDF');
       // La signature du maire n'apparaît que si la convention est validée.
-      const mairieSignature = doc.validatedAt ? await fetchSignatureDataUrl() : null;
+      const [mairieSignature, logo] = await Promise.all([
+        doc.validatedAt ? fetchSignatureDataUrl() : Promise.resolve(null),
+        fetchImageDataUrl(MAIRIE_LOGO_URL),
+      ]);
       const pdf = generateYearlyConventionPDF({
         association: {
           name: doc.associationName,
@@ -284,6 +274,7 @@ export default function ProfilePage() {
         mairieValidatedAt: doc.validatedAt || undefined,
         settings: mairieSettings,
         schedule: doc.schedule,
+        logo,
       });
       const safeName = doc.associationName.replace(/\s+/g, '_');
       pdf.save(`convention_annuelle_${safeName}.pdf`);

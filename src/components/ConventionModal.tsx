@@ -8,7 +8,9 @@ import {
   buildPunctualConventionSections,
   conventionImportantNotice,
   conventionObject,
+  conventionTitle,
 } from '@/lib/conventionText';
+import ConventionLetterhead from './ConventionLetterhead';
 import { formatHourLabel } from '@/lib/utils';
 
 export interface ConventionSignerData {
@@ -192,6 +194,12 @@ export default function ConventionModal({
         {/* Contenu */}
         <div className="p-4 sm:p-6 md:p-8 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto">
           <div className="space-y-4 sm:space-y-6 text-xs sm:text-sm">
+            <ConventionLetterhead
+              settings={cfg}
+              eyebrow={`Réservation ponctuelle — saison ${cfg.conventionYear}`}
+              title={conventionTitle(cfg, 'ponctuelle')}
+            />
+
             {/* Détails de la réservation (si fournis) */}
             {reservationContext && (
               <div className="bg-gradient-to-r from-accent-50 to-primary-50 p-4 rounded-xl border-2 border-accent-200">

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ConventionSchedule } from '@/lib/conventionSlots';
+import { fetchImageDataUrl, MAIRIE_LOGO_URL, MAIRIE_SIGNATURE_URL } from '@/lib/imageDataUrl';
 import { fr } from 'date-fns/locale';
 
 type ConventionType = 'ponctuelle' | 'annuelle';
@@ -242,22 +243,8 @@ export default function AdminConventionsPage() {
     a.click();
   };
 
-  // Charge la signature du maire (image publique) en data URL pour le PDF.
-  const fetchMairieSignature = async (): Promise<string | null> => {
-    try {
-      const res = await fetch('/image/signature-maire.png');
-      if (!res.ok) return null;
-      const blob = await res.blob();
-      return await new Promise<string | null>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
-    } catch {
-      return null;
-    }
-  };
+  // Signature du maire, chargée à la demande (mise en cache par l'helper).
+  const fetchMairieSignature = () => fetchImageDataUrl(MAIRIE_SIGNATURE_URL);
 
   // Validation d'une convention annuelle (équivalent approbation ponctuelle) :
   // ajoute la signature du maire et envoie le PDF par email à l'association.
@@ -290,7 +277,10 @@ export default function AdminConventionsPage() {
     try {
       const { generateYearlyConventionPDF } = await import('@/lib/generateYearlyConventionPDF');
       // Signature du maire uniquement si la convention est validée.
-      const mairieSignature = item.validatedAt ? await fetchMairieSignature() : null;
+      const [mairieSignature, logo] = await Promise.all([
+        item.validatedAt ? fetchMairieSignature() : Promise.resolve(null),
+        fetchImageDataUrl(MAIRIE_LOGO_URL),
+      ]);
       const pdf = generateYearlyConventionPDF({
         association: {
           name: item.associationName,
@@ -304,6 +294,7 @@ export default function AdminConventionsPage() {
         mairieValidatedAt: item.validatedAt || undefined,
         settings,
         schedule: item.schedule,
+        logo,
       });
       const safeName = item.associationName.replace(/\s+/g, '_');
       pdf.save(`convention_annuelle_${safeName}.pdf`);
@@ -320,12 +311,14 @@ export default function AdminConventionsPage() {
         '@/lib/generateReservationConventionPDF'
       );
       // La signature du maire n'apparaît que si la réservation est approuvée.
-      const mairieSignature: string | null = item.reservationStatus === 'approved'
-        ? await fetchMairieSignature()
-        : null;
+      const [mairieSignature, logo] = await Promise.all([
+        item.reservationStatus === 'approved' ? fetchMairieSignature() : Promise.resolve(null),
+        fetchImageDataUrl(MAIRIE_LOGO_URL),
+      ]);
       const isAssoc = item.associationName && item.associationName !== 'Particulier';
       const pdf = generateReservationConventionPDF({
         mairieSignature,
+        logo,
         mairieValidatedAt: item.signedAt || undefined,
         signer: {
           name: item.signerName,

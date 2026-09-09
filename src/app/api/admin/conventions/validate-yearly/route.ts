@@ -7,7 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { getConventionSettings } from '@/lib/conventionSettings';
 import { getAssociationSchedule } from '@/lib/conventionSlots';
-import { getMairieSignatureDataUrl } from '@/lib/mairieSignature';
+import { getMairieLogoDataUrl, getMairieSignatureDataUrl } from '@/lib/mairieAssets';
 import { generateYearlyConventionPDF } from '@/lib/generateYearlyConventionPDF';
 
 /**
@@ -73,10 +73,11 @@ export async function POST(req: NextRequest) {
     // Générer le PDF (2 signatures) et l'envoyer par email
     let emailSent = false;
     try {
-      const [settings, mairieSignature, schedule] = await Promise.all([
+      const [settings, mairieSignature, schedule, logo] = await Promise.all([
         getConventionSettings(),
         getMairieSignatureDataUrl(),
         getAssociationSchedule(associationId),
+        getMairieLogoDataUrl(),
       ]);
 
       const pdf = generateYearlyConventionPDF({
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
         mairieValidatedAt: validatedAt,
         settings,
         schedule,
+        logo,
       });
 
       const recipient = association.contactEmail;
