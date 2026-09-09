@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { Users, Mail, Shield, CheckCircle, XCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { Users, Mail, Shield, CheckCircle, XCircle, Trash2, AlertTriangle, KeyRound } from 'lucide-react';
+import AdminPasswordModal from '@/components/AdminPasswordModal';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -39,6 +40,8 @@ export default function AdminUsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
+  // Compte dont on est en train de redéfinir le mot de passe (null = fermé).
+  const [passwordUser, setPasswordUser] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -392,6 +395,15 @@ export default function AdminUsersPage() {
                       {format(new Date(user.createdAt), 'dd MMM yyyy', { locale: fr })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="inline-flex items-center gap-2">
+                      <button
+                        onClick={() => setPasswordUser(user)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 border border-slate-300 dark:border-primary-700 hover:bg-slate-100 dark:hover:bg-primary-800 text-slate-700 dark:text-slate-200 rounded-lg transition-colors text-sm font-semibold"
+                        title="Définir un nouveau mot de passe pour ce compte"
+                      >
+                        <KeyRound className="w-4 h-4" />
+                        Mot de passe
+                      </button>
                       <button
                         onClick={() => handleDeleteUser(user.id, user.name)}
                         disabled={deletingUserId === user.id || user.role === 'admin'}
@@ -410,6 +422,7 @@ export default function AdminUsersPage() {
                           </>
                         )}
                       </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -418,6 +431,20 @@ export default function AdminUsersPage() {
           </table>
         </div>
       </div>
+
+      {passwordUser && (
+        <AdminPasswordModal
+          user={passwordUser}
+          onClose={() => setPasswordUser(null)}
+          onSaved={(warning) => {
+            setPasswordUser(null);
+            alert(warning ? `Mot de passe mis à jour.
+
+${warning}` : 'Mot de passe mis à jour.');
+            fetchUsers();
+          }}
+        />
+      )}
 
       {/* Note d'avertissement */}
       <div className="mt-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
@@ -433,6 +460,11 @@ export default function AdminUsersPage() {
               <li>• Les comptes administrateurs sont protégés contre la suppression</li>
               <li>• Vous ne pouvez pas supprimer votre propre compte</li>
               <li>• Vous ne pouvez pas modifier votre propre rôle, ni retirer le dernier administrateur</li>
+              <li>
+                • Un mot de passe défini ici <strong>remplace immédiatement l&apos;ancien</strong> et
+                annule tout lien de réinitialisation en attente : pensez à le transmettre à la
+                personne concernée
+              </li>
               <li>
                 • Un <strong>membre d&apos;association</strong> doit être rattaché à une association
                 pour pouvoir réserver
