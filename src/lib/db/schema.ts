@@ -179,6 +179,19 @@ export const emailQueue = sqliteTable('email_queue', {
   sentAt: integer('sent_at', { mode: 'timestamp' }),
 });
 
+// Règlements d'utilisation modifiables depuis l'administration. Une ligne par
+// règlement ('complexe' ou 'salles') ; sans ligne, le texte par défaut s'affiche.
+// Table créée au démarrage par optimize.ts (pas de migration manuelle).
+export const reglements = sqliteTable('reglements', {
+  id: text('id', { enum: ['complexe', 'salles'] }).primaryKey(),
+  html: text('html').notNull(),
+  /** PDF officiel facultatif, proposé au téléchargement (encodé en base64). */
+  pdfName: text('pdf_name'),
+  pdfData: text('pdf_data'),
+  updatedBy: text('updated_by'),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
 // Type exports for use in the application
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

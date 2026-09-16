@@ -101,6 +101,69 @@ body {
   .header-gradient {
     @apply bg-gradient-to-r from-primary-700 via-primary-600 to-accent-700 text-white;
   }
+
+  /* --- Texte du règlement (page publique et éditeur admin) --- */
+  .reglement-content {
+    @apply text-sm leading-relaxed text-slate-600 dark:text-slate-300;
+  }
+  .reglement-content > * + * {
+    @apply mt-3;
+  }
+  .reglement-content h2 {
+    @apply mt-10 mb-4 border-b border-primary-100 pb-3 text-xl font-bold text-primary-700
+           dark:border-primary-700/60 dark:text-accent-300;
+  }
+  .reglement-content h3 {
+    @apply mt-6 mb-2 text-base font-semibold text-slate-900 dark:text-white;
+  }
+  .reglement-content h4 {
+    @apply mt-4 mb-1 font-semibold text-slate-800 dark:text-slate-100;
+  }
+  .reglement-content > :first-child {
+    @apply mt-0;
+  }
+  .reglement-content strong,
+  .reglement-content b {
+    @apply font-semibold text-slate-800 dark:text-slate-100;
+  }
+  .reglement-content a {
+    @apply text-primary-700 underline dark:text-accent-300;
+  }
+  .reglement-content ul {
+    @apply list-disc space-y-1.5 pl-6 marker:text-accent-600;
+  }
+  .reglement-content ol {
+    @apply list-decimal space-y-1.5 pl-6 marker:font-semibold marker:text-primary-700;
+  }
+  .reglement-content li > p {
+    @apply m-0;
+  }
+  .reglement-content blockquote {
+    @apply rounded-r-lg border-l-4 border-accent-500 bg-accent-50 px-4 py-3 text-accent-900
+           dark:bg-accent-900/20 dark:text-accent-100;
+  }
+  .reglement-content hr {
+    @apply my-6 border-slate-200 dark:border-primary-700/60;
+  }
+  .reglement-content table {
+    @apply w-full border-collapse text-sm;
+  }
+  .reglement-content th,
+  .reglement-content td {
+    @apply border border-slate-200 px-3 py-2 align-top dark:border-primary-700/60;
+  }
+  .reglement-content th {
+    @apply bg-primary-50 text-left font-semibold text-primary-800 dark:bg-primary-800/60 dark:text-primary-100;
+  }
+  .reglement-content td > p,
+  .reglement-content th > p {
+    @apply m-0;
+  }
+  /* Tableaux larges : défilement horizontal au lieu de déborder de la page. */
+  .reglement-content .tableWrapper,
+  .reglement-table-scroll {
+    @apply overflow-x-auto;
+  }
 }
 
 @layer utilities {

@@ -47,6 +47,14 @@ const TABLES = [
      created_at INTEGER NOT NULL,
      sent_at INTEGER
    )`,
+  `CREATE TABLE IF NOT EXISTS reglements (
+     id TEXT PRIMARY KEY,
+     html TEXT NOT NULL,
+     pdf_name TEXT,
+     pdf_data TEXT,
+     updated_by TEXT,
+     updated_at INTEGER NOT NULL
+   )`,
 ];
 
 const INDEXES = [
