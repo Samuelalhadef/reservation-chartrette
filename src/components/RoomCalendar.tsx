@@ -27,6 +27,7 @@ interface RoomCalendarProps {
 
 export default function RoomCalendar({ roomId, roomName, roomCapacity, reservations: initialReservations = [], loadedFrom, loadedTo, buildingId }: RoomCalendarProps) {
   const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === 'admin';
   // Initialiser le calendrier sur le premier jour réservable (10 jours dans le futur)
   const [currentWeek, setCurrentWeek] = useState(() => {
     const firstBookableDay = new Date();
@@ -177,12 +178,16 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
     return similarReservations.length > 0;
   };
 
-  // Vérifier si une date est dans la plage valide (minimum 10 jours à l'avance)
+  // Vérifier si une date est dans la plage valide (minimum 10 jours à l'avance).
+  // Les admins sont dispensés du délai (comme côté API) : seules les dates
+  // passées restent interdites.
   const isDateInValidRange = (day: Date): boolean => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const checkDate = new Date(day);
     checkDate.setHours(0, 0, 0, 0);
+
+    if (isAdmin) return checkDate >= today;
 
     const minDate = new Date(today);
     minDate.setDate(minDate.getDate() + 10);
