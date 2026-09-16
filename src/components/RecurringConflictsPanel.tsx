@@ -10,6 +10,7 @@ import {
   Clock,
   Gavel,
   Repeat,
+  XCircle,
 } from 'lucide-react';
 import Button from '@/components/Button';
 
@@ -50,12 +51,15 @@ interface RecurringConflictsPanelProps {
   processingId: string | null;
   /** Retenir une série et refuser les séries concurrentes, sur toutes les dates. */
   onArbitrateSeries: (conflict: RecurringConflict, winner: RecurringParty) => void;
+  /** Refuser une série sur ses dates disputées, sans valider les autres. */
+  onRejectSeries: (conflict: RecurringConflict, party: RecurringParty) => void;
 }
 
 export default function RecurringConflictsPanel({
   recurring,
   processingId,
   onArbitrateSeries,
+  onRejectSeries,
 }: RecurringConflictsPanelProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -220,6 +224,16 @@ export default function RecurringConflictsPanel({
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 text-center">
                           Les autres demandes seront refusées sur ces dates.
                         </p>
+                        <Button
+                          variant="danger"
+                          onClick={() => onRejectSeries(conflict, party)}
+                          disabled={processingId !== null}
+                          className="mt-2 text-xs py-2 w-full"
+                        >
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Refuser sur les {party.ids.length} date
+                          {party.ids.length > 1 ? 's' : ''}
+                        </Button>
                       </div>
                     )}
                   </div>

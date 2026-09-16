@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import AssociationInfoCard from '@/components/AssociationInfoCard';
 
 interface Document {
   id: string;
@@ -485,6 +486,9 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        {/* Informations de l'association (modifiables par ses membres) */}
+        <AssociationInfoCard onUpdated={fetchDocuments} />
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">

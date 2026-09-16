@@ -64,6 +64,10 @@ export default function AdminReservationsPage() {
     conflict: RecurringConflict;
     winner: RecurringParty;
   } | null>(null);
+  const [seriesRejectModal, setSeriesRejectModal] = useState<{
+    conflict: RecurringConflict;
+    party: RecurringParty;
+  } | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [commentModal, setCommentModal] = useState<{
@@ -394,6 +398,50 @@ export default function AdminReservationsPage() {
     }
   };
 
+  // Refus d'une demande dans un conflit récurrent, sur toutes ses dates
+  // disputées, sans valider les demandes concurrentes.
+  const handleSeriesReject = async () => {
+    if (!seriesRejectModal) return;
+
+    const { party } = seriesRejectModal;
+
+    if (!comment.trim()) {
+      alert('Veuillez indiquer le motif du refus');
+      return;
+    }
+
+    setProcessingId(party.seriesKey);
+
+    try {
+      const res = await fetch('/api/admin/pending-requests/decide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'rejected',
+          adminComment: comment.trim(),
+          requests: [{ key: party.seriesKey, ids: party.ids }],
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.failed?.length > 0) {
+        alert(data.error || data.failed?.[0]?.error || "Le refus n'a pas pu aboutir");
+        return;
+      }
+
+      alert(`Demande refusée : ${data.processedReservations} date(s) refusée(s).`);
+
+      await Promise.all([fetchReservations(), fetchConflicts()]);
+      setSeriesRejectModal(null);
+      setComment('');
+    } catch (error) {
+      console.error('Error rejecting recurring conflict party:', error);
+      alert('Une erreur est survenue');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   // Taille de la série annuelle dont fait partie une demande (0 si ponctuelle).
   const getSeriesCount = (reservationId: string) => {
     const reservation = reservations.find(r => r.id === reservationId);
@@ -493,6 +541,10 @@ export default function AdminReservationsPage() {
             }}
             onArbitrateSeries={(conflict, winner) => {
               setSeriesArbitrationModal({ conflict, winner });
+              setComment('');
+            }}
+            onRejectSeries={(conflict, party) => {
+              setSeriesRejectModal({ conflict, party });
               setComment('');
             }}
           />
@@ -1189,6 +1241,75 @@ export default function AdminReservationsPage() {
                   className="flex-1"
                 >
                   Valider l&apos;arbitrage
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {seriesRejectModal && (() => {
+        const { conflict, party } = seriesRejectModal;
+
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow-xl max-w-md w-full p-6 border border-slate-200 dark:border-primary-700/60 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-xl font-bold text-primary-800 dark:text-white mb-1 flex items-center gap-2">
+                <XCircle className="h-5 w-5" />
+                Refuser la demande
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                {conflict.roomName} — {conflict.weeklyPattern.join(', ')} — {conflict.periodLabel}
+              </p>
+
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-700 rounded-lg">
+                <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-1">
+                  Demande refusée sur {party.ids.length} date(s)
+                </p>
+                <p className="text-sm text-red-800 dark:text-red-200">
+                  {party.userName}
+                  {party.associationName ? ` — ${party.associationName}` : ''} ({party.hours})
+                </p>
+                <p className="text-xs text-red-700 dark:text-red-300 mt-1">{party.reason}</p>
+                <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                  Les autres demandes restent en attente. Le refus supprime les dates concernées et
+                  envoie un seul email récapitulatif au demandeur, avec le motif ci-dessous.
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  Motif du refus (obligatoire)
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-primary-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-primary-900/30 text-slate-900 dark:text-slate-100"
+                  placeholder="Expliquez la raison du refus..."
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSeriesRejectModal(null);
+                    setComment('');
+                  }}
+                  className="flex-1"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={handleSeriesReject}
+                  isLoading={processingId === party.seriesKey}
+                  disabled={processingId !== null || !comment.trim()}
+                  className="flex-1"
+                >
+                  Confirmer le refus
                 </Button>
               </div>
             </div>

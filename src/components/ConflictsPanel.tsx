@@ -59,6 +59,8 @@ interface ConflictsPanelProps {
   onArbitrate: (group: ConflictGroup, winnerId: string) => void;
   /** Trancher un conflit récurrent d'un bloc, sur toutes ses dates. */
   onArbitrateSeries: (conflict: RecurringConflict, winner: RecurringParty) => void;
+  /** Refuser une série sur ses dates disputées. */
+  onRejectSeries: (conflict: RecurringConflict, party: RecurringParty) => void;
 }
 
 export default function ConflictsPanel({
@@ -71,6 +73,7 @@ export default function ConflictsPanel({
   onReject,
   onArbitrate,
   onArbitrateSeries,
+  onRejectSeries,
 }: ConflictsPanelProps) {
   // Vue par défaut : les conflits regroupés. Une série hebdomadaire à l'année
   // remplit sinon la page de quarante fois la même question.
@@ -126,6 +129,7 @@ export default function ConflictsPanel({
           recurring={recurring}
           processingId={processingId}
           onArbitrateSeries={onArbitrateSeries}
+          onRejectSeries={onRejectSeries}
         />
       ) : conflicts.length === 0 ? (
         emptyState
