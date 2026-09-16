@@ -1,9 +1,8 @@
 import { jsPDF } from 'jspdf';
 import {
-  buildYearlyConventionSections,
-  conventionImportantNotice,
-  conventionObject,
-  conventionTitle,
+  pickConventionTemplate,
+  renderConvention,
+  type ConventionTemplates,
 } from '@/lib/conventionText';
 import type { ConventionSchedule } from '@/lib/conventionSlots';
 import { createConventionDoc, fmtLongDate, fmtShortDate } from '@/lib/conventionPdfLayout';
@@ -39,6 +38,8 @@ export interface YearlyConventionPdfData {
    * convention dise noir sur blanc ce qui est réservé et sur quelle période.
    */
   schedule?: ConventionSchedule | null;
+  /** Textes de convention modifiés par la mairie. Absent → texte par défaut. */
+  templates?: Partial<ConventionTemplates> | null;
 }
 
 export interface YearlyConventionPdfSettings {
@@ -70,9 +71,11 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
   const slotLabels = (schedule?.slots || []).map(
     (slot) => `${slot.roomName} (${slot.dayLabel} ${slot.hoursLabel})`
   );
-  const sections = buildYearlyConventionSections(cfg, {
-    periodLabel: schedule?.periodLabel ?? null,
-    slotLabels,
+  // Seules les associations réservent à l'année aujourd'hui.
+  const text = renderConvention(pickConventionTemplate(data.templates, 'association-annuelle'), {
+    saison: cfg.conventionYear,
+    periode: schedule?.periodLabel ?? null,
+    creneaux: slotLabels.length > 0 ? slotLabels.join(' ; ') : null,
   });
 
   const doc = createConventionDoc();
@@ -82,13 +85,15 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
     logo: data.logo,
     settings: cfg,
     eyebrow: `Convention annuelle — saison ${cfg.conventionYear}`,
-    title: conventionTitle(cfg, 'annuelle'),
+    title: text.title,
     reference: [
       `Document généré le ${fmtShortDate(new Date())}`,
       `Signée le ${fmtShortDate(data.signedAt)}`,
       data.mairieValidatedAt ? `Validée le ${fmtShortDate(data.mairieValidatedAt)}` : '',
     ].filter(Boolean),
   });
+
+  for (const paragraph of text.preamble) doc.paragraph(paragraph);
 
   // -------------- Parties contractantes --------------
   const occupantLines = [
@@ -119,7 +124,7 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
   );
 
   // -------------- Objet --------------
-  doc.highlightBox('Objet de la convention', [conventionObject('annuelle')]);
+  if (text.object) doc.highlightBox('Objet de la convention', [text.object]);
 
   // -------------- Créneaux attribués --------------
   // Reprend le tableau (Jour / Horaires / Installation) de la convention papier.
@@ -147,17 +152,17 @@ export function generateYearlyConventionPDF(data: YearlyConventionPdfData): jsPD
   }
 
   // -------------- Corps de la convention (texte canonique partagé) --------------
-  for (const section of sections) {
+  for (const section of text.sections) {
     doc.sectionTitle(section.title);
     for (const article of section.articles) {
       doc.articleTitle(article.title);
-      for (const text of article.paragraphs || []) doc.paragraph(text);
+      for (const paragraph of article.paragraphs) doc.paragraph(paragraph);
       if (article.bulletsIntro) doc.paragraph(article.bulletsIntro);
-      if (article.bullets) doc.bullets(article.bullets);
+      if (article.bullets.length > 0) doc.bullets(article.bullets);
     }
   }
 
-  doc.notice('Important', conventionImportantNotice('annuelle'));
+  if (text.importantNotice) doc.notice('Important', text.importantNotice);
 
   // -------------- Signatures --------------
   doc.signatures(

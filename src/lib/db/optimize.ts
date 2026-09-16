@@ -55,6 +55,12 @@ const TABLES = [
      updated_by TEXT,
      updated_at INTEGER NOT NULL
    )`,
+  `CREATE TABLE IF NOT EXISTS convention_templates (
+     id TEXT PRIMARY KEY,
+     content TEXT NOT NULL,
+     updated_by TEXT,
+     updated_at INTEGER NOT NULL
+   )`,
 ];
 
 const INDEXES = [

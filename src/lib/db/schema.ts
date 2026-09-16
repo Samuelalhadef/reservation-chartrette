@@ -192,6 +192,15 @@ export const reglements = sqliteTable('reglements', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 });
 
+// Texte modifiable des conventions (un modèle JSON par type de convention).
+// Sans ligne pour un type, le texte par défaut de conventionText.ts s'applique.
+export const conventionTemplates = sqliteTable('convention_templates', {
+  id: text('id').primaryKey(),
+  content: text('content').notNull(),
+  updatedBy: text('updated_by'),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+});
+
 // Type exports for use in the application
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

@@ -23,7 +23,8 @@ export default function AdminMenu() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-1 overflow-x-auto py-2">
           {items.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+            // Sous-pages (ex. /admin/conventions/modeles) : l'onglet parent reste actif.
+            const active = pathname === href || (href !== '/admin' && pathname.startsWith(`${href}/`));
             return (
               <Link
                 key={href}

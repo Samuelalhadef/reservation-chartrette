@@ -14,10 +14,14 @@ import {
   Save,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
+  PenLine,
 } from 'lucide-react';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import type { ConventionSchedule } from '@/lib/conventionSlots';
 import { fetchImageDataUrl, MAIRIE_LOGO_URL, MAIRIE_SIGNATURE_URL } from '@/lib/imageDataUrl';
+import { fetchConventionTemplates } from '@/lib/conventionTemplatesClient';
 import { fr } from 'date-fns/locale';
 
 type ConventionType = 'ponctuelle' | 'annuelle';
@@ -277,9 +281,10 @@ export default function AdminConventionsPage() {
     try {
       const { generateYearlyConventionPDF } = await import('@/lib/generateYearlyConventionPDF');
       // Signature du maire uniquement si la convention est validée.
-      const [mairieSignature, logo] = await Promise.all([
+      const [mairieSignature, logo, templates] = await Promise.all([
         item.validatedAt ? fetchMairieSignature() : Promise.resolve(null),
         fetchImageDataUrl(MAIRIE_LOGO_URL),
+        fetchConventionTemplates(),
       ]);
       const pdf = generateYearlyConventionPDF({
         association: {
@@ -294,6 +299,7 @@ export default function AdminConventionsPage() {
         mairieValidatedAt: item.validatedAt || undefined,
         settings,
         schedule: item.schedule,
+        templates,
         logo,
       });
       const safeName = item.associationName.replace(/\s+/g, '_');
@@ -311,9 +317,10 @@ export default function AdminConventionsPage() {
         '@/lib/generateReservationConventionPDF'
       );
       // La signature du maire n'apparaît que si la réservation est approuvée.
-      const [mairieSignature, logo] = await Promise.all([
+      const [mairieSignature, logo, templates] = await Promise.all([
         item.reservationStatus === 'approved' ? fetchMairieSignature() : Promise.resolve(null),
         fetchImageDataUrl(MAIRIE_LOGO_URL),
+        fetchConventionTemplates(),
       ]);
       const isAssoc = item.associationName && item.associationName !== 'Particulier';
       const pdf = generateReservationConventionPDF({
@@ -343,6 +350,7 @@ export default function AdminConventionsPage() {
         signature: item.signature,
         signedAt: item.signedAt || new Date(),
         settings,
+        templates,
       });
       const safeName = item.signerName.replace(/\s+/g, '_');
       const dateStr = item.reservationDate
@@ -382,6 +390,24 @@ export default function AdminConventionsPage() {
           </div>
         </div>
       </div>
+
+      {/* Textes des conventions (articles modifiables) */}
+      <Link
+        href="/admin/conventions/modeles"
+        className="card mb-4 p-4 flex items-center gap-3 hover:bg-slate-50 transition-colors"
+      >
+        <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center">
+          <PenLine className="h-5 w-5 text-slate-600" />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold text-slate-900">Textes des conventions</p>
+          <p className="text-xs text-slate-500">
+            Modifier, ajouter ou supprimer des articles — associations (ponctuelle, annuelle) et
+            particuliers (ponctuelle, annuelle)
+          </p>
+        </div>
+        <ChevronRight className="h-5 w-5 text-slate-400" />
+      </Link>
 
       {/* Panneau paramètres convention */}
       <div className="card mb-6 overflow-hidden">

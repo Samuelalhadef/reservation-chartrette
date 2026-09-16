@@ -6,6 +6,7 @@ import { formatDate, formatTimeSlot } from '@/lib/utils';
 import { getConventionSettings } from '@/lib/conventionSettings';
 import { getMairieLogoDataUrl, getMairieSignatureDataUrl } from '@/lib/mairieAssets';
 import { generateReservationConventionPDF } from '@/lib/generateReservationConventionPDF';
+import { getConventionTemplates } from '@/lib/conventionTemplateStore';
 import { formatFrDate, formatHourRanges, type HourSlot } from '@/lib/reservationConflicts';
 
 /**
@@ -131,10 +132,11 @@ export async function decideSingleReservation({
       reservation.conventionSignature &&
       reservation.conventionSignature.startsWith('data:image/')
     ) {
-      const [settings, mairieSignature, logo] = await Promise.all([
+      const [settings, mairieSignature, logo, templates] = await Promise.all([
         getConventionSettings(),
         getMairieSignatureDataUrl(),
         getMairieLogoDataUrl(),
+        getConventionTemplates(),
       ]);
 
       const isAssoc = !!user.associationId && !!association?.name;
@@ -170,6 +172,7 @@ export async function decideSingleReservation({
         mairieSignature,
         mairieValidatedAt: new Date(),
         settings,
+        templates,
         logo,
       });
 

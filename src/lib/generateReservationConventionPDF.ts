@@ -1,9 +1,9 @@
 import { jsPDF } from 'jspdf';
 import {
-  buildPunctualConventionSections,
-  conventionImportantNotice,
-  conventionObject,
-  conventionTitle,
+  conventionKindFor,
+  pickConventionTemplate,
+  renderConvention,
+  type ConventionTemplates,
 } from '@/lib/conventionText';
 import { createConventionDoc, fmtLongDate, fmtShortDate } from '@/lib/conventionPdfLayout';
 
@@ -51,6 +51,8 @@ export interface ConventionPdfData {
   logo?: string | null;
   // Paramètres personnalisables (maire, mairie, année). Si absent → defaults Chartrettes.
   settings?: Partial<ConventionPdfSettings>;
+  /** Textes de convention modifiés par la mairie. Absent → texte par défaut. */
+  templates?: Partial<ConventionTemplates> | null;
 }
 
 export interface ConventionPdfSettings {
@@ -86,11 +88,15 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   const cfg: ConventionPdfSettings = { ...DEFAULT_PDF_SETTINGS, ...(data.settings || {}) };
   const isAssoc = data.signer.type === 'association' && Boolean(data.association);
   const hoursLabel = fmtTimeRange(data.reservation.timeSlots);
-  const sections = buildPunctualConventionSections(cfg, {
-    roomName: data.reservation.roomName,
-    dateLabel: fmtLongDate(data.reservation.date),
-    hoursLabel,
-  });
+  const text = renderConvention(
+    pickConventionTemplate(data.templates, conventionKindFor(data.signer.type, 'ponctuelle')),
+    {
+      saison: cfg.conventionYear,
+      salle: data.reservation.roomName,
+      date: fmtLongDate(data.reservation.date),
+      horaires: hoursLabel,
+    }
+  );
 
   const doc = createConventionDoc();
 
@@ -99,13 +105,15 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
     logo: data.logo,
     settings: cfg,
     eyebrow: `Réservation ponctuelle — saison ${cfg.conventionYear}`,
-    title: conventionTitle(cfg, 'ponctuelle'),
+    title: text.title,
     reference: [
       `Document généré le ${fmtShortDate(new Date())}`,
       `Signée le ${fmtShortDate(data.signedAt)}`,
       data.mairieValidatedAt ? `Validée le ${fmtShortDate(data.mairieValidatedAt)}` : '',
     ].filter(Boolean),
   });
+
+  for (const paragraph of text.preamble) doc.paragraph(paragraph);
 
   // -------------- Parties contractantes --------------
   const occupantLines = isAssoc
@@ -143,7 +151,7 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   );
 
   // -------------- Objet : ce qui est réservé --------------
-  doc.highlightBox('Objet de la convention', [conventionObject('ponctuelle')]);
+  if (text.object) doc.highlightBox('Objet de la convention', [text.object]);
 
   doc.sectionTitle('Mise à disposition consentie');
   doc.table(
@@ -169,17 +177,17 @@ export function generateReservationConventionPDF(data: ConventionPdfData): jsPDF
   }
 
   // -------------- Corps de la convention (texte canonique partagé) --------------
-  for (const section of sections) {
+  for (const section of text.sections) {
     doc.sectionTitle(section.title);
     for (const article of section.articles) {
       doc.articleTitle(article.title);
-      for (const text of article.paragraphs || []) doc.paragraph(text);
+      for (const paragraph of article.paragraphs) doc.paragraph(paragraph);
       if (article.bulletsIntro) doc.paragraph(article.bulletsIntro);
-      if (article.bullets) doc.bullets(article.bullets);
+      if (article.bullets.length > 0) doc.bullets(article.bullets);
     }
   }
 
-  doc.notice('Important', conventionImportantNotice('ponctuelle'));
+  if (text.importantNotice) doc.notice('Important', text.importantNotice);
 
   // -------------- Signatures --------------
   doc.signatures(

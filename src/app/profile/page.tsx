@@ -5,6 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import type { ConventionSchedule } from '@/lib/conventionSlots';
 import { fetchImageDataUrl, MAIRIE_LOGO_URL, MAIRIE_SIGNATURE_URL } from '@/lib/imageDataUrl';
+import { fetchConventionTemplates } from '@/lib/conventionTemplatesClient';
 import {
   User,
   Mail,
@@ -209,9 +210,10 @@ export default function ProfilePage() {
         '@/lib/generateReservationConventionPDF'
       );
       // La signature du maire n'apparaît que si la réservation est approuvée.
-      const [mairieSignature, logo] = await Promise.all([
+      const [mairieSignature, logo, templates] = await Promise.all([
         doc.reservationStatus === 'approved' ? fetchSignatureDataUrl() : Promise.resolve(null),
         fetchImageDataUrl(MAIRIE_LOGO_URL),
+        fetchConventionTemplates(),
       ]);
       const isAssoc = !!userData.associationId && doc.associationName && doc.associationName !== 'Particulier';
       const pdf = generateReservationConventionPDF({
@@ -241,6 +243,7 @@ export default function ProfilePage() {
         signature: doc.signatureUrl,
         signedAt: doc.signedAt,
         settings: mairieSettings,
+        templates,
       });
       const safeName = (doc.roomName || 'salle').replace(/\s+/g, '_');
       const dateStr = doc.reservationDate
@@ -258,9 +261,10 @@ export default function ProfilePage() {
     try {
       const { generateYearlyConventionPDF } = await import('@/lib/generateYearlyConventionPDF');
       // La signature du maire n'apparaît que si la convention est validée.
-      const [mairieSignature, logo] = await Promise.all([
+      const [mairieSignature, logo, templates] = await Promise.all([
         doc.validatedAt ? fetchSignatureDataUrl() : Promise.resolve(null),
         fetchImageDataUrl(MAIRIE_LOGO_URL),
+        fetchConventionTemplates(),
       ]);
       const pdf = generateYearlyConventionPDF({
         association: {
@@ -275,6 +279,7 @@ export default function ProfilePage() {
         mairieValidatedAt: doc.validatedAt || undefined,
         settings: mairieSettings,
         schedule: doc.schedule,
+        templates,
         logo,
       });
       const safeName = doc.associationName.replace(/\s+/g, '_');

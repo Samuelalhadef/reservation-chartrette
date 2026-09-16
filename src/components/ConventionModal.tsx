@@ -5,11 +5,12 @@ import { X, PenTool, FileText, Building2, Shield, Calendar, Clock, MapPin } from
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
-  buildPunctualConventionSections,
-  conventionImportantNotice,
-  conventionObject,
-  conventionTitle,
+  conventionKindFor,
+  pickConventionTemplate,
+  renderConvention,
+  type ConventionTemplates,
 } from '@/lib/conventionText';
+import { fetchConventionTemplates } from '@/lib/conventionTemplatesClient';
 import ConventionLetterhead from './ConventionLetterhead';
 import { formatHourLabel } from '@/lib/utils';
 
@@ -79,6 +80,19 @@ export default function ConventionModal({
   const [hasSignature, setHasSignature] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
+  // Texte modifiable par la mairie, relu à chaque ouverture (défaut en attendant).
+  const [templates, setTemplates] = useState<ConventionTemplates | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetchConventionTemplates().then((t) => {
+      if (!cancelled) setTemplates(t);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -152,16 +166,17 @@ export default function ConventionModal({
 
   const currentDate = new Date().toLocaleDateString('fr-FR');
   const isAssoc = signerData.signerType === 'association';
-  const sections = buildPunctualConventionSections(
-    cfg,
-    reservationContext
-      ? {
-          roomName: reservationContext.roomName,
-          dateLabel: format(reservationContext.date, 'EEEE d MMMM yyyy', { locale: fr }),
-          // Même formatage que le PDF (pas de flèche : absente de l'encodage jsPDF).
-          hoursLabel: `${formatHourLabel(reservationContext.startHour)} - ${formatHourLabel(reservationContext.endHour + (reservationContext.slotStep ?? 1))}`,
-        }
-      : {}
+  const text = renderConvention(
+    pickConventionTemplate(templates, conventionKindFor(signerData.signerType, 'ponctuelle')),
+    {
+      saison: cfg.conventionYear,
+      ...(reservationContext && {
+        salle: reservationContext.roomName,
+        date: format(reservationContext.date, 'EEEE d MMMM yyyy', { locale: fr }),
+        // Même formatage que le PDF (pas de flèche : absente de l'encodage jsPDF).
+        horaires: `${formatHourLabel(reservationContext.startHour)} - ${formatHourLabel(reservationContext.endHour + (reservationContext.slotStep ?? 1))}`,
+      }),
+    }
   );
 
   return (
@@ -197,8 +212,14 @@ export default function ConventionModal({
             <ConventionLetterhead
               settings={cfg}
               eyebrow={`Réservation ponctuelle — saison ${cfg.conventionYear}`}
-              title={conventionTitle(cfg, 'ponctuelle')}
+              title={text.title}
             />
+
+            {text.preamble.map((paragraph, index) => (
+              <p key={index} className="text-slate-600 text-xs leading-relaxed">
+                {paragraph}
+              </p>
+            ))}
 
             {/* Détails de la réservation (si fournis) */}
             {reservationContext && (
@@ -278,21 +299,23 @@ export default function ConventionModal({
             </p>
 
             {/* Objet */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200">
-              <h4 className="font-bold text-slate-900 mb-2">Objet de la convention</h4>
-              <p className="text-slate-600 text-xs leading-relaxed">{conventionObject('ponctuelle')}</p>
-            </div>
+            {text.object && (
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <h4 className="font-bold text-slate-900 mb-2">Objet de la convention</h4>
+                <p className="text-slate-600 text-xs leading-relaxed">{text.object}</p>
+              </div>
+            )}
 
             {/* TITRE 1 / 2 / 3 — texte canonique partagé avec le PDF */}
-            {sections.map((section) => (
-              <div key={section.title} className="space-y-3">
+            {text.sections.map((section, sectionIndex) => (
+              <div key={sectionIndex} className="space-y-3">
                 <div className="bg-primary-700 text-white p-3 rounded-xl">
                   <h3 className="font-bold">{section.title}</h3>
                 </div>
-                {section.articles.map((article) => (
-                  <div key={article.title}>
+                {section.articles.map((article, articleIndex) => (
+                  <div key={articleIndex}>
                     <h4 className="font-bold text-slate-900 mb-1 text-sm">{article.title}</h4>
-                    {article.paragraphs?.map((paragraph, index) => (
+                    {article.paragraphs.map((paragraph, index) => (
                       <p key={index} className="text-slate-600 text-xs leading-relaxed mb-1">
                         {paragraph}
                       </p>
@@ -300,7 +323,7 @@ export default function ConventionModal({
                     {article.bulletsIntro && (
                       <p className="text-slate-600 text-xs mb-1">{article.bulletsIntro}</p>
                     )}
-                    {article.bullets && (
+                    {article.bullets.length > 0 && (
                       <ul className="space-y-1 text-slate-600 text-xs pl-4">
                         {article.bullets.map((bullet, index) => (
                           <li key={index}>• {bullet}</li>
@@ -312,10 +335,12 @@ export default function ConventionModal({
               </div>
             ))}
 
-            <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl">
-              <p className="font-bold text-amber-900 text-xs mb-1">⚠️ IMPORTANT</p>
-              <p className="text-amber-800 text-xs">{conventionImportantNotice('ponctuelle')}</p>
-            </div>
+            {text.importantNotice && (
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl">
+                <p className="font-bold text-amber-900 text-xs mb-1">⚠️ IMPORTANT</p>
+                <p className="text-amber-800 text-xs">{text.importantNotice}</p>
+              </div>
+            )}
 
             <div className="bg-slate-100 p-4 rounded-xl text-center border border-slate-300">
               <p className="text-slate-600 font-medium text-sm">

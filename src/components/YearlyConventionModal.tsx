@@ -5,13 +5,12 @@ import { X, FileText, Download, CheckCircle, PenTool } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
-  buildYearlyConventionSections,
-  conventionImportantNotice,
-  conventionObject,
-  conventionPreamble,
-  conventionTitle,
+  pickConventionTemplate,
+  renderConvention,
+  type ConventionTemplates,
   type ConventionTextSettings,
 } from '@/lib/conventionText';
+import { fetchConventionTemplates } from '@/lib/conventionTemplatesClient';
 import ConventionLetterhead from './ConventionLetterhead';
 
 /**
@@ -68,6 +67,18 @@ export default function YearlyConventionModal({
   // Maire, adresse et saison sont paramétrables côté admin : on les relit à
   // chaque ouverture pour que le texte signé porte les bonnes mentions.
   const [cfg, setCfg] = useState<ConventionTextSettings>(DEFAULT_MAIRIE);
+  const [templates, setTemplates] = useState<ConventionTemplates | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    fetchConventionTemplates().then((t) => {
+      if (!cancelled) setTemplates(t);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -200,7 +211,12 @@ export default function YearlyConventionModal({
     (slot: any) =>
       `${reservationDetails.roomName} (${weekDays[slot.day]} ${slot.startHour}:00 - ${slot.endHour + 1}:00)`
   );
-  const sections = buildYearlyConventionSections(cfg, { periodLabel, slotLabels });
+  // Seules les associations réservent à l'année aujourd'hui.
+  const text = renderConvention(pickConventionTemplate(templates, 'association-annuelle'), {
+    saison: cfg.conventionYear,
+    periode: periodLabel,
+    creneaux: slotLabels.length > 0 ? slotLabels.join(' ; ') : null,
+  });
 
   return (
     <div
@@ -236,11 +252,11 @@ export default function YearlyConventionModal({
               <ConventionLetterhead
                 settings={cfg}
                 eyebrow={`Convention annuelle — saison ${cfg.conventionYear}`}
-                title={conventionTitle(cfg, 'annuelle')}
+                title={text.title}
               />
 
               <div className="space-y-4 text-sm text-slate-600 dark:text-slate-300">
-                {conventionPreamble(cfg).map((paragraph, index) => (
+                {text.preamble.map((paragraph, index) => (
                   <p key={index}>{paragraph}</p>
                 ))}
 
@@ -273,10 +289,12 @@ export default function YearlyConventionModal({
                 <p>Par la présente convention, il a été convenu et arrêté ce qui suit :</p>
 
                 {/* Objet */}
-                <section className="space-y-2">
-                  <h4 className="font-bold text-base text-slate-900 dark:text-white">Objet de la convention</h4>
-                  <p>{conventionObject('annuelle')}</p>
-                </section>
+                {text.object && (
+                  <section className="space-y-2">
+                    <h4 className="font-bold text-base text-slate-900 dark:text-white">Objet de la convention</h4>
+                    <p>{text.object}</p>
+                  </section>
+                )}
 
                 {/* Créneaux attribués — annexe de la convention */}
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded">
@@ -298,19 +316,19 @@ export default function YearlyConventionModal({
                 </div>
 
                 {/* TITRE 1 / 2 / 3 — texte canonique partagé avec le PDF */}
-                {sections.map((section) => (
-                  <div key={section.title} className="space-y-3">
+                {text.sections.map((section, sectionIndex) => (
+                  <div key={sectionIndex} className="space-y-3">
                     <h4 className="font-bold text-base text-slate-900 dark:text-white border-b-2 border-primary-700 dark:border-accent-500 pb-1">
                       {section.title}
                     </h4>
-                    {section.articles.map((article) => (
-                      <section key={article.title} className="space-y-2">
+                    {section.articles.map((article, articleIndex) => (
+                      <section key={articleIndex} className="space-y-2">
                         <h5 className="font-bold text-slate-900 dark:text-white">{article.title}</h5>
-                        {article.paragraphs?.map((paragraph, index) => (
+                        {article.paragraphs.map((paragraph, index) => (
                           <p key={index}>{paragraph}</p>
                         ))}
                         {article.bulletsIntro && <p>{article.bulletsIntro}</p>}
-                        {article.bullets && (
+                        {article.bullets.length > 0 && (
                           <ul className="list-disc pl-6 space-y-1">
                             {article.bullets.map((bullet, index) => (
                               <li key={index}>{bullet}</li>
@@ -322,12 +340,12 @@ export default function YearlyConventionModal({
                   </div>
                 ))}
 
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3 rounded-r">
-                  <p className="font-bold text-yellow-900 dark:text-yellow-100 text-xs mb-1">IMPORTANT</p>
-                  <p className="text-yellow-800 dark:text-yellow-200 text-xs">
-                    {conventionImportantNotice('annuelle')}
-                  </p>
-                </div>
+                {text.importantNotice && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3 rounded-r">
+                    <p className="font-bold text-yellow-900 dark:text-yellow-100 text-xs mb-1">IMPORTANT</p>
+                    <p className="text-yellow-800 dark:text-yellow-200 text-xs">{text.importantNotice}</p>
+                  </div>
+                )}
 
                 {/* Signatures */}
                 <div className="mt-8 pt-4 border-t border-slate-300 dark:border-primary-700/60">

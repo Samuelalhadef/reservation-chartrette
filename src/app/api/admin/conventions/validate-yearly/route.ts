@@ -9,6 +9,7 @@ import { getConventionSettings } from '@/lib/conventionSettings';
 import { getAssociationSchedule } from '@/lib/conventionSlots';
 import { getMairieLogoDataUrl, getMairieSignatureDataUrl } from '@/lib/mairieAssets';
 import { generateYearlyConventionPDF } from '@/lib/generateYearlyConventionPDF';
+import { getConventionTemplates } from '@/lib/conventionTemplateStore';
 
 /**
  * POST /api/admin/conventions/validate-yearly
@@ -73,11 +74,12 @@ export async function POST(req: NextRequest) {
     // Générer le PDF (2 signatures) et l'envoyer par email
     let emailSent = false;
     try {
-      const [settings, mairieSignature, schedule, logo] = await Promise.all([
+      const [settings, mairieSignature, schedule, logo, templates] = await Promise.all([
         getConventionSettings(),
         getMairieSignatureDataUrl(),
         getAssociationSchedule(associationId),
         getMairieLogoDataUrl(),
+        getConventionTemplates(),
       ]);
 
       const pdf = generateYearlyConventionPDF({
@@ -94,6 +96,7 @@ export async function POST(req: NextRequest) {
         mairieValidatedAt: validatedAt,
         settings,
         schedule,
+        templates,
         logo,
       });
 
