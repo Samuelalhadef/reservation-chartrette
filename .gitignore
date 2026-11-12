@@ -42,3 +42,4 @@ next-env.d.ts
 
 # Base SQLite de développement local
 local.db
+local.db-*

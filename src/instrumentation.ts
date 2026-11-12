@@ -8,21 +8,22 @@
  */
 export async function register() {
   // Le crochet est aussi appelé pour le runtime edge, où ni la base ni
-  // nodemailer ne sont disponibles.
-  if (process.env.NEXT_RUNTIME !== 'nodejs') return;
+  // nodemailer ne sont disponibles. L'import doit rester DANS ce bloc (pas de
+  // retour anticipé) pour que webpack l'élimine du bundle edge.
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { flushEmailQueue } = await import('@/lib/email');
 
-  const { flushEmailQueue } = await import('@/lib/email');
+    const INTERVAL_MS = 15 * 60 * 1000;
 
-  const INTERVAL_MS = 15 * 60 * 1000;
+    const run = () =>
+      flushEmailQueue().catch(error =>
+        console.warn("⚠ Purge périodique de la file d'e-mails impossible :", error)
+      );
 
-  const run = () =>
-    flushEmailQueue().catch(error =>
-      console.warn("⚠ Purge périodique de la file d'e-mails impossible :", error)
-    );
+    // Laisser le serveur finir de démarrer avant la première purge.
+    setTimeout(run, 30_000).unref();
 
-  // Laisser le serveur finir de démarrer avant la première purge.
-  setTimeout(run, 30_000).unref();
-
-  // unref : ce minuteur ne doit pas à lui seul maintenir le processus en vie.
-  setInterval(run, INTERVAL_MS).unref();
+    // unref : ce minuteur ne doit pas à lui seul maintenir le processus en vie.
+    setInterval(run, INTERVAL_MS).unref();
+  }
 }

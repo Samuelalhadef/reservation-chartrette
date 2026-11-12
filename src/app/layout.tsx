@@ -24,7 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className={inter.variable}>
-      <body className="antialiased">
+      {/* suppressHydrationWarning : certaines extensions (ColorZilla, Grammarly…)
+          ajoutent des attributs au <body> avant le chargement de React. */}
+      <body className="antialiased" suppressHydrationWarning>
         <SessionProvider>
           <div className="flex min-h-screen flex-col">
             <div className="flex-1">{children}</div>
