@@ -5,6 +5,7 @@ import { buildings, rooms } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { Users, BookOpen, DoorClosed, ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import { getBuildingImage, getRoomPhotos } from '@/lib/roomPhotos';
 
 export default async function BuildingRoomsPage({
   params,
@@ -40,23 +41,6 @@ export default async function BuildingRoomsPage({
     return Icon;
   };
 
-  // Image par défaut basée sur le nom du bâtiment
-  const getBuildingImage = (buildingName: string) => {
-    if (buildingName.includes('MAIRIE')) {
-      return '/image/mairie.webp';
-    }
-    if (buildingName.includes('COMPLEXE SPORTIF')) {
-      return '/image/complexe_sportif.webp';
-    }
-    if (buildingName.includes('ESPACE CULTUREL') || buildingName.includes('RENÉE WANNER')) {
-      return '/image/espace_culturel.webp';
-    }
-    if (buildingName.includes('VERGERS')) {
-      return '/image/espace_verger.webp';
-    }
-    return '/image/mairie.webp'; // Image par défaut
-  };
-
   return (
     <div className="min-h-screen">
       {/* Hero Section avec l'image du bâtiment */}
@@ -71,6 +55,8 @@ export default async function BuildingRoomsPage({
           className="object-cover"
           priority
         />
+        {/* Dégradé noir du bas vers le haut, sous les cartes des salles */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/10" />
         {/* Bouton retour */}
         <Link
           href="/dashboard"
@@ -86,6 +72,39 @@ export default async function BuildingRoomsPage({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {buildingRooms.map((room) => {
             const Icon = getRoomIcon(room.name);
+            const [cover] = getRoomPhotos(room);
+
+            if (cover) {
+              return (
+                <Link
+                  key={room.id}
+                  href={`/buildings/${building.id}/rooms/${room.id}/calendar`}
+                  className="group"
+                >
+                  <div className="bg-white rounded-2xl shadow-card hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 h-full flex flex-col overflow-hidden">
+                    <div className="relative h-40 w-full overflow-hidden">
+                      <Image
+                        src={cover.src}
+                        alt={cover.alt}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 330px"
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="p-5 text-center flex-1 flex flex-col items-center justify-center">
+                      <h3 className="text-xl font-bold text-slate-900 uppercase tracking-wide">
+                        {room.name}
+                      </h3>
+                      {room.description && (
+                        <p className="text-sm text-slate-500 mt-2">
+                          {room.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            }
 
             return (
               <Link

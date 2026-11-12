@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { buildings } from '@/lib/db/schema';
+import { getBuildingImage } from '@/lib/roomPhotos';
 
 export default async function DashboardPage() {
   // Seuls les établissements actifs sont proposés à la réservation.
@@ -10,23 +11,6 @@ export default async function DashboardPage() {
     .select()
     .from(buildings)
     .where(eq(buildings.isActive, true));
-
-  // Fonction pour obtenir l'image du bâtiment
-  const getBuildingImage = (buildingName: string) => {
-    if (buildingName.includes('MAIRIE')) {
-      return '/image/mairie.webp';
-    }
-    if (buildingName.includes('COMPLEXE SPORTIF')) {
-      return '/image/complexe_sportif.webp';
-    }
-    if (buildingName.includes('ESPACE CULTUREL') || buildingName.includes('RENÉE WANNER')) {
-      return '/image/espace_culturel.webp';
-    }
-    if (buildingName.includes('VERGERS')) {
-      return '/image/espace_verger.webp';
-    }
-    return '/image/mairie.webp'; // Image par défaut
-  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -5,6 +5,8 @@ import { and, eq, gte, lte, ne } from 'drizzle-orm';
 import { ArrowLeft, DoorOpen, Users, Ruler, Package } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import RoomCalendar from '@/components/RoomCalendar';
+import RoomGallery from '@/components/RoomGallery';
+import { getRoomPhotos } from '@/lib/roomPhotos';
 
 export default async function RoomCalendarPage({
   params,
@@ -102,6 +104,8 @@ export default async function RoomCalendarPage({
                 </p>
               </div>
             </div>
+
+            <RoomGallery photos={getRoomPhotos(room)} />
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 justify-center sm:justify-start">
               <div className="flex items-center gap-2 px-4 py-3 bg-primary-50 dark:bg-accent-500/10 rounded-lg justify-center">
