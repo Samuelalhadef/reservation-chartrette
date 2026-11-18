@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { db } from '@/lib/db';
-import { reservations, rooms, users, associations } from '@/lib/db/schema';
+import { reservations, rooms, users, associations, buildings } from '@/lib/db/schema';
 import { eq, and, gte, lt, inArray, sql } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { sendEmail, emailTemplates } from '@/lib/email';
@@ -9,6 +9,32 @@ import { formatDate, formatTimeSlot, parseHourFraction } from '@/lib/utils';
 import { calculateReservationPrice } from '@/lib/pricing';
 import { getUserAssociationIds } from '@/lib/userAssociations';
 import { isMairieAssociationName } from '@/lib/mairieAssociation';
+import { BLOCKING_STATUSES, slotsOverlap } from '@/lib/reservationConflicts';
+
+/**
+ * Créneaux d'une réservation ponctuelle : tableau non vide de { start, end }
+ * au format H:MM, alignés sur la demi-heure, start < end <= 24:00, sans
+ * chevauchement entre eux. Renvoie un message d'erreur, ou null si valides.
+ */
+function validateTimeSlots(slots: unknown): string | null {
+  if (!Array.isArray(slots) || slots.length === 0) return 'Au moins un créneau horaire est requis';
+  const pattern = /^([01]?\d|2[0-4]):(00|30)$/;
+  for (const slot of slots) {
+    if (!slot || typeof slot.start !== 'string' || typeof slot.end !== 'string') {
+      return 'Créneau horaire invalide';
+    }
+    if (!pattern.test(slot.start) || !pattern.test(slot.end)) return 'Créneau horaire invalide';
+    const start = parseHourFraction(slot.start);
+    const end = parseHourFraction(slot.end);
+    if (!(start < end) || end > 24) return 'Créneau horaire invalide';
+  }
+  for (let i = 0; i < slots.length; i++) {
+    for (let j = i + 1; j < slots.length; j++) {
+      if (slotsOverlap(slots[i], slots[j])) return 'Les créneaux demandés se chevauchent';
+    }
+  }
+  return null;
+}
 
 /** Une signature de convention valide est une image encodée en data URL. */
 function hasValidSignature(signature: unknown): boolean {
@@ -50,8 +76,14 @@ export async function GET(req: NextRequest) {
     }
 
     if (dateParam) {
-      const startDate = new Date(dateParam);
-      const endDate = new Date(dateParam);
+      // Jour calendaire parisien : les réservations ponctuelles sont stockées à
+      // minuit UTC et les annuelles à minuit Paris ; partir de minuit Paris
+      // couvre les deux (new Date("YYYY-MM-DD") partait de minuit UTC et
+      // ratait les réservations annuelles du jour).
+      const startDate = /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+        ? new Date(`${dateParam}T00:00:00`)
+        : new Date(dateParam);
+      const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 1);
       conditions.push(gte(reservations.date, startDate));
       conditions.push(lt(reservations.date, endDate));
@@ -164,6 +196,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const slotError = validateTimeSlots(data.timeSlots);
+    if (slotError) {
+      return NextResponse.json({ error: slotError }, { status: 400 });
+    }
+
+    const participants = Number(data.estimatedParticipants);
+    if (!Number.isInteger(participants) || participants < 1) {
+      return NextResponse.json({ error: 'Nombre de participants invalide' }, { status: 400 });
+    }
+
+    if (Number.isNaN(new Date(data.date).getTime())) {
+      return NextResponse.json({ error: 'Date invalide' }, { status: 400 });
+    }
+
     // Convention obligatoire pour toute réservation ponctuelle créée par un non-admin.
     // Côté admin, la règle dépend du bénéficiaire : voir le contrôle après la
     // résolution de l'association (seule la mairie en est dispensée).
@@ -218,6 +264,21 @@ export async function POST(req: NextRequest) {
         { error: 'User or room not found' },
         { status: 404 }
       );
+    }
+
+    // Salle ou établissement désactivé : plus réservable (sauf par un admin).
+    if (session.user?.role !== 'admin') {
+      const [building] = await db
+        .select({ isActive: buildings.isActive })
+        .from(buildings)
+        .where(eq(buildings.id, room.buildingId))
+        .limit(1);
+      if (!room.isActive || (building && !building.isActive)) {
+        return NextResponse.json(
+          { error: "Cette salle n'est pas ouverte à la réservation" },
+          { status: 400 }
+        );
+      }
     }
 
     // For admin users, use the "Mairie de Chartrettes" association
@@ -331,7 +392,7 @@ export async function POST(req: NextRequest) {
           eq(reservations.roomId, data.roomId),
           gte(reservations.date, startOfDay),
           lt(reservations.date, endOfDay),
-          inArray(reservations.status, ['pending', 'approved'])
+          inArray(reservations.status, [...BLOCKING_STATUSES])
         )
       );
 
@@ -392,7 +453,7 @@ export async function POST(req: NextRequest) {
         date: new Date(data.date),
         timeSlots: data.timeSlots,
         reason: data.reason,
-        estimatedParticipants: data.estimatedParticipants,
+        estimatedParticipants: participants,
         requiredEquipment: data.requiredEquipment || [],
         status: reservationStatus,
         // Pricing fields

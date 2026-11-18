@@ -6,6 +6,7 @@ import {
   type ConventionTemplates,
 } from '@/lib/conventionText';
 import { createConventionDoc, fmtLongDate, fmtShortDate } from '@/lib/conventionPdfLayout';
+import { formatHourLabel, parseHourFraction } from '@/lib/utils';
 
 /**
  * Données nécessaires pour générer le PDF de convention d'une réservation ponctuelle.
@@ -75,10 +76,24 @@ const DEFAULT_PDF_SETTINGS: ConventionPdfSettings = {
   conventionYear: '2025-2026',
 };
 
-/** Bornes du créneau réservé. Pas de flèche : absente de l'encodage jsPDF. */
+/**
+ * Plages réservées, créneaux contigus fusionnés (« 8:00 - 9:00, 21:00 - 22:00 »).
+ * Prendre seulement le début du premier et la fin du dernier affichait
+ * « 8:00 - 22:00 » pour deux créneaux disjoints. Pas de flèche : absente de
+ * l'encodage jsPDF.
+ */
 function fmtTimeRange(slots: Array<{ start: string; end: string }>): string {
   if (!slots || slots.length === 0) return '—';
-  return `${slots[0].start} - ${slots[slots.length - 1].end}`;
+  const bounds = slots
+    .map(s => [parseHourFraction(s.start), parseHourFraction(s.end)] as [number, number])
+    .sort((a, b) => a[0] - b[0]);
+  const ranges: [number, number][] = [];
+  for (const [start, end] of bounds) {
+    const last = ranges[ranges.length - 1];
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else ranges.push([start, end]);
+  }
+  return ranges.map(([a, b]) => `${formatHourLabel(a)} - ${formatHourLabel(b)}`).join(', ');
 }
 
 /**

@@ -11,6 +11,7 @@ import {
   type ConventionTextSettings,
 } from '@/lib/conventionText';
 import { fetchConventionTemplates } from '@/lib/conventionTemplatesClient';
+import { formatWeeklySlotHours } from '@/lib/utils';
 import ConventionLetterhead from './ConventionLetterhead';
 
 /**
@@ -209,7 +210,7 @@ export default function YearlyConventionModal({
   const periodLabel = `du ${format(parseISO(reservationDetails.startDate), 'd MMMM yyyy', { locale: fr })} au ${format(parseISO(reservationDetails.endDate), 'd MMMM yyyy', { locale: fr })}`;
   const slotLabels = (reservationDetails.timeSlots || []).map(
     (slot: any) =>
-      `${reservationDetails.roomName} (${weekDays[slot.day]} ${slot.startHour}:00 - ${slot.endHour + 1}:00)`
+      `${reservationDetails.roomName} (${weekDays[slot.day]} ${formatWeeklySlotHours(slot)})`
   );
   // Seules les associations réservent à l'année aujourd'hui.
   const text = renderConvention(pickConventionTemplate(templates, 'association-annuelle'), {
@@ -304,7 +305,7 @@ export default function YearlyConventionModal({
                   <ul className="list-disc pl-6 space-y-1 mt-2">
                     {reservationDetails.timeSlots.map((slot: any, index: number) => (
                       <li key={index}>
-                        {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
+                        {weekDays[slot.day]} : {formatWeeklySlotHours(slot)}
                       </li>
                     ))}
                   </ul>

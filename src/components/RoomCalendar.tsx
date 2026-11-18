@@ -67,9 +67,18 @@ export default function RoomCalendar({ roomId, roomName, roomCapacity, reservati
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  const goToPreviousWeek = () => setCurrentWeek(subWeeks(currentWeek, 1));
-  const goToNextWeek = () => setCurrentWeek(addWeeks(currentWeek, 1));
-  const goToToday = () => setCurrentWeek(new Date());
+  // Sur mobile, le jour affiché suit la semaine : même jour de la semaine
+  // dans la nouvelle semaine (sinon la liste montrait l'ancienne semaine).
+  const shiftWeek = (weeks: number) => {
+    setCurrentWeek(addWeeks(currentWeek, weeks));
+    setSelectedMobileDay(addWeeks(selectedMobileDay, weeks));
+  };
+  const goToPreviousWeek = () => shiftWeek(-1);
+  const goToNextWeek = () => shiftWeek(1);
+  const goToToday = () => {
+    setCurrentWeek(new Date());
+    setSelectedMobileDay(new Date());
+  };
 
   // Générer les créneaux de 8h à 23h (dernier créneau finit à 24h), au pas
   // choisi : heures entières ou demi-heures (8, 8.5, 9…).

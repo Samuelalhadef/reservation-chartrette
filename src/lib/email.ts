@@ -491,15 +491,30 @@ export async function sendEmail({ to, subject, html, text, attachments, replyTo 
 }
 
 // Email templates
+/** Échappe un texte saisi par un utilisateur avant insertion dans un e-mail HTML. */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Comme escapeHtml, en conservant les retours à la ligne (commentaires admin). */
+function escapeMultiline(value: unknown): string {
+  return escapeHtml(value).replace(/\r?\n/g, '<br/>');
+}
+
 export const emailTemplates = {
   reservationSubmitted: (userName: string, roomName: string, date: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #1e3a5f;">Demande de réservation reçue</h2>
-      <p>Bonjour ${userName},</p>
+      <p>Bonjour ${escapeHtml(userName)},</p>
       <p>Nous avons bien reçu votre demande de réservation pour :</p>
       <ul>
-        <li><strong>Salle :</strong> ${roomName}</li>
-        <li><strong>Date :</strong> ${date}</li>
+        <li><strong>Salle :</strong> ${escapeHtml(roomName)}</li>
+        <li><strong>Date :</strong> ${escapeHtml(date)}</li>
       </ul>
       <p>Votre demande est en cours d'examen. Vous recevrez une notification dès qu'un administrateur aura traité votre demande.</p>
       <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
@@ -523,12 +538,12 @@ export const emailTemplates = {
   ) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #1e3a5f;">Demande de réservation à l'année reçue</h2>
-      <p>Bonjour ${userName},</p>
+      <p>Bonjour ${escapeHtml(userName)},</p>
       <p>Nous avons bien reçu votre demande de réservation à l'année pour :</p>
       <ul>
-        <li><strong>Salle :</strong> ${roomName}</li>
-        <li><strong>Association :</strong> ${associationName}</li>
-        <li><strong>Période :</strong> ${periodLabel}</li>
+        <li><strong>Salle :</strong> ${escapeHtml(roomName)}</li>
+        <li><strong>Association :</strong> ${escapeHtml(associationName)}</li>
+        <li><strong>Période :</strong> ${escapeHtml(periodLabel)}</li>
         <li><strong>Nombre de créneaux réservés :</strong> ${count}</li>
       </ul>
 
@@ -591,21 +606,21 @@ export const emailTemplates = {
       <h2 style="color: ${decision === 'approved' ? '#059669' : '#dc2626'};">
         ${decision === 'approved' ? 'Réservations approuvées' : 'Demande de réservation refusée'}
       </h2>
-      <p>Bonjour ${userName},</p>
+      <p>Bonjour ${escapeHtml(userName)},</p>
       <p>
         ${decision === 'approved'
           ? `Votre demande de réservation a été <strong>approuvée</strong> par la mairie pour l'ensemble des dates ci-dessous :`
           : `Votre demande de réservation n'a pas pu être retenue pour les dates ci-dessous :`}
       </p>
       <ul>
-        <li><strong>Salle :</strong> ${roomName}</li>
-        ${associationName ? `<li><strong>Association :</strong> ${associationName}</li>` : ''}
-        <li><strong>Période :</strong> ${periodLabel}</li>
+        <li><strong>Salle :</strong> ${escapeHtml(roomName)}</li>
+        ${associationName ? `<li><strong>Association :</strong> ${escapeHtml(associationName)}</li>` : ''}
+        <li><strong>Période :</strong> ${escapeHtml(periodLabel)}</li>
         <li><strong>Nombre de créneaux :</strong> ${count}</li>
       </ul>
 
       ${adminComment
-        ? `<p><strong>${decision === 'approved' ? 'Message de la mairie' : 'Motif du refus'} :</strong><br/>${adminComment}</p>`
+        ? `<p><strong>${decision === 'approved' ? 'Message de la mairie' : 'Motif du refus'} :</strong><br/>${escapeMultiline(adminComment)}</p>`
         : ''}
 
       <h3 style="color: #1e3a5f; margin-top: 24px;">Détail des dates concernées</h3>
@@ -631,14 +646,14 @@ export const emailTemplates = {
   reservationApproved: (userName: string, roomName: string, date: string, timeSlots: string, adminComment?: string, hasConvention?: boolean) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #059669;">Réservation approuvée</h2>
-      <p>Bonjour ${userName},</p>
+      <p>Bonjour ${escapeHtml(userName)},</p>
       <p>Excellente nouvelle ! Votre réservation a été approuvée :</p>
       <ul>
-        <li><strong>Salle :</strong> ${roomName}</li>
-        <li><strong>Date :</strong> ${date}</li>
-        <li><strong>Créneaux :</strong> ${timeSlots}</li>
+        <li><strong>Salle :</strong> ${escapeHtml(roomName)}</li>
+        <li><strong>Date :</strong> ${escapeHtml(date)}</li>
+        <li><strong>Créneaux :</strong> ${escapeHtml(timeSlots)}</li>
       </ul>
-      ${adminComment ? `<p><strong>Message de l'administrateur :</strong><br/>${adminComment}</p>` : ''}
+      ${adminComment ? `<p><strong>Message de l'administrateur :</strong><br/>${escapeMultiline(adminComment)}</p>` : ''}
       ${hasConvention ? `
       <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 16px; margin: 20px 0;">
         <p style="margin: 0; color: #065f46;">
@@ -653,13 +668,13 @@ export const emailTemplates = {
   reservationRejected: (userName: string, roomName: string, date: string, adminComment: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #dc2626;">Réservation refusée</h2>
-      <p>Bonjour ${userName},</p>
+      <p>Bonjour ${escapeHtml(userName)},</p>
       <p>Nous sommes désolés de vous informer que votre demande de réservation a été refusée :</p>
       <ul>
-        <li><strong>Salle :</strong> ${roomName}</li>
-        <li><strong>Date :</strong> ${date}</li>
+        <li><strong>Salle :</strong> ${escapeHtml(roomName)}</li>
+        <li><strong>Date :</strong> ${escapeHtml(date)}</li>
       </ul>
-      <p><strong>Motif du refus :</strong><br/>${adminComment}</p>
+      <p><strong>Motif du refus :</strong><br/>${escapeMultiline(adminComment)}</p>
       <p>Vous pouvez soumettre une nouvelle demande en tenant compte de ces informations.</p>
       <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
@@ -668,12 +683,12 @@ export const emailTemplates = {
   reservationReminder: (userName: string, roomName: string, date: string, timeSlots: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #1e3a5f;">Rappel de réservation</h2>
-      <p>Bonjour ${userName},</p>
+      <p>Bonjour ${escapeHtml(userName)},</p>
       <p>Ceci est un rappel concernant votre réservation qui approche :</p>
       <ul>
-        <li><strong>Salle :</strong> ${roomName}</li>
-        <li><strong>Date :</strong> ${date}</li>
-        <li><strong>Créneaux :</strong> ${timeSlots}</li>
+        <li><strong>Salle :</strong> ${escapeHtml(roomName)}</li>
+        <li><strong>Date :</strong> ${escapeHtml(date)}</li>
+        <li><strong>Créneaux :</strong> ${escapeHtml(timeSlots)}</li>
       </ul>
       <p>Nous vous attendons ! N'oubliez pas de respecter le règlement de la salle.</p>
       <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
@@ -683,8 +698,8 @@ export const emailTemplates = {
   associationRequestSubmitted: (userName: string, associationName: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #1e3a5f;">Demande d'ajout d'association reçue</h2>
-      <p>Bonjour ${userName},</p>
-      <p>Nous avons bien reçu votre demande d'ajout de l'association "${associationName}".</p>
+      <p>Bonjour ${escapeHtml(userName)},</p>
+      <p>Nous avons bien reçu votre demande d'ajout de l'association "${escapeHtml(associationName)}".</p>
       <p>Un administrateur va examiner votre demande. Vous recevrez une notification dès que votre association sera validée.</p>
       <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
@@ -693,8 +708,8 @@ export const emailTemplates = {
   associationApproved: (userName: string, associationName: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #059669;">Association approuvée</h2>
-      <p>Bonjour ${userName},</p>
-      <p>Bonne nouvelle ! L'association "${associationName}" a été approuvée.</p>
+      <p>Bonjour ${escapeHtml(userName)},</p>
+      <p>Bonne nouvelle ! L'association "${escapeHtml(associationName)}" a été approuvée.</p>
       <p>Vous pouvez maintenant effectuer des réservations de salles.</p>
       <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
@@ -703,9 +718,9 @@ export const emailTemplates = {
   associationRejected: (userName: string, associationName: string, reason: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #dc2626;">Demande d'association refusée</h2>
-      <p>Bonjour ${userName},</p>
-      <p>Nous sommes désolés de vous informer que la demande d'ajout de l'association "${associationName}" a été refusée.</p>
-      <p><strong>Motif :</strong><br/>${reason}</p>
+      <p>Bonjour ${escapeHtml(userName)},</p>
+      <p>Nous sommes désolés de vous informer que la demande d'ajout de l'association "${escapeHtml(associationName)}" a été refusée.</p>
+      <p><strong>Motif :</strong><br/>${escapeHtml(reason)}</p>
       <p>Vous pouvez nous contacter pour plus d'informations.</p>
       <p>Cordialement,<br/>L'équipe de Réservation Chartrettes</p>
     </div>
@@ -739,7 +754,7 @@ export const emailTemplates = {
               <tr>
                 <td style="padding: 40px;">
                   <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">
-                    Bonjour <strong>${userName}</strong>,
+                    Bonjour <strong>${escapeHtml(userName)}</strong>,
                   </p>
 
                   <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">

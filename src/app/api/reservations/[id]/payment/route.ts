@@ -55,6 +55,10 @@ export async function PATCH(
     // Préparer les données à mettre à jour
     const updateData: any = {};
 
+    if (paymentStatus && !['pending', 'check_deposited', 'paid', 'refunded'].includes(paymentStatus)) {
+      return NextResponse.json({ error: 'Statut de paiement invalide' }, { status: 400 });
+    }
+
     if (paymentStatus) {
       updateData.paymentStatus = paymentStatus;
 

@@ -2,40 +2,46 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { associations } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { requireAdmin } from '@/lib/requireAdmin';
 
 export async function GET(req: NextRequest) {
   try {
-    const searchParams = req.nextUrl.searchParams;
-    const status = searchParams.get('status');
+    const session = (await getServerSession(authOptions)) as any;
+    const isAdmin = session?.user?.role === 'admin';
+    const status = req.nextUrl.searchParams.get('status');
 
-    let results;
-
-    if (status) {
-      results = await db
-        .select()
-        .from(associations)
-        .where(eq(associations.status, status as 'active' | 'inactive' | 'pending'))
-        .orderBy(associations.name);
-    } else {
-      // By default, only return active associations for public access
-      results = await db
-        .select()
+    // Route publique (page d'inscription) : seules les associations actives et
+    // leurs champs publics. Coordonnées, adresse du président et signature
+    // restent réservées aux administrateurs.
+    if (!isAdmin) {
+      const results = await db
+        .select({ id: associations.id, name: associations.name, description: associations.description })
         .from(associations)
         .where(eq(associations.status, 'active'))
         .orderBy(associations.name);
+      return NextResponse.json({ associations: results }, { status: 200 });
     }
+
+    const allowed = ['active', 'inactive', 'pending'] as const;
+    const filter = allowed.find(s => s === status) ?? 'active';
+    const results = await db
+      .select()
+      .from(associations)
+      .where(eq(associations.status, filter))
+      .orderBy(associations.name);
 
     return NextResponse.json({ associations: results }, { status: 200 });
   } catch (error: any) {
     console.error('Get associations error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const data = await req.json();
 

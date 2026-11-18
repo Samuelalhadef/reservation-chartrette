@@ -11,6 +11,7 @@ import {
   getPublicHolidayLabel,
   getSchoolBreakLabel,
 } from '@/lib/frenchHolidays';
+import { formatHourLabel, formatWeeklySlotHours, weeklySlotEnd } from '@/lib/utils';
 
 interface Association {
   id: string;
@@ -30,8 +31,9 @@ interface YearlyReservationModalProps {
 
 interface TimeSlot {
   day: number; // 0 = dimanche, 1 = lundi, etc.
-  startHour: number;
-  endHour: number;
+  startHour: number; // 14.5 => 14:30
+  endHour: number; // début du dernier créneau (inclus)
+  step: number; // durée d'un créneau : 1 h ou 0,5 h
 }
 
 /** Une date déjà prise sur un créneau de la grille hebdomadaire. */
@@ -123,8 +125,24 @@ export default function YearlyReservationModal({
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [selectionStart, setSelectionStart] = useState<{ day: number; hour: number } | null>(null);
 
+  // Pas de la grille hebdomadaire : créneaux d'1 h ou de 30 min.
+  const [slotStep, setSlotStep] = useState<1 | 0.5>(1);
+
   const weekDays = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-  const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8h → 23h, dernier créneau 23h-24h
+  // 8h → 24h : en pas d'1 h, 16 cases (8:00 … 23:00) ; en 30 min, 32 cases (8:00 … 23:30).
+  const hours = useMemo(
+    () => Array.from({ length: Math.round(16 / slotStep) }, (_, i) => 8 + i * slotStep),
+    [slotStep]
+  );
+
+  const changeSlotStep = (next: 1 | 0.5) => {
+    if (next === slotStep) return;
+    // Les créneaux déjà choisis gardent leur propre pas ; seule la sélection
+    // en cours (premier clic) est abandonnée car elle ne tombe plus sur la grille.
+    setSlotStep(next);
+    setSelectionStart(null);
+    setSelectedDay(null);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -142,6 +160,7 @@ export default function YearlyReservationModal({
       acceptConflictsRef.current = false;
       setSelectedDay(null);
       setSelectionStart(null);
+      setSlotStep(1);
       setSelectedAssociationId('');
       setUserAssociations([]);
       // Charger les associations pour les admins, ou celles du membre
@@ -206,6 +225,9 @@ export default function YearlyReservationModal({
   useEffect(() => {
     if (!isOpen || !startDate || !endDate || new Date(startDate) > new Date(endDate)) {
       setOccupancy([]);
+      // Un chargement interrompu par une période invalide ne doit pas laisser
+      // le message « Recherche… » affiché indéfiniment.
+      setIsLoadingOccupancy(false);
       return;
     }
 
@@ -240,7 +262,36 @@ export default function YearlyReservationModal({
     return map;
   }, [occupancy]);
 
-  const getCellOccupancy = (day: number, hour: number) => occupancyByCell.get(`${day}|${hour}`);
+  /**
+   * Occupation d'une case de la grille : le serveur renvoie des demi-heures,
+   * une case d'1 h regroupe donc ses deux demi-heures (dates dédoublonnées).
+   */
+  const getCellOccupancy = (
+    day: number,
+    hour: number,
+    step: number = slotStep
+  ): OccupancyCell | undefined => {
+    const parts: OccupancyCell[] = [];
+    for (let h = hour; h < hour + step; h += 0.5) {
+      const cell = occupancyByCell.get(`${day}|${h}`);
+      if (cell) parts.push(cell);
+    }
+    if (parts.length === 0) return undefined;
+    if (parts.length === 1) return parts[0];
+    const seen = new Set<string>();
+    const merged: OccupancyCell = { day, hour, approved: 0, pending: 0, dates: [] };
+    for (const part of parts) {
+      for (const d of part.dates) {
+        const key = `${d.date}|${d.hours}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.dates.push(d);
+        if (d.status === 'approved') merged.approved += 1;
+        else merged.pending += 1;
+      }
+    }
+    return merged;
+  };
 
   /** Détail affiché au survol d'une case déjà occupée. */
   const occupancyTooltip = (cell: OccupancyCell): string => {
@@ -279,14 +330,14 @@ export default function YearlyReservationModal({
           current = {
             day,
             startHour: cell.hour,
-            endHour: cell.hour + 1,
+            endHour: cell.hour + 0.5,
             approvedDates: new Set<string>(),
             pendingDates: new Set<string>(),
             associations: new Set<string>(),
           };
           ranges.push(current);
         } else {
-          current.endHour = cell.hour + 1;
+          current.endHour = cell.hour + 0.5;
         }
 
         for (const occupied of cell.dates) {
@@ -304,8 +355,8 @@ export default function YearlyReservationModal({
   /** Nombre de dates déjà prises qui chevauchent un créneau sélectionné. */
   const countOccupiedDatesForSlot = (slot: TimeSlot): number => {
     const dates = new Set<string>();
-    for (let hour = slot.startHour; hour <= slot.endHour; hour++) {
-      getCellOccupancy(slot.day, hour)?.dates.forEach(d => dates.add(d.date));
+    for (let hour = slot.startHour; hour < weeklySlotEnd(slot); hour += 0.5) {
+      getCellOccupancy(slot.day, hour, 0.5)?.dates.forEach(d => dates.add(d.date));
     }
     return dates.size;
   };
@@ -317,7 +368,8 @@ export default function YearlyReservationModal({
 
     for (const cell of occupancy) {
       const isRequested = timeSlots.some(
-        slot => slot.day === cell.day && cell.hour >= slot.startHour && cell.hour <= slot.endHour
+        slot =>
+          slot.day === cell.day && cell.hour >= slot.startHour && cell.hour < weeklySlotEnd(slot)
       );
       if (!isRequested) continue;
 
@@ -496,7 +548,7 @@ export default function YearlyReservationModal({
       roomName: roomName || 'Salle à définir',
       startDate: startDate || new Date().toISOString(),
       endDate: endDate || new Date(new Date().setMonth(new Date().getMonth() + 12)).toISOString(),
-      timeSlots: timeSlots.length > 0 ? timeSlots : [{ day: 1, startHour: 14, endHour: 16 }],
+      timeSlots: timeSlots.length > 0 ? timeSlots : [{ day: 1, startHour: 14, endHour: 16, step: 1 }],
       reason: reason || 'À définir lors de la réservation',
     } : {
       roomName,
@@ -535,13 +587,25 @@ export default function YearlyReservationModal({
       const startHour = Math.min(selectionStart.hour, hour);
       const endHour = Math.max(selectionStart.hour, hour);
 
-      // Vérifier si ce créneau existe déjà
-      const exists = timeSlots.some(
-        slot => slot.day === day && slot.startHour === startHour && slot.endHour === endHour
+      const newEnd = endHour + slotStep;
+
+      // Un créneau qui chevauche (ou touche) un créneau déjà choisi le même jour
+      // est fusionné avec lui, pour ne pas demander deux fois la même heure.
+      const touching = timeSlots.filter(
+        slot => slot.day === day && slot.startHour <= newEnd && weeklySlotEnd(slot) >= startHour
       );
 
-      if (!exists) {
-        setTimeSlots([...timeSlots, { day, startHour, endHour }]);
+      if (touching.length === 0) {
+        setTimeSlots([...timeSlots, { day, startHour, endHour, step: slotStep }]);
+      } else {
+        const mergedStart = Math.min(startHour, ...touching.map(s => s.startHour));
+        const mergedEnd = Math.max(newEnd, ...touching.map(weeklySlotEnd));
+        // Pas commun : 30 min dès qu'une borne tombe sur une demi-heure.
+        const mergedStep = Number.isInteger(mergedStart) && Number.isInteger(mergedEnd) ? 1 : 0.5;
+        setTimeSlots([
+          ...timeSlots.filter(slot => !touching.includes(slot)),
+          { day, startHour: mergedStart, endHour: mergedEnd - mergedStep, step: mergedStep },
+        ]);
       }
 
       setSelectionStart(null);
@@ -559,7 +623,7 @@ export default function YearlyReservationModal({
 
   const isSlotSelected = (day: number, hour: number): boolean => {
     return timeSlots.some(
-      slot => slot.day === day && hour >= slot.startHour && hour <= slot.endHour
+      slot => slot.day === day && hour < weeklySlotEnd(slot) && hour + slotStep > slot.startHour
     );
   };
 
@@ -869,6 +933,27 @@ export default function YearlyReservationModal({
                     Sélectionnez les créneaux qui se répéteront chaque semaine
                   </p>
                 </div>
+                <div
+                  className="ml-auto inline-flex rounded-lg border border-slate-200 dark:border-primary-700/60 bg-white dark:bg-primary-800/40 p-1 flex-shrink-0"
+                  role="group"
+                  aria-label="Durée d'un créneau"
+                >
+                  {([1, 0.5] as const).map(value => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => changeSlotStep(value)}
+                      aria-pressed={slotStep === value}
+                      className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                        slotStep === value
+                          ? 'bg-primary-700 text-white shadow-sm'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-primary-900/40'
+                      }`}
+                    >
+                      {value === 1 ? '1 h' : '30 min'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Version mobile : liste par jour */}
@@ -907,7 +992,7 @@ export default function YearlyReservationModal({
                                 : 'border-slate-200 dark:border-primary-700/60 hover:border-primary-400 dark:hover:border-primary-500 active:border-primary-500'
                             }`}
                           >
-                            <div>{hour}:00</div>
+                            <div>{formatHourLabel(hour)}</div>
                             {selected && <div className="text-base leading-none">✓</div>}
                             {occupiedCount > 0 && (
                               <div className="text-[10px] leading-tight font-semibold">
@@ -943,7 +1028,7 @@ export default function YearlyReservationModal({
                     {hours.map((hour) => (
                       <React.Fragment key={hour}>
                         <div className="text-center py-2 text-sm font-bold text-slate-600 dark:text-slate-300 flex items-center justify-center">
-                          {hour}:00
+                          {formatHourLabel(hour)}
                         </div>
                         {weekDays.map((_, dayIndex) => {
                           const selected = isSlotSelected(dayIndex, hour);
@@ -1039,7 +1124,8 @@ export default function YearlyReservationModal({
                         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 bg-slate-50 dark:bg-primary-900/40 rounded-lg px-3 py-2"
                       >
                         <span className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">
-                          {weekDays[range.day]} · {range.startHour}:00 - {range.endHour}:00
+                          {weekDays[range.day]} · {formatHourLabel(range.startHour)} -{' '}
+                          {formatHourLabel(range.endHour)}
                         </span>
                         <span className="text-xs text-slate-600 dark:text-slate-300">
                           {range.approvedDates.size > 0 && (
@@ -1078,7 +1164,7 @@ export default function YearlyReservationModal({
                           className="flex items-center justify-between gap-2 bg-white dark:bg-primary-800 p-2 sm:p-3 rounded-lg"
                         >
                           <span className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white">
-                            {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
+                            {weekDays[slot.day]} : {formatWeeklySlotHours(slot)}
                             {occupiedDates > 0 && (
                               <span className="block text-[11px] font-semibold text-red-700 dark:text-red-300">
                                 ⚠ {occupiedDates} date{occupiedDates > 1 ? 's' : ''} déjà prise
@@ -1207,9 +1293,11 @@ export default function YearlyReservationModal({
                 <div className="bg-slate-50 dark:bg-primary-900/40 rounded-xl p-3 sm:p-4 max-h-[60vh] sm:max-h-96 overflow-y-auto">
                   <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                     {getAffectedDates().slice(0, 50).map((date, index) => {
-                      const isExcluded = excludedDates.some(d => isSameDay(d, date));
                       const publicLabel = getPublicHolidayLabel(date);
                       const schoolLabel = getSchoolBreakLabel(date);
+                      const isExcluded =
+                        excludedDates.some(d => isSameDay(d, date)) ||
+                        (excludeSchoolHolidays && schoolLabel !== null);
                       const isSpecial = publicLabel || schoolLabel;
                       // Date déjà prise sur les créneaux demandés : le demandeur
                       // peut l'exclure tout de suite plutôt qu'au récapitulatif.
@@ -1380,7 +1468,7 @@ export default function YearlyReservationModal({
                   <div className="space-y-1">
                     {timeSlots.map((slot, index) => (
                       <p key={index} className="text-sm text-slate-600 dark:text-slate-300">
-                        • {weekDays[slot.day]} : {slot.startHour}:00 - {slot.endHour + 1}:00
+                        • {weekDays[slot.day]} : {formatWeeklySlotHours(slot)}
                       </p>
                     ))}
                   </div>

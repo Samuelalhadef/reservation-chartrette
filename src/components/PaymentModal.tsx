@@ -102,7 +102,7 @@ export default function PaymentModal({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`/api/reservations/${reservation.id}/payment/refund`, {
+      const response = await fetch(`/api/reservations/${reservation.id}/payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

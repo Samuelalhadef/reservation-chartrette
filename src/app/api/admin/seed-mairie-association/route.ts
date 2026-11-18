@@ -1,9 +1,12 @@
+import { requireAdmin } from '@/lib/requireAdmin';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { associations } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     // Vérifier si l'association "Mairie de Chartrettes" existe déjà
     const existing = await db

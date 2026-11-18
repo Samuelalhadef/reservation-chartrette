@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import { reservations, users, rooms, associations } from '@/lib/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { sendEmail, emailTemplates } from '@/lib/email';
-import { formatDate, formatTimeSlot } from '@/lib/utils';
+import { formatDate, parisDateKey } from '@/lib/utils';
 import { getConventionSettings } from '@/lib/conventionSettings';
 import { getMairieLogoDataUrl, getMairieSignatureDataUrl } from '@/lib/mairieAssets';
 import { generateReservationConventionPDF } from '@/lib/generateReservationConventionPDF';
@@ -88,9 +88,9 @@ export async function decideSingleReservation({
     };
   }
 
-  const timeSlots = (reservation.timeSlots as any)
-    .map((slot: any) => formatTimeSlot(slot.start, slot.end))
-    .join(', ');
+  // Créneaux contigus fusionnés : une réservation de 3 h en pas de 30 min
+  // s'affichait « 18:00 - 18:30, 18:30 - 19:00, … ».
+  const timeSlots = formatHourRanges((reservation.timeSlots as HourSlot[]) ?? []);
 
   // Cas du refus : on prévient l'occupant par email puis on SUPPRIME
   // simplement la demande, afin qu'aucun bloc « Refusée » ne reste affiché
@@ -177,7 +177,7 @@ export async function decideSingleReservation({
       });
 
       const pdfBase64 = pdf.output('datauristring').split(',')[1];
-      const dateStr = new Date(reservation.date).toISOString().slice(0, 10);
+      const dateStr = parisDateKey(reservation.date);
       const safeRoom = room.name.replace(/\s+/g, '_');
       attachments = [
         {

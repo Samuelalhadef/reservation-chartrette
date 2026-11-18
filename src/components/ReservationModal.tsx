@@ -371,9 +371,24 @@ export default function ReservationModal({
         return data;
       });
 
-      await Promise.all(reservationPromises);
+      // allSettled : si une salle échoue, les autres sont déjà créées — il faut
+      // le dire et rafraîchir le calendrier plutôt que de tout présenter en échec.
+      const results = await Promise.allSettled(reservationPromises);
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const errors = results
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .map(r => (r.reason as Error)?.message || 'Erreur lors de la réservation');
 
-      if (selectedRoomIds.length > 1) {
+      if (succeeded === 0) {
+        throw new Error(errors[0] || 'Erreur lors de la réservation');
+      }
+
+      if (errors.length > 0) {
+        alert(
+          `${succeeded} salle(s) réservée(s), ${errors.length} en échec :\n` +
+            errors.map(e => `• ${e}`).join('\n')
+        );
+      } else if (selectedRoomIds.length > 1) {
         alert(`${selectedRoomIds.length} salles réservées avec succès !`);
       }
 

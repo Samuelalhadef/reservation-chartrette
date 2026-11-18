@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/requireAdmin';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { associations } from '@/lib/db/schema';
@@ -276,6 +277,8 @@ const defaultAssociations = [
 ];
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const createdAssociations = [];
     const skippedAssociations = [];

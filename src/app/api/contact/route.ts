@@ -1,3 +1,4 @@
+import { escapeHtml } from '@/lib/email';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendEmail, MAIRIE_EMAIL } from '@/lib/email';
 
@@ -34,13 +35,13 @@ export async function POST(req: NextRequest) {
           <h2 style="color: #2563eb;">Nouveau message de contact</h2>
 
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0 0 10px 0;"><strong>De:</strong> ${name}</p>
-            <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 0 0 10px 0;"><strong>De:</strong> ${escapeHtml(name)}</p>
+            <p style="margin: 0 0 10px 0;"><strong>Email:</strong> ${escapeHtml(email)}</p>
           </div>
 
           <div style="background-color: #ffffff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #374151;">Message:</h3>
-            <p style="color: #4b5563; line-height: 1.6; white-space: pre-wrap;">${message}</p>
+            <p style="color: #4b5563; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(message)}</p>
           </div>
 
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2563eb;">Message bien reçu</h2>
 
-          <p style="color: #374151; line-height: 1.6;">Bonjour ${name},</p>
+          <p style="color: #374151; line-height: 1.6;">Bonjour ${escapeHtml(name)},</p>
 
           <p style="color: #374151; line-height: 1.6;">
             Nous avons bien reçu votre message et nous vous répondrons dans les plus brefs délais.
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
 
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #374151;">Votre message:</h3>
-            <p style="color: #4b5563; line-height: 1.6; white-space: pre-wrap;">${message}</p>
+            <p style="color: #4b5563; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(message)}</p>
           </div>
 
           <p style="color: #374151; line-height: 1.6;">

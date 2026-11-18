@@ -6,7 +6,8 @@ import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/auth';
 import { getUserAssociationIds } from '@/lib/userAssociations';
 import { sendEmail, emailTemplates, MAIRIE_EMAIL } from '@/lib/email';
-import { parseISO } from 'date-fns';
+import { parseISO, isValid } from 'date-fns';
+import { formatWeeklySlotHours, normalizeWeeklySlots } from '@/lib/utils';
 import {
   WEEK_DAYS,
   computeValidDates,
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
       roomId,
       startDate,
       endDate,
-      timeSlots,
+      timeSlots: rawTimeSlots,
       reason,
       estimatedParticipants,
       excludeSchoolHolidays,
@@ -40,9 +41,45 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // Validation
-    if (!roomId || !startDate || !endDate || !timeSlots || timeSlots.length === 0) {
+    if (!roomId || !startDate || !endDate || !rawTimeSlots || rawTimeSlots.length === 0) {
       return NextResponse.json(
         { error: 'Tous les champs sont requis' },
+        { status: 400 }
+      );
+    }
+
+    const timeSlots = normalizeWeeklySlots(rawTimeSlots);
+    if (!timeSlots) {
+      return NextResponse.json({ error: 'Créneaux horaires invalides' }, { status: 400 });
+    }
+
+    if (!isValid(parseISO(startDate)) || !isValid(parseISO(endDate)) || parseISO(startDate) > parseISO(endDate)) {
+      return NextResponse.json({ error: 'Période invalide' }, { status: 400 });
+    }
+
+    // Pas de date passée, et au plus ~13 mois (une saison + marge) pour ne pas
+    // générer des milliers de lignes sur une borne de fin aberrante.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (parseISO(startDate) < today) {
+      return NextResponse.json(
+        { error: 'La période ne peut pas commencer dans le passé' },
+        { status: 400 }
+      );
+    }
+    const maxEnd = parseISO(startDate);
+    maxEnd.setMonth(maxEnd.getMonth() + 13);
+    if (parseISO(endDate) > maxEnd) {
+      return NextResponse.json(
+        { error: 'La période ne peut pas dépasser un an' },
+        { status: 400 }
+      );
+    }
+
+    const participants = Number(estimatedParticipants);
+    if (!reason || typeof reason !== 'string' || !Number.isInteger(participants) || participants < 1) {
+      return NextResponse.json(
+        { error: 'Le motif et le nombre de participants sont requis' },
         { status: 400 }
       );
     }
@@ -51,6 +88,14 @@ export async function POST(req: NextRequest) {
     const room = await db.select().from(rooms).where(eq(rooms.id, roomId)).limit(1);
     if (room.length === 0) {
       return NextResponse.json({ error: 'Salle non trouvée' }, { status: 404 });
+    }
+
+    // Salle désactivée : plus réservable, sauf par un administrateur.
+    if (session.user?.role !== 'admin' && !room[0].isActive) {
+      return NextResponse.json(
+        { error: "Cette salle n'est pas ouverte à la réservation" },
+        { status: 400 }
+      );
     }
 
     // Récupérer l'utilisateur
@@ -104,6 +149,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Association non trouvée' },
         { status: 404 }
+      );
+    }
+
+    // Convention annuelle obligatoire pour un membre (la modale la fait signer
+    // avant l'envoi ; un appel direct à l'API ne doit pas la contourner).
+    if (session.user?.role !== 'admin' && !association.yearlyConventionSignedAt) {
+      return NextResponse.json(
+        { error: "La convention annuelle de l'association doit être signée avant de réserver" },
+        { status: 400 }
       );
     }
 
@@ -168,7 +222,7 @@ export async function POST(req: NextRequest) {
             date: date,
             timeSlots: formattedTimeSlots,
             reason: reason,
-            estimatedParticipants: estimatedParticipants,
+            estimatedParticipants: participants,
             requiredEquipment: [],
             status: reservationStatus,
             // For admin, set review info immediately
@@ -196,10 +250,10 @@ export async function POST(req: NextRequest) {
 
       // Créneaux hebdomadaires récurrents, triés par jour puis par heure.
       const weeklySummaryHtml = [...timeSlots]
-        .sort((a: any, b: any) => a.day - b.day || a.startHour - b.startHour)
+        .sort((a, b) => a.day - b.day || a.startHour - b.startHour)
         .map(
-          (slot: any) =>
-            `<li><strong>${WEEK_DAYS[slot.day] ?? 'Jour ' + slot.day}</strong> : ${slot.startHour}:00 - ${slot.endHour + 1}:00</li>`
+          (slot) =>
+            `<li><strong>${WEEK_DAYS[slot.day] ?? 'Jour ' + slot.day}</strong> : ${formatWeeklySlotHours(slot)}</li>`
         )
         .join('');
 

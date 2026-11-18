@@ -2,7 +2,8 @@ import { db } from '@/lib/db';
 import { reservations, associations } from '@/lib/db/schema';
 import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { eachDayOfInterval, getDay, isSameDay, parseISO } from 'date-fns';
-import { parseHourFraction } from '@/lib/utils';
+import { formatHourLabel, formatWeeklySlotHours, parseHourFraction } from '@/lib/utils';
+import { getSchoolBreakLabel } from '@/lib/frenchHolidays';
 import {
   BLOCKING_STATUSES,
   formatFrDate,
@@ -18,8 +19,9 @@ export type { HourSlot };
 /** Créneau hebdomadaire récurrent saisi dans la modale de réservation à l'année. */
 export interface WeeklyTimeSlot {
   day: number; // 0 = dimanche, comme getDay()
-  startHour: number;
-  endHour: number; // inclus (16 => la plage se termine à 17:00)
+  startHour: number; // 14.5 => 14:30
+  endHour: number; // début du dernier créneau, inclus (16 en pas 1 h => fin à 17:00)
+  step?: number; // durée d'un créneau : 1 (défaut) ou 0.5
 }
 
 /** Un conflit détecté entre une date demandée et une réservation existante. */
@@ -34,31 +36,13 @@ export interface YearlyConflict {
 // Jours de la semaine (index 0 = dimanche, comme getDay()).
 export const WEEK_DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
-// Périodes de vacances scolaires françaises (à personnaliser selon la zone)
-const SCHOOL_HOLIDAYS_2024_2025 = [
-  { start: '2024-10-19', end: '2024-11-03' }, // Toussaint
-  { start: '2024-12-21', end: '2025-01-05' }, // Noël
-  { start: '2025-02-08', end: '2025-02-23' }, // Hiver
-  { start: '2025-04-05', end: '2025-04-21' }, // Printemps
-  { start: '2025-07-05', end: '2025-08-31' }, // Été
-];
-
-const SCHOOL_HOLIDAYS_2025_2026 = [
-  { start: '2025-10-18', end: '2025-11-02' }, // Toussaint
-  { start: '2025-12-20', end: '2026-01-04' }, // Noël
-  { start: '2026-02-07', end: '2026-02-22' }, // Hiver
-  { start: '2026-04-04', end: '2026-04-20' }, // Printemps
-  { start: '2026-07-04', end: '2026-08-31' }, // Été
-];
-
+/**
+ * Vacances scolaires zone C : même source que l'aperçu affiché dans la modale
+ * (src/lib/frenchHolidays.ts), pour que les dates exclues côté serveur soient
+ * exactement celles que le demandeur voit à l'écran.
+ */
 export function isSchoolHoliday(date: Date): boolean {
-  const allHolidays = [...SCHOOL_HOLIDAYS_2024_2025, ...SCHOOL_HOLIDAYS_2025_2026];
-
-  return allHolidays.some(holiday => {
-    const start = parseISO(holiday.start);
-    const end = parseISO(holiday.end);
-    return date >= start && date <= end;
-  });
+  return getSchoolBreakLabel(date) !== null;
 }
 
 /**
@@ -101,14 +85,16 @@ export function getSlotsForDate(timeSlots: WeeklyTimeSlot[], date: Date) {
   const daySlots = timeSlots.filter(slot => slot.day === getDay(date));
 
   // Libellé lisible des plages horaires de ce jour (ex. "10:00 - 12:00, 14:00 - 16:00")
-  const hoursLabel = daySlots
-    .map(slot => `${slot.startHour}:00 - ${slot.endHour + 1}:00`)
+  const hoursLabel = [...daySlots]
+    .sort((a, b) => a.startHour - b.startHour)
+    .map(formatWeeklySlotHours)
     .join(', ');
 
   const hourSlots: HourSlot[] = [];
   for (const slot of daySlots) {
-    for (let hour = slot.startHour; hour <= slot.endHour; hour++) {
-      hourSlots.push({ start: `${hour}:00`, end: `${hour + 1}:00` });
+    const step = slot.step ?? 1;
+    for (let hour = slot.startHour; hour <= slot.endHour; hour += step) {
+      hourSlots.push({ start: formatHourLabel(hour), end: formatHourLabel(hour + step) });
     }
   }
 
@@ -223,7 +209,7 @@ export interface OccupiedDate {
  */
 export interface OccupancyCell {
   day: number; // 0 = dimanche, comme getDay()
-  hour: number; // heure de début (18 => 18:00 - 19:00)
+  hour: number; // début de la demi-heure (18.5 => 18:30 - 19:00)
   approved: number; // dates déjà validées par la mairie
   pending: number; // demandes en cours de validation
   dates: OccupiedDate[];
@@ -288,10 +274,10 @@ export async function getWeeklyOccupancy(params: {
     };
 
     for (const slot of slots) {
-      // Un créneau de 30 min marque toute la case horaire qu'il touche.
-      const start = Math.floor(parseHourFraction(slot.start));
-      const end = Math.ceil(parseHourFraction(slot.end));
-      for (let hour = start; hour < end; hour++) {
+      // Cases d'une demi-heure : la grille 1 h les regroupe côté client.
+      const start = Math.floor(parseHourFraction(slot.start) * 2) / 2;
+      const end = Math.ceil(parseHourFraction(slot.end) * 2) / 2;
+      for (let hour = start; hour < end; hour += 0.5) {
         const key = `${dayOfWeek}|${hour}`;
         const cell = cells.get(key) ?? { day: dayOfWeek, hour, approved: 0, pending: 0, dates: [] };
         // Une réservation couvrant plusieurs heures ne compte qu'une fois par case.

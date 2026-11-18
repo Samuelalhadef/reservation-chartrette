@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/requireAdmin';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { associations, users } from '@/lib/db/schema';
@@ -5,6 +6,12 @@ import { eq, sql } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
 export async function POST(req: NextRequest) {
+  // Crée des comptes aux mots de passe connus : jamais en production.
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
+  }
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     // Créer ou récupérer l'association de test
     let testAssociation = await db

@@ -1,9 +1,12 @@
+import { requireAdmin } from '@/lib/requireAdmin';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { buildings, rooms, reservations } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const { buildingId, buildingName } = await req.json();
 

@@ -6,22 +6,28 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(date: Date | string): string {
-  // Les dates de réservation sont stockées à minuit UTC (ex. "2026-06-18").
-  // Si on formate avec le fuseau local du serveur (souvent décalé de l'UTC),
-  // minuit UTC peut basculer sur la veille → on force donc l'UTC pour
-  // toujours afficher le jour calendaire réellement réservé.
+  // Les réservations ponctuelles sont stockées à minuit UTC ("2026-06-18"),
+  // les réservations à l'année à minuit heure de Paris (22h/23h UTC la veille).
+  // Lire la date à l'heure de Paris donne le bon jour dans les deux cas ; la
+  // lire en UTC affichait la veille pour toutes les réservations à l'année.
   const d = new Date(date);
   return d.toLocaleDateString('fr-FR', {
-    timeZone: 'UTC',
+    timeZone: 'Europe/Paris',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
 }
 
+/** Jour calendaire parisien au format YYYY-MM-DD (noms de fichiers, clés). */
+export function parisDateKey(date: Date | string): string {
+  return new Date(date).toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+}
+
 export function formatDateTime(date: Date | string): string {
   const d = new Date(date);
   return d.toLocaleDateString('fr-FR', {
+    timeZone: 'Europe/Paris',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -45,6 +51,53 @@ export function formatHourLabel(hour: number): string {
   const h = Math.floor(hour);
   const m = Math.round((hour - h) * 60);
   return `${h}:${m.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Créneau hebdomadaire d'une réservation à l'année. `endHour` est le début du
+ * dernier créneau (inclus) ; `step` est la durée d'un créneau (1 h ou 0,5 h,
+ * 1 h par défaut pour les anciennes demandes).
+ */
+export interface WeeklySlotLike {
+  day: number;
+  startHour: number;
+  endHour: number;
+  step?: number;
+}
+
+/** Heure de fin réelle d'un créneau hebdomadaire (ex. 16 + 1 => 17). */
+export function weeklySlotEnd(slot: WeeklySlotLike): number {
+  return slot.endHour + (slot.step ?? 1);
+}
+
+/** "14:30 - 16:00" */
+export function formatWeeklySlotHours(slot: WeeklySlotLike): string {
+  return `${formatHourLabel(slot.startHour)} - ${formatHourLabel(weeklySlotEnd(slot))}`;
+}
+
+/**
+ * Valide et normalise les créneaux hebdomadaires reçus d'un client. Renvoie
+ * null si un créneau est incohérent (jour hors 0-6, heures hors grille, pas
+ * autre que 1 h / 30 min, bornes non alignées sur le pas).
+ */
+export function normalizeWeeklySlots(input: unknown): WeeklySlotLike[] | null {
+  if (!Array.isArray(input) || input.length === 0) return null;
+  const out: WeeklySlotLike[] = [];
+  for (const raw of input) {
+    const day = Number(raw?.day);
+    const startHour = Number(raw?.startHour);
+    const endHour = Number(raw?.endHour);
+    const step = raw?.step === undefined || raw?.step === null ? 1 : Number(raw.step);
+    if (!Number.isInteger(day) || day < 0 || day > 6) return null;
+    if (step !== 1 && step !== 0.5) return null;
+    if (!Number.isFinite(startHour) || !Number.isFinite(endHour)) return null;
+    if (startHour < 0 || endHour < startHour || endHour + step > 24) return null;
+    // Bornes alignées sur le pas (8, 8.5... en 30 min ; entiers en 1 h)
+    if (Math.round(startHour / step) * step !== startHour) return null;
+    if (Math.round(endHour / step) * step !== endHour) return null;
+    out.push({ day, startHour, endHour, step });
+  }
+  return out;
 }
 
 /** 1.5 -> "1h30", 2 -> "2h" */

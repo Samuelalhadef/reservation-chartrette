@@ -220,25 +220,31 @@ export default function AdminReservationsPage() {
           Math.abs(new Date(r.createdAt).getTime() - new Date(reservation.createdAt).getTime()) < 60000
         );
 
-        // Traiter toutes les réservations en parallèle
-        const promises = relatedReservations.map(r =>
-          fetch(`/api/reservations/${r.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              status: action,
-              adminComment: comment.trim() || undefined,
-            }),
-          })
-        );
+        // Seules les dates encore en attente sont traitées (les autres ont
+        // déjà une décision) et en un seul appel groupé : l'occupant reçoit
+        // un e-mail récapitulatif au lieu d'un e-mail par date.
+        const pendingIds = relatedReservations.filter(r => r.status === 'pending').map(r => r.id);
+        if (pendingIds.length === 0) {
+          alert("Aucune date de cette série n'est encore en attente");
+          return;
+        }
 
-        const results = await Promise.all(promises);
-        const failed = results.filter(r => !r.ok);
+        const res = await fetch('/api/admin/pending-requests/decide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            adminComment: comment.trim() || undefined,
+            requests: [{ key: reservationId, ids: pendingIds }],
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        const result = data.results?.[0];
 
-        if (failed.length > 0) {
-          alert(`${failed.length} réservation(s) n'ont pas pu être traitées`);
+        if (!res.ok || !result?.ok) {
+          alert(data.error || result?.error || "La série n'a pas pu être traitée");
         } else {
-          alert(`${relatedReservations.length} réservations ${action === 'approved' ? 'approuvées' : 'refusées'} avec succès`);
+          alert(`${result.processed} réservation(s) ${action === 'approved' ? 'approuvée(s)' : 'refusée(s)'} avec succès`);
         }
       } else {
         const res = await fetch(`/api/reservations/${reservationId}`, {

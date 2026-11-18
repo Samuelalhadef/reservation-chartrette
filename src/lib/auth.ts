@@ -4,7 +4,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -26,7 +26,7 @@ export const authOptions: NextAuthOptions = {
         const [user] = await db
           .select()
           .from(users)
-          .where(eq(users.email, credentials.email))
+          .where(sql`lower(${users.email}) = ${credentials.email.trim().toLowerCase()}`)
           .limit(1);
 
         if (!user || !user.password) {
@@ -95,9 +95,35 @@ export const authOptions: NextAuthOptions = {
         token.associationId = (user as any).associationId;
       }
 
-      // Allow updating session
-      if (trigger === 'update' && session) {
-        token = { ...token, ...session };
+      // Rôle et association relus en base (jamais depuis le navigateur : les
+      // données de `update()` viennent du client et permettaient de se donner
+      // le rôle admin). Rafraîchis à la demande et au plus toutes les 5 min,
+      // pour qu'un compte rétrogradé perde ses droits sans attendre 30 jours.
+      const now = Date.now();
+      const stale = !token.refreshedAt || now - (token.refreshedAt as number) > 5 * 60 * 1000;
+      if (token.id && !user && (trigger === 'update' || stale)) {
+        void session; // les données envoyées par le client sont ignorées
+        try {
+          const [fresh] = await db
+            .select({ role: users.role, associationId: users.associationId, name: users.name })
+            .from(users)
+            .where(eq(users.id, token.id as string))
+            .limit(1);
+          if (fresh) {
+            token.role = fresh.role;
+            token.associationId = fresh.associationId;
+            if (fresh.name) token.name = fresh.name;
+          } else {
+            // Compte supprimé : plus aucun droit.
+            token.role = 'user';
+            token.associationId = null;
+          }
+          token.refreshedAt = now;
+        } catch (error) {
+          console.error('Rafraîchissement de la session impossible:', error);
+        }
+      } else if (user) {
+        token.refreshedAt = now;
       }
 
       return token;

@@ -38,12 +38,19 @@ export const AMBER_700: RGB = [180, 83, 9];
 
 export function fmtShortDate(d: Date | string): string {
   const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toLocaleDateString('fr-FR');
+  // PDF généré dans le navigateur : on fixe le fuseau pour ne pas dépendre
+  // de celui du poste (les dates annuelles sont stockées à minuit Paris).
+  return date.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
 }
 
 export function fmtLongDate(d: Date | string): string {
   const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  return date.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/Paris',
+  });
 }
 
 /** Identité de la mairie affichée dans l'en-tête et le pied de page. */

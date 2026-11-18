@@ -7,6 +7,7 @@ import Button from '@/components/Button';
 import Input from '@/components/Input';
 import { Calendar, Clock, Users, FileText } from 'lucide-react';
 import { generateTimeSlots } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface Room {
   id: string;
@@ -235,7 +236,7 @@ export default function NewReservationPage() {
     minDate.setDate(minDate.getDate() + 1);
   }
 
-  const minDateStr = minDate.toISOString().split('T')[0];
+  const minDateStr = format(minDate, 'yyyy-MM-dd');
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

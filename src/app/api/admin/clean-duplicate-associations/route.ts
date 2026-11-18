@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/requireAdmin';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { associations, users, reservations } from '@/lib/db/schema';
@@ -15,6 +16,8 @@ function normalizeName(name: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const allAssociations = await db.select().from(associations).orderBy(associations.name);
 

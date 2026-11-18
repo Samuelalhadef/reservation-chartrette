@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parisDateKey } from '@/lib/utils';
 import AssociationInfoCard from '@/components/AssociationInfoCard';
 
 interface Document {
@@ -247,7 +248,7 @@ export default function ProfilePage() {
       });
       const safeName = (doc.roomName || 'salle').replace(/\s+/g, '_');
       const dateStr = doc.reservationDate
-        ? new Date(doc.reservationDate).toISOString().slice(0, 10)
+        ? parisDateKey(doc.reservationDate)
         : 'sansdate';
       pdf.save(`convention_${safeName}_${dateStr}.pdf`);
     } catch (err) {

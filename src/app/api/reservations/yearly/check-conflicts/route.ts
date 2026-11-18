@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { computeValidDates, findYearlyConflicts } from '@/lib/yearlyReservations';
+import { normalizeWeeklySlots } from '@/lib/utils';
 
 /**
  * Vérifie, avant toute création, si une réservation à l'année entre en conflit
@@ -21,13 +22,18 @@ export async function POST(req: NextRequest) {
       roomId,
       startDate,
       endDate,
-      timeSlots,
+      timeSlots: rawTimeSlots,
       excludeSchoolHolidays,
       excludedDates,
     } = await req.json();
 
-    if (!roomId || !startDate || !endDate || !timeSlots || timeSlots.length === 0) {
+    if (!roomId || !startDate || !endDate || !rawTimeSlots || rawTimeSlots.length === 0) {
       return NextResponse.json({ error: 'Tous les champs sont requis' }, { status: 400 });
+    }
+
+    const timeSlots = normalizeWeeklySlots(rawTimeSlots);
+    if (!timeSlots) {
+      return NextResponse.json({ error: 'Créneaux horaires invalides' }, { status: 400 });
     }
 
     const validDates = computeValidDates({

@@ -79,16 +79,16 @@ const SCHOOL_BREAKS_ZONE_C: SchoolBreak[] = [
   // Année scolaire 2025-2026
   { start: new Date(2025, 9, 18), end: new Date(2025, 10, 3), label: 'Toussaint 2025' },
   { start: new Date(2025, 11, 20), end: new Date(2026, 0, 5), label: 'Noël 2025' },
-  { start: new Date(2026, 1, 14), end: new Date(2026, 2, 2), label: 'Hiver 2026' },
-  { start: new Date(2026, 3, 11), end: new Date(2026, 3, 27), label: 'Printemps 2026' },
+  { start: new Date(2026, 1, 21), end: new Date(2026, 2, 9), label: 'Hiver 2026' },
+  { start: new Date(2026, 3, 18), end: new Date(2026, 4, 4), label: 'Printemps 2026' },
   { start: new Date(2026, 4, 14), end: new Date(2026, 4, 18), label: "Pont de l'Ascension 2026" },
   { start: new Date(2026, 6, 4), end: new Date(2026, 8, 1), label: 'Été 2026' },
 
   // Année scolaire 2026-2027
   { start: new Date(2026, 9, 17), end: new Date(2026, 10, 2), label: 'Toussaint 2026' },
   { start: new Date(2026, 11, 19), end: new Date(2027, 0, 4), label: 'Noël 2026' },
-  { start: new Date(2027, 1, 13), end: new Date(2027, 2, 1), label: 'Hiver 2027' },
-  { start: new Date(2027, 3, 10), end: new Date(2027, 3, 26), label: 'Printemps 2027' },
+  { start: new Date(2027, 1, 6), end: new Date(2027, 1, 22), label: 'Hiver 2027' },
+  { start: new Date(2027, 3, 3), end: new Date(2027, 3, 19), label: 'Printemps 2027' },
   { start: new Date(2027, 4, 6), end: new Date(2027, 4, 10), label: "Pont de l'Ascension 2027" },
   { start: new Date(2027, 6, 3), end: new Date(2027, 8, 1), label: 'Été 2027' },
 ];

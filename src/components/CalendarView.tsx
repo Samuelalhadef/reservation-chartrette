@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Users, Clock, X, CheckCircle, XCircle } from 'lucide-react';
-import { formatTimeSlot, formatDate } from '@/lib/utils';
+import { formatTimeSlot, formatDate, formatHourLabel, parseHourFraction } from '@/lib/utils';
 
 interface Reservation {
   id: string;
@@ -31,7 +31,30 @@ interface CalendarViewProps {
   onReject: (reservationId: string) => void;
 }
 
-type CalendarMode = 'week' | 'month';
+type CalendarMode = 'day' | 'week' | 'month';
+
+// Chronologie du jour : de 8h à minuit, une ligne par heure.
+const TIMELINE_START = 8;
+const TIMELINE_END = 24;
+const HOUR_HEIGHT = 56; // px par heure
+
+/** Heure de début d'une réservation (8.5 = 8:30), pour le tri chronologique. */
+const startHourOf = (r: { timeSlots: { start: string; end: string }[] }) =>
+  r.timeSlots?.length ? Math.min(...r.timeSlots.map((s) => parseHourFraction(s.start))) : 0;
+
+/** Plages contiguës d'une réservation ([début, fin] en heures décimales). */
+const rangesOf = (r: { timeSlots: { start: string; end: string }[] }): [number, number][] => {
+  const bounds = (r.timeSlots ?? [])
+    .map((s) => [parseHourFraction(s.start), parseHourFraction(s.end)] as [number, number])
+    .sort((a, b) => a[0] - b[0]);
+  const ranges: [number, number][] = [];
+  for (const [start, end] of bounds) {
+    const last = ranges[ranges.length - 1];
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else ranges.push([start, end]);
+  }
+  return ranges;
+};
 
 // Format YYYY-MM-DD sans décalage de fuseau horaire
 const toDateKey = (date: Date) => {
@@ -43,6 +66,11 @@ const toDateKey = (date: Date) => {
 
 export default function CalendarView({ reservations, rooms, onApprove, onReject }: CalendarViewProps) {
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('week');
+  // Jour affiché dans la chronologie heure par heure
+  const [currentDay, setCurrentDay] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const now = new Date();
     const day = now.getDay();
@@ -91,7 +119,9 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
 
   // ---- Navigation ----------------------------------------------------------
   const goToPrevious = () => {
-    if (calendarMode === 'week') {
+    if (calendarMode === 'day') {
+      setCurrentDay(new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate() - 1));
+    } else if (calendarMode === 'week') {
       const d = new Date(currentWeekStart);
       d.setDate(d.getDate() - 7);
       setCurrentWeekStart(d);
@@ -100,7 +130,9 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     }
   };
   const goToNext = () => {
-    if (calendarMode === 'week') {
+    if (calendarMode === 'day') {
+      setCurrentDay(new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate() + 1));
+    } else if (calendarMode === 'week') {
       const d = new Date(currentWeekStart);
       d.setDate(d.getDate() + 7);
       setCurrentWeekStart(d);
@@ -114,6 +146,13 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     const diff = now.getDate() - day + (day === 0 ? -6 : 1);
     setCurrentWeekStart(new Date(new Date(now).setDate(diff)));
     setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    setCurrentDay(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+  };
+
+  // Ouvre la chronologie heure par heure d'un jour donné (clic sur un jour).
+  const openDay = (date: Date) => {
+    setCurrentDay(new Date(date.getFullYear(), date.getMonth(), date.getDate()));
+    setCalendarMode('day');
   };
 
   // ---- Filtrage des réservations (on ignore rejetées et annulées) ----------
@@ -123,14 +162,17 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
 
   const getForRoomAndDay = (roomId: string, date: Date) => {
     const key = toDateKey(date);
-    return visibleReservations.filter(
-      (r) => r.roomId.id === roomId && toDateKey(new Date(r.date)) === key
-    );
+    return visibleReservations
+      .filter((r) => r.roomId.id === roomId && toDateKey(new Date(r.date)) === key)
+      .sort((a, b) => startHourOf(a) - startHourOf(b));
   };
 
+  // Ordre chronologique (heure de début), puis par salle.
   const getForDay = (date: Date) => {
     const key = toDateKey(date);
-    return visibleReservations.filter((r) => toDateKey(new Date(r.date)) === key);
+    return visibleReservations
+      .filter((r) => toDateKey(new Date(r.date)) === key)
+      .sort((a, b) => startHourOf(a) - startHourOf(b) || a.roomId.name.localeCompare(b.roomId.name));
   };
 
   // ---- Helpers d'affichage -------------------------------------------------
@@ -155,6 +197,15 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
     const start = weekDays[0];
     const end = weekDays[6];
     return `${start.getDate()} ${start.toLocaleDateString('fr-FR', { month: 'short' })} - ${end.getDate()} ${end.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}`;
+  };
+  const formatDayLabel = () => {
+    const label = currentDay.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    return label.charAt(0).toUpperCase() + label.slice(1);
   };
   const formatMonthLabel = () => {
     const label = currentMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -195,12 +246,16 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
         </div>
 
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-          {calendarMode === 'week' ? formatWeekRange() : formatMonthLabel()}
+          {calendarMode === 'day'
+            ? formatDayLabel()
+            : calendarMode === 'week'
+            ? formatWeekRange()
+            : formatMonthLabel()}
         </h2>
 
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-slate-200 dark:border-primary-700/60 overflow-hidden">
-            {(['week', 'month'] as const).map((mode) => (
+            {(['day', 'week', 'month'] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setCalendarMode(mode)}
@@ -210,7 +265,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                     : 'bg-white dark:bg-primary-800/40 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-primary-900/40'
                 }`}
               >
-                {mode === 'week' ? 'Semaine' : 'Mois'}
+                {mode === 'day' ? 'Jour' : mode === 'week' ? 'Semaine' : 'Mois'}
               </button>
             ))}
           </div>
@@ -223,8 +278,102 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
         </div>
       </div>
 
-      {/* ---- Vue Semaine : grille salles × jours ---- */}
-      {calendarMode === 'week' ? (
+      {/* ---- Vue Jour : chronologie heure par heure, une colonne par salle ---- */}
+      {calendarMode === 'day' ? (
+        <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: `${64 + Math.max(rooms.length, 1) * 140}px` }}>
+              {/* En-tête : salles */}
+              <div
+                className="grid bg-slate-50 dark:bg-primary-900/40 border-b border-slate-200 dark:border-primary-700/60"
+                style={{ gridTemplateColumns: `64px repeat(${Math.max(rooms.length, 1)}, minmax(140px, 1fr))` }}
+              >
+                <div className="px-2 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-primary-700/60">
+                  Heure
+                </div>
+                {rooms.map((room) => (
+                  <div
+                    key={room.id}
+                    className="px-2 py-3 text-sm font-semibold text-center text-slate-900 dark:text-white border-r border-slate-200 dark:border-primary-700/60 last:border-r-0 truncate"
+                  >
+                    {room.name}
+                  </div>
+                ))}
+              </div>
+
+              {/* Corps : graduation horaire + réservations positionnées */}
+              <div
+                className="grid relative"
+                style={{ gridTemplateColumns: `64px repeat(${Math.max(rooms.length, 1)}, minmax(140px, 1fr))` }}
+              >
+                <div className="border-r border-slate-200 dark:border-primary-700/60">
+                  {Array.from({ length: TIMELINE_END - TIMELINE_START }, (_, i) => TIMELINE_START + i).map((hour) => (
+                    <div
+                      key={hour}
+                      style={{ height: HOUR_HEIGHT }}
+                      className="px-2 -mt-px text-[11px] font-semibold text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-primary-700/60"
+                    >
+                      {formatHourLabel(hour)}
+                    </div>
+                  ))}
+                </div>
+
+                {rooms.map((room) => (
+                  <div
+                    key={room.id}
+                    className="relative border-r border-slate-200 dark:border-primary-700/60 last:border-r-0"
+                    style={{ height: (TIMELINE_END - TIMELINE_START) * HOUR_HEIGHT }}
+                  >
+                    {/* Lignes des heures et demi-heures */}
+                    {Array.from({ length: (TIMELINE_END - TIMELINE_START) * 2 }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`absolute left-0 right-0 border-t ${
+                          i % 2 === 0
+                            ? 'border-slate-200 dark:border-primary-700/60'
+                            : 'border-dashed border-slate-100 dark:border-primary-800/60'
+                        }`}
+                        style={{ top: (i * HOUR_HEIGHT) / 2 }}
+                      />
+                    ))}
+
+                    {getForRoomAndDay(room.id, currentDay).flatMap((r) =>
+                      rangesOf(r).map(([start, end], idx) => {
+                        const top = (Math.max(start, TIMELINE_START) - TIMELINE_START) * HOUR_HEIGHT;
+                        const height = Math.max(
+                          (Math.min(end, TIMELINE_END) - Math.max(start, TIMELINE_START)) * HOUR_HEIGHT,
+                          18
+                        );
+                        return (
+                          <button
+                            key={`${r.id}-${idx}`}
+                            type="button"
+                            onClick={() => setSelected(r)}
+                            title={`${r.associationId.name} — ${formatHourLabel(start)}–${formatHourLabel(end)}`}
+                            className={`absolute left-1 right-1 rounded-md px-1.5 py-1 text-left text-[11px] leading-tight font-medium overflow-hidden shadow-sm transition-colors ${chipClass(r.status)}`}
+                            style={{ top, height }}
+                          >
+                            <span className="block font-semibold">
+                              {formatHourLabel(start)}–{formatHourLabel(end)}
+                            </span>
+                            <span className="block truncate">{r.associationId.name}</span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          {getForDay(currentDay).length === 0 && (
+            <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-primary-700/60">
+              Aucune réservation ce jour-là.
+            </p>
+          )}
+        </div>
+      ) : calendarMode === 'week' ? (
+        /* ---- Vue Semaine : grille salles × jours ---- */
         <div className="bg-white dark:bg-primary-800/40 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <div className="min-w-[860px]">
@@ -234,9 +383,12 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                   Salles
                 </div>
                 {weekDays.map((day, i) => (
-                  <div
+                  <button
                     key={i}
-                    className={`px-2 py-2 text-center border-r border-slate-200 dark:border-primary-700/60 last:border-r-0 ${
+                    type="button"
+                    onClick={() => openDay(day)}
+                    title="Voir la chronologie heure par heure"
+                    className={`px-2 py-2 text-center border-r border-slate-200 dark:border-primary-700/60 last:border-r-0 hover:bg-slate-100 dark:hover:bg-primary-900/40 transition-colors ${
                       isToday(day) ? 'bg-primary-50 dark:bg-accent-500/10' : ''
                     }`}
                   >
@@ -246,7 +398,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                     <div className={`text-lg font-bold leading-tight ${isToday(day) ? 'text-primary-700 dark:text-accent-300' : 'text-slate-900 dark:text-white'}`}>
                       {day.getDate()}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
 
@@ -309,8 +461,11 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                       : ''
                   }`}
                 >
-                  <div
-                    className={`text-xs font-semibold ${
+                  <button
+                    type="button"
+                    onClick={() => openDay(day)}
+                    title="Voir la chronologie heure par heure"
+                    className={`self-start rounded px-1 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-primary-900/40 ${
                       isToday(day)
                         ? 'text-primary-700 dark:text-accent-300'
                         : isCurrentMonth(day)
@@ -319,7 +474,7 @@ export default function CalendarView({ reservations, rooms, onApprove, onReject 
                     }`}
                   >
                     {day.getDate()}
-                  </div>
+                  </button>
                   {visible.map((r) => (
                     <ReservationChip key={r.id} r={r} showRoom />
                   ))}

@@ -22,6 +22,7 @@ import { format } from 'date-fns';
 import type { ConventionSchedule } from '@/lib/conventionSlots';
 import { fetchImageDataUrl, MAIRIE_LOGO_URL, MAIRIE_SIGNATURE_URL } from '@/lib/imageDataUrl';
 import { fetchConventionTemplates } from '@/lib/conventionTemplatesClient';
+import { parisDateKey } from '@/lib/utils';
 import { fr } from 'date-fns/locale';
 
 type ConventionType = 'ponctuelle' | 'annuelle';
@@ -354,7 +355,7 @@ export default function AdminConventionsPage() {
       });
       const safeName = item.signerName.replace(/\s+/g, '_');
       const dateStr = item.reservationDate
-        ? new Date(item.reservationDate).toISOString().slice(0, 10)
+        ? parisDateKey(item.reservationDate)
         : 'sansdate';
       pdf.save(`convention_${safeName}_${dateStr}.pdf`);
     } catch (err) {
